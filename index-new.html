@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>リフォーム見積・会計アプリ</title>
+  
+  <!-- PWA設定 -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#3b82f6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="リフォーム見積">
+  
+  <!-- プルトゥリフレッシュ無効化 -->
+  <style>
+    html, body {
+      overscroll-behavior-y: contain;
+    }
+  </style>
+  <link rel="apple-touch-icon" href="icon-192.png">
+  
+  <!-- Tesseract.js OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  
+  <!-- jsPDF for PDF出力 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  
+  <!-- SheetJS for Excel出力 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  
+  <!-- 外部CSS -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- COCOMI COREスプラッシュ（1段階目） -->
+  <div id="cocomi-splash">
+    <div class="cocomi-glow"></div>
+    <div class="cocomi-title">COCOMI CORE</div>
+    <div class="cocomi-philosophy">
+      想いが構造になり、<br>
+      構造が証明になる。
+    </div>
+    <div class="cocomi-loader">
+      <div class="cocomi-dot"></div>
+      <div class="cocomi-dot"></div>
+      <div class="cocomi-dot"></div>
+    </div>
+  </div>
+
+  <!-- スプラッシュ画面（2段階目） -->
+  <div id="splash-screen">
+    <div class="splash-icon">🔧</div>
+    <div class="splash-title">リフォーム見積・会計</div>
+    <div class="splash-subtitle">COCOMI CORE</div>
+    <div class="splash-subtitle" style="font-size: 12px; opacity: 0.8;">Powered by COCOMI OS</div>
+    <div style="margin-top: 12px; padding: 6px 20px; background: rgba(255,255,255,0.2); border-radius: 20px; display: inline-block;">
+      <span style="color: white; font-size: 14px; font-weight: bold;">Version 0.90</span>
+    </div>
+    <div class="splash-subtitle" style="font-size: 10px; opacity: 0.6; margin-top: 12px;">Since 2025</div>
+    <div class="splash-loading"></div>
+  </div>
+
+  <!-- パスワード入力画面（ロック画面） -->
+  <div id="lock-screen" class="ocr-loading hidden" style="background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); z-index: 9998;">
+    <div style="background: white; border-radius: 20px; padding: 30px; width: 85%; max-width: 350px; text-align: center;">
+      <div style="font-size: 50px; margin-bottom: 16px;">🔒</div>
+      <h2 style="margin: 0 0 8px 0; font-size: 20px;">パスワード入力</h2>
+      <p style="font-size: 13px; color: #6b7280; margin-bottom: 20px;">アプリを利用するにはパスワードを入力してください</p>
+      
+      <input type="password" id="lockPassword" placeholder="パスワード" 
+        style="width: 100%; padding: 14px; font-size: 16px; border: 2px solid #e5e7eb; border-radius: 10px; text-align: center; margin-bottom: 16px;"
+        onkeypress="if(event.key==='Enter')checkLockPassword()">
+      
+      <button onclick="checkLockPassword()" 
+        style="width: 100%; padding: 14px; font-size: 16px; font-weight: bold; background: #3b82f6; color: white; border: none; border-radius: 10px; cursor: pointer;">
+        🔓 ロック解除
+      </button>
+      
+      <p id="lockError" style="color: #ef4444; font-size: 13px; margin-top: 12px; display: none;">
+        パスワードが違います
+      </p>
+      
+      <p style="margin-top: 20px;">
+        <a href="#" onclick="showRecoveryScreen(); return false;" style="color: #6b7280; font-size: 13px;">
+          パスワードを忘れた場合
+        </a>
+      </p>
+    </div>
+  </div>
+  
+  <!-- 合言葉でパスワードリセット画面 -->
+  <div id="recovery-screen" class="ocr-loading hidden" style="background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); z-index: 9999;">
+    <div style="background: white; border-radius: 20px; padding: 30px; width: 85%; max-width: 350px; text-align: center;">
+      <div style="font-size: 50px; margin-bottom: 16px;">💬</div>
+      <h2 style="margin: 0 0 8px 0; font-size: 20px;">合言葉を入力</h2>
+      <p style="font-size: 13px; color: #6b7280; margin-bottom: 20px;">設定した合言葉を入力してください</p>
+      
+      <input type="text" id="recoveryInput" placeholder="合言葉" 
+        style="width: 100%; padding: 14px; font-size: 16px; border: 2px solid #e5e7eb; border-radius: 10px; text-align: center; margin-bottom: 16px;"
+        onkeypress="if(event.key==='Enter')checkRecoveryWord()">
+      
+      <button onclick="checkRecoveryWord()" 
+        style="width: 100%; padding: 14px; font-size: 16px; font-weight: bold; background: #10b981; color: white; border: none; border-radius: 10px; cursor: pointer;">
+        ✅ 確認
+      </button>
+      
+      <p id="recoveryError" style="color: #ef4444; font-size: 13px; margin-top: 12px; display: none;">
+        合言葉が違います
+      </p>
+      
+      <p style="margin-top: 20px;">
+        <a href="#" onclick="hideRecoveryScreen(); return false;" style="color: #6b7280; font-size: 13px;">
+          ← 戻る
+        </a>
+      </p>
+    </div>
+  </div>
+
+  <!-- OCRローディング画面 -->
+  <div id="ocrLoading" class="ocr-loading hidden">
+    <div class="ocr-spinner"></div>
+    <div style="font-size: 18px; font-weight: bold;">読み取り中...</div>
+    <div class="ocr-progress" id="ocrProgress">準備中...</div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 各画面コンテナ（動的に読み込まれる） -->
+  <!-- ========================================== -->
+  <div id="screen-container">
+    <!-- 画面はscreen-loader.jsで動的に読み込まれます -->
+  </div>
+
+
+  <!-- 外部JavaScript -->
+  <script src="products.js"></script>
+  
+  <!-- 分散化されたモジュール -->
+  <script src="globals.js"></script>
+  <script src="storage.js"></script>
+  <script src="settings.js"></script>
+  <script src="customer.js"></script>
+  <script src="tax.js"></script>
+  <script src="master.js"></script>
+  <script src="receipt.js"></script>
+  <script src="estimate.js"></script>
+  <script src="invoice.js"></script>
+  <script src="expense.js"></script>
+  <script src="voice.js"></script>
+  <script src="data.js"></script>
+  
+  <!-- 画面ローダー（分割された画面を読み込む） -->
+  <script src="screen-loader.js"></script>
+  
+  <script src="app.js"></script>
+  
+  <!-- Service Worker登録（PWA対応） -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => {
+            console.log('Service Worker 登録成功:', registration.scope);
+          })
+          .catch(error => {
+            console.log('Service Worker 登録失敗:', error);
+          });
+      });
+    }
+  </script>
+</body>
+</html>
