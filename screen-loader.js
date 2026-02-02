@@ -3,10 +3,16 @@
  * 分割された画面HTMLを動的に読み込むモジュール
  * 
  * COCOMI CORE - リフォーム見積・会計アプリ
+ * v1.1 - app.jsから呼び出される形に変更
  * 
  * 使い方:
- *   アプリ起動時に loadAllScreens() を呼び出すと
+ *   app.js の DOMContentLoaded 内で
+ *   await loadAllScreens() を呼び出すと
  *   screens/ フォルダ内のHTMLファイルがすべて読み込まれます
+ * 
+ * ※ 旧バージョンではDOMContentLoaded内で自動実行していましたが、
+ *   app.jsのinitReceiptScreen()等と競合するため、
+ *   app.js側で await して順序を保証する方式に変更しました。
  */
 
 // 画面ファイルの定義
@@ -120,15 +126,9 @@ function resetScreens() {
   }
 }
 
-// DOMContentLoaded で自動読み込み
-document.addEventListener('DOMContentLoaded', () => {
-  // 画面読み込みを開始
-  loadAllScreens().then(() => {
-    console.log('全画面の読み込みが完了しました');
-    // 必要に応じてアプリの初期化処理をここで呼び出す
-    // initApp() など
-  });
-});
+// ★ 旧バージョンにあったDOMContentLoaded自動実行は削除
+// ★ app.js の DOMContentLoaded で await loadAllScreens() を呼ぶ形に変更
+// ★ これにより、画面読み込み完了 → 初期化 の順序が保証される
 
 // グローバルに公開
 window.loadAllScreens = loadAllScreens;

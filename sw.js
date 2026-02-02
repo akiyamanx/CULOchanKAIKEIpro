@@ -1,9 +1,10 @@
 // ==========================================
 // Service Worker - リフォーム見積・会計 Pro
-// Version: 1.1.0
+// Version: 1.2.0
+// v1.6.0→v1.7.0: screens/HTMLファイルをキャッシュに追加
 // ==========================================
 
-const CACHE_NAME = 'reform-app-v1.6.0';
+const CACHE_NAME = 'reform-app-v1.7.0';
 const OFFLINE_URL = 'index.html';
 
 // キャッシュするファイル（相対パス）
@@ -28,7 +29,20 @@ const FILES_TO_CACHE = [
   'voice.js',
   'data.js',
   'screen-loader.js',
-  'app.js'
+  'app.js',
+  // ★ 分割された画面HTMLファイル（screen-loader.jsがfetchで読み込む）
+  'screens/home.html',
+  'screens/pricesearch.html',
+  'screens/help.html',
+  'screens/tax.html',
+  'screens/settings.html',
+  'screens/receipt.html',
+  'screens/estimate.html',
+  'screens/invoice.html',
+  'screens/customers.html',
+  'screens/materials.html',
+  'screens/expenses.html',
+  'screens/data.html'
 ];
 
 // インストール時

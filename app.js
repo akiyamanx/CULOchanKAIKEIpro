@@ -1,6 +1,6 @@
 // ==========================================
 // Reform App Pro - コア機能
-// v0.91
+// v0.92 - 非同期読み込み順序修正版
 // ==========================================
 
 // ==========================================
@@ -61,10 +61,21 @@ function showScreen(screenId) {
 }
 
 // ==========================================
-// 初期化
+// 初期化（非同期読み込み順序修正版）
 // ==========================================
-document.addEventListener('DOMContentLoaded', () => {
-  // 初期化処理（エラーがあってもスプラッシュは動くように）
+document.addEventListener('DOMContentLoaded', async () => {
+  // ★★★ 最重要修正 ★★★
+  // まず画面HTMLを全て読み込む（完了を待つ！）
+  // これが終わらないとDOM要素が存在しないので
+  // initReceiptScreen()等が空振りする
+  try {
+    await loadAllScreens();
+    console.log('✓ 全画面の読み込み完了');
+  } catch(e) {
+    console.error('画面読み込みエラー:', e);
+  }
+
+  // 画面読み込み完了後に各種初期化
   try {
     loadSettings();
   } catch(e) { console.error('loadSettings error:', e); }
