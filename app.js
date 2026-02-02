@@ -1,6 +1,6 @@
 // ==========================================
 // Reform App Pro - コア機能
-// v0.92 - 非同期読み込み順序修正版
+// v0.93 - 非同期読み込み順序修正 + スプラッシュ修正
 // ==========================================
 
 // ==========================================
@@ -41,19 +41,16 @@ function showScreen(screenId) {
     initReceiptScreen();
   }
   if (screenId === 'tax') {
-    // 確定申告画面の初期化
     const savedTaxType = localStorage.getItem('reform_app_tax_type') || 'blue';
     selectTaxType(savedTaxType);
     updateTaxSummary();
   }
   if (screenId === 'customers') {
-    // 顧客管理画面の初期化
     if (typeof loadCustomers === 'function') {
       loadCustomers();
     }
   }
   if (screenId === 'settings') {
-    // 設定画面の初期化
     if (typeof updateApiUsageDisplay === 'function') {
       updateApiUsageDisplay();
     }
@@ -61,13 +58,77 @@ function showScreen(screenId) {
 }
 
 // ==========================================
-// 初期化（非同期読み込み順序修正版）
+// スプラッシュ画面シーケンス
+// ==========================================
+function scheduleSplashSequence() {
+  // 1段階目: COCOMI CORE（4秒表示）
+  setTimeout(() => {
+    const cocomiSplash = document.getElementById('cocomi-splash');
+    const perafcaSplash = document.getElementById('perafca-splash');
+    const appSplash = document.getElementById('splash-screen');
+    
+    if (cocomiSplash) {
+      cocomiSplash.classList.add('fade-out');
+      
+      setTimeout(() => {
+        cocomiSplash.style.display = 'none';
+        
+        if (perafcaSplash) {
+          // 2段階目: PERAFCAスプラッシュ
+          perafcaSplash.classList.add('active');
+          setTimeout(() => {
+            perafcaSplash.classList.add('fade-out');
+            setTimeout(() => {
+              perafcaSplash.style.display = 'none';
+              showAppSplashThenHome(appSplash);
+            }, 800);
+          }, 3500);
+        } else {
+          // ★ perafcaSplashがない場合 → 直接アプリスプラッシュへ
+          showAppSplashThenHome(appSplash);
+        }
+      }, 800);
+    }
+  }, 4000);
+}
+
+function showAppSplashThenHome(appSplash) {
+  if (appSplash) {
+    // 3段階目（または2段階目）: アプリスプラッシュ
+    appSplash.classList.add('active');
+    setTimeout(() => {
+      appSplash.classList.add('fade-out');
+      setTimeout(() => {
+        appSplash.style.display = 'none';
+        showHomeScreen();
+      }, 500);
+    }, 3500);
+  } else {
+    // スプラッシュがない場合は直接ホーム
+    showHomeScreen();
+  }
+}
+
+function showHomeScreen() {
+  const homeScreen = document.getElementById('home-screen');
+  if (homeScreen) {
+    homeScreen.classList.add('active');
+  }
+  // パスワードチェック
+  if (typeof checkPasswordOnLoad === 'function') {
+    checkPasswordOnLoad();
+  }
+}
+
+// ==========================================
+// 初期化
 // ==========================================
 document.addEventListener('DOMContentLoaded', async () => {
-  // ★★★ 最重要修正 ★★★
-  // まず画面HTMLを全て読み込む（完了を待つ！）
-  // これが終わらないとDOM要素が存在しないので
-  // initReceiptScreen()等が空振りする
+  // ★★★ スプラッシュ処理を最初に登録 ★★★
+  // awaitの前に置くことで、画面読み込みの影響を受けない
+  scheduleSplashSequence();
+
+  // ★★★ 画面HTMLを全て読み込む（完了を待つ） ★★★
   try {
     await loadAllScreens();
     console.log('✓ 全画面の読み込み完了');
@@ -95,51 +156,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     updatePasswordUI();
   } catch(e) { console.error('updatePasswordUI error:', e); }
-  
-  // 3段階スプラッシュ画面
-  // 1段階目: COCOMI CORE（4秒）
-  setTimeout(() => {
-    const cocomiSplash = document.getElementById('cocomi-splash');
-    const perafcaSplash = document.getElementById('perafca-splash');
-    const appSplash = document.getElementById('splash-screen');
-    
-    if (cocomiSplash) {
-      cocomiSplash.classList.add('fade-out');
-      
-      // 2段階目: PERAFCAスプラッシュを表示
-      setTimeout(() => {
-        cocomiSplash.style.display = 'none';
-        if (perafcaSplash) {
-          perafcaSplash.classList.add('active');
-          
-          // 2.5秒後にPERAFCAスプラッシュをフェードアウト
-          setTimeout(() => {
-            perafcaSplash.classList.add('fade-out');
-            
-            // 3段階目: アプリスプラッシュを表示
-            setTimeout(() => {
-              perafcaSplash.style.display = 'none';
-              if (appSplash) {
-                appSplash.classList.add('active');
-                
-                // 3.5秒後にアプリスプラッシュをフェードアウト
-                setTimeout(() => {
-                  appSplash.classList.add('fade-out');
-                  setTimeout(() => {
-                    appSplash.style.display = 'none';
-                    // ホーム画面を表示
-                    document.getElementById('home-screen').classList.add('active');
-                    // スプラッシュ後にパスワードチェック
-                    checkPasswordOnLoad();
-                  }, 500);
-                }, 3500);
-              }
-            }, 800);
-          }, 3500);
-        }
-      }, 800);
-    }
-  }, 4000); // 4秒後にCOCOMI COREフェードアウト
 });
 
 // ==========================================
