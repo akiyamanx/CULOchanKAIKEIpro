@@ -1,9 +1,9 @@
 // ==========================================
 // Service Worker - リフォーム見積・会計 Pro
-// Version: 1.0.0
+// Version: 1.1.0
 // ==========================================
 
-const CACHE_NAME = 'reform-app-v1.5.7';
+const CACHE_NAME = 'reform-app-v1.6.0';
 const OFFLINE_URL = 'index.html';
 
 // キャッシュするファイル（相対パス）
@@ -19,12 +19,15 @@ const FILES_TO_CACHE = [
   'customer.js',
   'tax.js',
   'master.js',
-  'receipt.js',
+  'receipt-core.js',
+  'receipt-ai.js',
+  'receipt-ocr.js',
   'estimate.js',
   'invoice.js',
   'expense.js',
   'voice.js',
   'data.js',
+  'screen-loader.js',
   'app.js'
 ];
 
