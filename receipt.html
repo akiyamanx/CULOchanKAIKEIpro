@@ -1,4 +1,4 @@
-  <!-- ========== 準備中画面（共通テンプレート） ========== -->
+  <!-- ========== レシート読込画面 ========== -->
   <div id="receipt-screen" class="screen">
     <div class="header">
       <button class="back-btn" onclick="showScreen('home')" title="ホームに戻る">🏠</button>
@@ -83,6 +83,23 @@
       <!-- 品目リスト -->
       <div class="form-section">
         <h2>■ 品目リスト</h2>
+        
+        <!-- 現場割り当てセクション（新規追加） -->
+        <div id="assignSection" class="assign-section" style="display: none;">
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <label style="display: flex; align-items: center; gap: 4px; font-size: 13px; color: #6b7280; cursor: pointer;">
+              <input type="checkbox" id="selectAllItems" onchange="toggleAllCheckboxes(this.checked)" style="width: 18px; height: 18px; accent-color: #3b82f6;">
+              全選択
+            </label>
+            <select id="projectSelect" class="project-select">
+              <option value="">現場を選択...</option>
+            </select>
+            <button class="assign-btn" onclick="assignSelectedItems()">✓ 割当</button>
+            <button class="clear-assign-btn" onclick="clearSelectedAssignments()">✕ 解除</button>
+          </div>
+          <div id="assignedCount" style="font-size: 12px; color: #6b7280; margin-top: 8px;"></div>
+        </div>
+        
         <div id="receiptItemsList">
           <!-- 品目がここに追加される -->
         </div>
@@ -112,4 +129,3 @@
       <button class="save-btn" onclick="saveReceipt()">仕訳を保存</button>
     </div>
   </div>
-
