@@ -1,0 +1,121 @@
+  <!-- ========== ヘルプ画面 ========== -->
+  <div id="help-screen" class="screen">
+    <div class="header">
+      <button class="back-btn" onclick="showScreen('home')" title="ホームに戻る">🏠</button>
+      <h1>❓ ヘルプ</h1>
+      <div style="width: 40px;"></div>
+    </div>
+    
+    <div class="form-container">
+      <!-- 基本的な使い方 -->
+      <div class="form-section">
+        <h2>📱 基本的な使い方</h2>
+        <div style="background: #f0f9ff; padding: 16px; border-radius: 12px; margin-bottom: 12px;">
+          <h3 style="font-size: 14px; color: #1e40af; margin-bottom: 8px;">📷 レシート読込</h3>
+          <p style="font-size: 13px; color: #64748b; line-height: 1.6;">
+            レシートを撮影すると、OCR技術で文字を読み取り、自動的に品名・金額を入力します。<br>
+            読み取った内容は「経費一覧」に保存されます。
+          </p>
+        </div>
+        <div style="background: #f0fdf4; padding: 16px; border-radius: 12px; margin-bottom: 12px;">
+          <h3 style="font-size: 14px; color: #166534; margin-bottom: 8px;">📝 見積書作成</h3>
+          <p style="font-size: 13px; color: #64748b; line-height: 1.6;">
+            品名マスターから材料を選んで見積書を作成できます。<br>
+            利益率を設定すると自動で売価を計算します。<br>
+            完成した見積書はPDFで出力できます。
+          </p>
+        </div>
+        <div style="background: #faf5ff; padding: 16px; border-radius: 12px; margin-bottom: 12px;">
+          <h3 style="font-size: 14px; color: #7c3aed; margin-bottom: 8px;">📄 請求書作成</h3>
+          <p style="font-size: 13px; color: #64748b; line-height: 1.6;">
+            見積書をベースに請求書を作成できます。<br>
+            顧客情報は「顧客管理」から呼び出せます。
+          </p>
+        </div>
+        <div style="background: #fef3c7; padding: 16px; border-radius: 12px;">
+          <h3 style="font-size: 14px; color: #b45309; margin-bottom: 8px;">📊 確定申告サポート</h3>
+          <p style="font-size: 13px; color: #64748b; line-height: 1.6;">
+            経費と売上を自動集計し、確定申告をサポートします。<br>
+            青色申告・白色申告どちらにも対応しています。
+          </p>
+        </div>
+      </div>
+      
+      <!-- API連携について -->
+      <div class="form-section">
+        <h2>🔗 API連携について</h2>
+        <div style="background: linear-gradient(135deg, #e0f2fe, #dbeafe); padding: 16px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #93c5fd;">
+          <h3 style="font-size: 15px; color: #1e40af; margin-bottom: 12px;">🤖 AI機能（Gemini API）</h3>
+          <p style="font-size: 13px; color: #475569; line-height: 1.8; margin-bottom: 12px;">
+            GoogleのGemini AIを使って、レシートの読み取り精度を大幅に向上させることができます。
+          </p>
+          <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+            <p style="font-size: 12px; color: #1e40af; font-weight: bold; margin-bottom: 8px;">✅ API連携のメリット</p>
+            <ul style="font-size: 12px; color: #64748b; line-height: 1.8; margin-left: 16px;">
+              <li>レシートの読み取り精度が大幅向上（手書き文字も読める！）</li>
+              <li>品名・金額を自動で分類</li>
+              <li>合計金額を自動計算</li>
+              <li>勘定科目を自動判定（確定申告で便利！）</li>
+            </ul>
+          </div>
+          <div style="background: white; padding: 12px; border-radius: 8px;">
+            <p style="font-size: 12px; color: #1e40af; font-weight: bold; margin-bottom: 8px;">📝 APIキーの取得方法</p>
+            <ol style="font-size: 12px; color: #64748b; line-height: 2; margin-left: 16px;">
+              <li><a href="https://ai.google.dev/" target="_blank" style="color: #2563eb;">Google AI Studio</a>にアクセス</li>
+              <li>Googleアカウントでログイン</li>
+              <li>「Get API key」をクリック</li>
+              <li>生成されたAPIキーをコピー</li>
+              <li>⚙️設定画面の「Gemini API Key」に貼り付け</li>
+            </ol>
+          </div>
+        </div>
+        <div style="background: #fef2f2; padding: 12px; border-radius: 8px; border: 1px solid #fecaca;">
+          <p style="font-size: 11px; color: #991b1b; line-height: 1.6;">
+            ⚠️ APIキーは大切に管理してください。他の人に共有しないでください。<br>
+            💡 APIなしでも基本的なOCR機能は使えます（Tesseract.js）
+          </p>
+        </div>
+      </div>
+      
+      <!-- よくある質問 -->
+      <div class="form-section">
+        <h2>❓ よくある質問</h2>
+        <div style="margin-bottom: 12px;">
+          <p style="font-size: 13px; font-weight: bold; color: #1e3a5f; margin-bottom: 4px;">Q. データはどこに保存されますか？</p>
+          <p style="font-size: 12px; color: #64748b; line-height: 1.6; padding-left: 12px;">
+            A. すべてのデータはお使いの端末（スマートフォン/PC）に保存されます。クラウドには送信されないので安心です。
+          </p>
+        </div>
+        <div style="margin-bottom: 12px;">
+          <p style="font-size: 13px; font-weight: bold; color: #1e3a5f; margin-bottom: 4px;">Q. 機種変更する場合は？</p>
+          <p style="font-size: 12px; color: #64748b; line-height: 1.6; padding-left: 12px;">
+            A. ⚙️設定画面の「データのバックアップ」でJSONファイルを保存し、新しい端末で「データの復元」を行ってください。
+          </p>
+        </div>
+        <div>
+          <p style="font-size: 13px; font-weight: bold; color: #1e3a5f; margin-bottom: 4px;">Q. オフラインで使えますか？</p>
+          <p style="font-size: 12px; color: #64748b; line-height: 1.6; padding-left: 12px;">
+            A. はい！一度読み込んだ後はオフラインでも使えます（AI機能を除く）。
+          </p>
+        </div>
+      </div>
+      
+      <!-- お問い合わせ -->
+      <div class="form-section">
+        <h2>📧 サポート</h2>
+        <div style="text-align: center; padding: 16px;">
+          <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">
+            不具合や要望がありましたら、<br>アプリ画面のスクリーンショットと一緒にご連絡ください。
+          </p>
+          <a href="/cdn-cgi/l/email-protection#f0919b93de849f84919cdec0c0c1b0979d91999cde939f9d" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: bold;">
+            📧 <span class="__cf_email__" data-cfemail="6908020a471d061d080547595958290e04080005470a0604">[email&#160;protected]</span>
+          </a>
+          <p style="font-size: 11px; color: #94a3b8;">
+            Powered by COCOMI OS<br>
+            © 2026 aki & COCOMI Sisters
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+

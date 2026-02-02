@@ -1,0 +1,134 @@
+  <div id="materials-screen" class="screen">
+    <div class="header">
+      <button class="back-btn" onclick="showScreen('home')" title="ホームに戻る">🏠</button>
+      <h1>📦 品名マスター</h1>
+      <div style="width: 40px;"></div>
+    </div>
+    
+    <div class="form-container">
+      <!-- 検索 -->
+      <div class="search-box">
+        <input type="text" id="masterSearch" placeholder="品名を検索..." oninput="filterMaster()">
+      </div>
+      
+      <!-- カテゴリフィルター -->
+      <div class="form-section">
+        <select id="masterCategoryFilter" onchange="filterMaster()" style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 16px;">
+          <option value="">すべてのカテゴリ</option>
+          <optgroup label="配管材">
+            <option value="pvc-pipe">塩ビ管（VP/VU/HI）</option>
+            <option value="pvc-joint">塩ビ継手</option>
+            <option value="poly-pipe">架橋ポリ・ポリブデン管</option>
+            <option value="poly-joint">架橋ポリ継手</option>
+            <option value="faucet">水栓金具</option>
+          </optgroup>
+          <optgroup label="設備">
+            <option value="aircon">エアコン配管</option>
+            <option value="electric">電気部材</option>
+          </optgroup>
+          <optgroup label="副資材">
+            <option value="support">支持金具</option>
+            <option value="insulation">保温材</option>
+            <option value="consumable">消耗品</option>
+          </optgroup>
+        </select>
+      </div>
+      
+      <!-- 商品数とボタン群 -->
+      <div style="padding: 8px 0; font-size: 13px; color: #6b7280;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span id="masterCount">0件の商品</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button onclick="addNewDefaultProducts()" style="flex: 1; padding: 8px 12px; background: #dbeafe; color: #1d4ed8; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;">
+            ➕ 新商品を追加
+          </button>
+          <button onclick="resetProductMaster()" style="padding: 8px 12px; background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;">
+            🔄 完全リセット
+          </button>
+        </div>
+        <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">
+          ※「新商品を追加」は既存データを保持します
+        </div>
+      </div>
+      
+      <!-- 品名リスト -->
+      <div id="masterList">
+        <!-- ここに品名マスターが表示される -->
+      </div>
+      
+      <!-- 新規追加ボタン -->
+      <button class="add-item-btn" onclick="showAddMasterForm()">
+        ＋ 新しい品名を追加
+      </button>
+    </div>
+  </div>
+  
+  <!-- 品名マスター編集モーダル -->
+  <div id="masterModal" class="ocr-loading hidden" style="background: rgba(0,0,0,0.5);">
+    <div style="background: white; border-radius: 16px; padding: 20px; width: 90%; max-width: 400px; max-height: 80vh; overflow-y: auto;">
+      <h3 style="margin-bottom: 16px; font-size: 18px;" id="masterModalTitle">品名を追加</h3>
+      
+      <div class="form-group">
+        <label>正式名称</label>
+        <input type="text" id="masterEditName" placeholder="塩ビパイプ VP25">
+      </div>
+      
+      <div class="form-group">
+        <label>カテゴリ</label>
+        <select id="masterEditCategory">
+          <optgroup label="材料">
+            <option value="pipe">配管材</option>
+            <option value="joint">継手</option>
+            <option value="valve">バルブ・コック</option>
+            <option value="faucet">水栓金具</option>
+            <option value="drain">排水部材</option>
+            <option value="seal">シール材</option>
+            <option value="ac_pipe">冷媒配管</option>
+            <option value="ac_drain">ドレン部材</option>
+            <option value="ac_cover">配管カバー</option>
+            <option value="electric">電材</option>
+            <option value="bracket">取付金具</option>
+            <option value="wood">木材</option>
+            <option value="screw">金具・ビス</option>
+            <option value="paint">塗料</option>
+            <option value="insulation">断熱材</option>
+            <option value="other_material">その他材料</option>
+          </optgroup>
+          <optgroup label="経費">
+            <option value="consumable">消耗品</option>
+            <option value="tool">工具</option>
+            <option value="vehicle">車両費</option>
+            <option value="communication">通信費</option>
+            <option value="other_expense">その他経費</option>
+          </optgroup>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label>参考単価</label>
+        <div class="yen-input">
+          <input type="number" id="masterEditPrice" placeholder="0">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>別名（レシートでの表記）</label>
+        <div id="aliasContainer">
+          <!-- 別名がここに追加される -->
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <input type="text" id="newAliasInput" placeholder="別名を追加" style="flex: 1;">
+          <button class="master-btn edit" onclick="addAlias()" style="flex: 0; width: auto; padding: 8px 16px;">追加</button>
+        </div>
+      </div>
+      
+      <input type="hidden" id="masterEditId">
+      
+      <div style="display: flex; gap: 8px; margin-top: 20px;">
+        <button class="data-btn backup" style="flex: 1;" onclick="closeMasterModal()">キャンセル</button>
+        <button class="save-btn" style="flex: 1; padding: 12px;" onclick="saveMasterItem()">保存</button>
+      </div>
+    </div>
+  </div>
+

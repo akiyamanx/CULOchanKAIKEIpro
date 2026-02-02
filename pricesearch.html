@@ -1,0 +1,103 @@
+  <!-- ========== 価格比較検索画面 ========== -->
+  <div id="pricesearch-screen" class="screen">
+    <div class="header">
+      <button class="back-btn" onclick="showScreen('home')" title="ホームに戻る">🏠</button>
+      <h1>🔍 価格比較検索</h1>
+      <div style="width: 40px;"></div>
+    </div>
+    
+    <div class="form-container">
+      <!-- 検索ワード入力 -->
+      <div class="form-section">
+        <h2>■ 商品名を入力</h2>
+        <div class="form-group">
+          <input type="text" id="priceSearchKeyword" placeholder="例：VVFケーブル 2.0mm" style="font-size: 16px;">
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="master-btn edit" style="flex: 1;" onclick="clearPriceSearch()">クリア</button>
+          <button onclick="startVoiceSearch()" style="flex: 1; padding: 10px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 8px; font-weight: bold;">
+            🎤 音声入力
+          </button>
+        </div>
+      </div>
+      
+      <!-- 検索サイト一覧 -->
+      <div class="form-section">
+        <h2>■ サイトで検索（タップで開く）</h2>
+        
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- プロ向け -->
+          <div style="font-size: 12px; color: #6b7280; margin-top: 8px;">▼ プロ向け資材サイト</div>
+          
+          <button onclick="searchOnSite('monotaro')" class="site-search-btn" style="background: #e60012;">
+            <span style="font-size: 20px;">🔧</span>
+            <span>モノタロウで検索</span>
+          </button>
+          
+          <button onclick="searchOnSite('aunworks')" class="site-search-btn" style="background: #1e40af;">
+            <span style="font-size: 20px;">🏗️</span>
+            <span>アウンワークスで検索</span>
+          </button>
+          
+          <button onclick="searchOnSite('bildy')" class="site-search-btn" style="background: #ff6600;">
+            <span style="font-size: 20px;">🏗️</span>
+            <span>ビルディで検索</span>
+          </button>
+          
+          <button onclick="searchOnSite('seshunomikata')" class="site-search-btn" style="background: #2563eb;">
+            <span style="font-size: 20px;">👷</span>
+            <span>施主の味方 総本山で検索</span>
+          </button>
+          
+          
+          <!-- ホームセンター -->
+          <div style="font-size: 12px; color: #6b7280; margin-top: 12px;">▼ ホームセンター</div>
+          
+          <button onclick="searchOnSite('denzai')" class="site-search-btn" style="background: #0066cc;">
+            <span style="font-size: 20px;">⚡</span>
+            <span>電材ネットで検索</span>
+          </button>
+          
+          <button onclick="searchOnSite('cainz')" class="site-search-btn" style="background: #006934;">
+            <span style="font-size: 20px;">🛒</span>
+            <span>カインズで検索</span>
+          </button>
+          
+          <button onclick="searchOnSite('vivahome')" class="site-search-btn" style="background: #e4002b;">
+            <span style="font-size: 20px;">🔨</span>
+            <span>ビバホームで検索</span>
+          </button>
+          
+          <!-- 総合通販 -->
+          <div style="font-size: 12px; color: #6b7280; margin-top: 12px;">▼ 総合通販</div>
+          
+          <button onclick="searchOnSite('amazon')" class="site-search-btn" style="background: #ff9900;">
+            <span style="font-size: 20px;">📱</span>
+            <span>Amazonで検索</span>
+          </button>
+          
+          <button onclick="searchOnSite('rakuten')" class="site-search-btn" style="background: #bf0000;">
+            <span style="font-size: 20px;">🛍️</span>
+            <span>楽天市場で検索</span>
+          </button>
+          
+          <button onclick="searchOnSite('yahoo')" class="site-search-btn" style="background: #ff0033;">
+            <span style="font-size: 20px;">🔴</span>
+            <span>Yahoo!ショッピングで検索</span>
+          </button>
+        </div>
+      </div>
+      
+      <!-- 使い方説明 -->
+      <div class="form-section" style="background: #f0f9ff;">
+        <h2>💡 使い方</h2>
+        <div style="font-size: 13px; color: #475569; line-height: 1.6;">
+          1. 商品名を入力（音声でもOK）<br>
+          2. 検索したいサイトをタップ<br>
+          3. 各サイトの検索結果を比較！<br><br>
+          ※ 各サイトが新しいタブで開きます
+        </div>
+      </div>
+    </div>
+  </div>
+

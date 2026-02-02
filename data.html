@@ -1,0 +1,26 @@
+  <div id="data-screen" class="screen">
+    <div class="header">
+      <button class="back-btn" onclick="showScreen('home')" title="ホームに戻る">🏠</button>
+      <h1>🗂️ 保存データ</h1>
+      <div style="width: 40px;"></div>
+    </div>
+    
+    <div class="form-container">
+      <!-- タブ -->
+      <div class="tab-bar">
+        <button class="tab-btn active" id="dataTabEstimates" onclick="switchDataTab('estimates')">見積書</button>
+        <button class="tab-btn" id="dataTabInvoices" onclick="switchDataTab('invoices')">請求書</button>
+        <button class="tab-btn" id="dataTabMaterials" onclick="switchDataTab('materials')">材料</button>
+      </div>
+      
+      <!-- 検索 -->
+      <div class="search-box">
+        <input type="text" id="dataSearch" placeholder="検索..." oninput="filterDataList()">
+      </div>
+      
+      <!-- データリスト -->
+      <div id="dataListContainer">
+        <!-- データがここに表示される -->
+      </div>
+    </div>
+  </div>

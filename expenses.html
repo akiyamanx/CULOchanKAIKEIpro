@@ -1,0 +1,112 @@
+  <div id="expenses-screen" class="screen">
+    <div class="header">
+      <button class="back-btn" onclick="showScreen('home')" title="ホームに戻る">🏠</button>
+      <h1>📒 経費帳</h1>
+      <div style="width: 40px;"></div>
+    </div>
+    
+    <div class="form-container">
+      <!-- 収入/支出 追加ボタン -->
+      <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+        <button class="add-item-btn" style="flex: 1; background: #dcfce7; border-color: #22c55e; color: #16a34a;" onclick="showExpenseForm('income')">
+          ➕ 収入を追加
+        </button>
+        <button class="add-item-btn" style="flex: 1; background: #fee2e2; border-color: #ef4444; color: #dc2626;" onclick="showExpenseForm('expense')">
+          ➖ 支出を追加
+        </button>
+      </div>
+      
+      <!-- 期間フィルター -->
+      <div class="form-section">
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <input type="date" id="expenseStartDate" style="flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px;">
+          <span>〜</span>
+          <input type="date" id="expenseEndDate" style="flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px;">
+          <button class="master-btn edit" style="padding: 10px 16px;" onclick="filterExpenses()">絞込</button>
+        </div>
+      </div>
+      
+      <!-- 集計 -->
+      <div class="form-section" style="background: linear-gradient(135deg, #ecfdf5, #d1fae5);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-weight: 500; color: #16a34a;">💰 収入合計</span>
+          <span id="incomeTotalAmount" style="font-size: 20px; font-weight: bold; color: #16a34a;">¥0</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-weight: 500; color: #dc2626;">💸 支出合計</span>
+          <span id="expenseTotalAmount" style="font-size: 20px; font-weight: bold; color: #dc2626;">¥0</span>
+        </div>
+        <div style="border-top: 2px solid #94a3b8; padding-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: bold;">📊 収支差額</span>
+          <span id="balanceTotalAmount" style="font-size: 24px; font-weight: bold;">¥0</span>
+        </div>
+      </div>
+      
+      <!-- カテゴリ別集計 -->
+      <div class="form-section">
+        <h2>■ カテゴリ別集計</h2>
+        <div id="expenseCategorySummary" style="font-size: 14px;">
+          <!-- カテゴリ別集計 -->
+        </div>
+      </div>
+      
+      <!-- 経費リスト -->
+      <div class="form-section">
+        <h2>■ 収支明細</h2>
+        <div id="expensesList">
+          <!-- 経費がここに表示される -->
+        </div>
+      </div>
+      
+      <!-- エクスポートボタン -->
+      <button class="add-item-btn" style="background: #eff6ff; border-color: #3b82f6; color: #3b82f6;" onclick="exportExpensesExcel()">
+        📊 Excelでエクスポート
+      </button>
+    </div>
+  </div>
+  
+  <!-- 経費入力モーダル -->
+  <div id="expense-form-modal" class="ocr-loading hidden" style="z-index: 9999;">
+    <div style="background: white; border-radius: 20px; padding: 24px; width: 90%; max-width: 400px; max-height: 85vh; overflow-y: auto;">
+      <h2 id="expenseFormTitle" style="margin: 0 0 20px 0; text-align: center;">➕ 収入を追加</h2>
+      
+      <div class="form-group">
+        <label>日付 <span style="color: red;">*</span></label>
+        <input type="date" id="expFormDate" style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px;">
+      </div>
+      
+      <div class="form-group">
+        <label>大分類 <span style="color: red;">*</span></label>
+        <select id="expFormCategory1" onchange="updateExpenseCategory2()" style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px;">
+          <option value="">選択してください</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label>小分類</label>
+        <select id="expFormCategory2" style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px;">
+          <option value="">選択してください</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label>内容・メモ</label>
+        <input type="text" id="expFormMemo" placeholder="例：〇〇現場への移動" style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px;">
+      </div>
+      
+      <div class="form-group">
+        <label>金額 <span style="color: red;">*</span></label>
+        <input type="number" id="expFormAmount" placeholder="0" style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 18px; text-align: right;">
+      </div>
+      
+      <button onclick="startVoiceCommand('expense')" style="width: 100%; padding: 12px; margin-top: 16px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold;">
+        🎤 音声で入力
+      </button>
+      
+      <div style="display: flex; gap: 10px; margin-top: 12px;">
+        <button onclick="closeExpenseForm()" style="flex: 1; padding: 14px; border: 1px solid #d1d5db; border-radius: 8px; background: white; font-size: 16px;">キャンセル</button>
+        <button id="expFormSaveBtn" onclick="saveExpenseEntry()" style="flex: 1; padding: 14px; border: none; border-radius: 8px; background: #3b82f6; color: white; font-size: 16px; font-weight: bold;">保存</button>
+      </div>
+    </div>
+  </div>
+

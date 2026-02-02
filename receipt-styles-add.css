@@ -1,0 +1,103 @@
+/* ==========================================
+   レシート機能 追加スタイル (v0.92)
+   - チェックボックス
+   - 現場割り当てセクション
+   - プロジェクトバッジ
+   ========================================== */
+
+/* 現場割り当てセクション */
+.assign-section {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.project-select {
+  flex: 1;
+  min-width: 120px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+}
+
+.assign-btn {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.assign-btn:active {
+  transform: scale(0.98);
+}
+
+.clear-assign-btn {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.clear-assign-btn:active {
+  transform: scale(0.98);
+}
+
+/* 品目のチェック状態 */
+.receipt-item.checked {
+  background: #eff6ff;
+  border-color: #3b82f6;
+}
+
+/* チェックボックス */
+.item-checkbox {
+  width: 20px;
+  height: 20px;
+  accent-color: #3b82f6;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* 現場バッジ */
+.project-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 8px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* レスポンシブ調整 */
+@media (max-width: 400px) {
+  .assign-section > div {
+    flex-direction: column;
+    gap: 8px !important;
+  }
+  
+  .assign-section > div > * {
+    width: 100%;
+  }
+  
+  .assign-btn,
+  .clear-assign-btn {
+    flex: 1;
+  }
+}

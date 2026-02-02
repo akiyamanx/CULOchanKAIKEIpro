@@ -1,0 +1,125 @@
+  <!-- ========== 顧客管理画面 ========== -->
+  <div id="customers-screen" class="screen">
+    <div class="header">
+      <button class="back-btn" onclick="showScreen('home')" title="ホームに戻る">🏠</button>
+      <h1>👤 顧客管理</h1>
+      <div style="width: 40px;"></div>
+    </div>
+    
+    <div class="form-container">
+      <!-- 検索 -->
+      <div class="search-box">
+        <input type="text" id="customerSearch" placeholder="顧客名を検索..." oninput="filterCustomers()">
+      </div>
+      
+      <!-- 新規追加ボタン -->
+      <button class="add-item-btn" onclick="showCustomerForm()">＋ 新規顧客を追加</button>
+      
+      <!-- 顧客一覧 -->
+      <div id="customerList" class="master-list">
+        <!-- 顧客リストがここに表示される -->
+      </div>
+    </div>
+  </div>
+  
+  <!-- 顧客編集モーダル -->
+  <div id="customerFormModal" class="ocr-loading hidden" style="background: rgba(0,0,0,0.5);">
+    <div style="background: white; border-radius: 16px; width: 90%; max-width: 400px; max-height: 90vh; overflow-y: auto;">
+      <div style="padding: 16px; border-bottom: 1px solid #e5e7eb;">
+        <h3 id="customerFormTitle" style="margin: 0; font-size: 18px;">顧客を追加</h3>
+      </div>
+      <div style="padding: 16px;">
+        <input type="hidden" id="editingCustomerId">
+        
+        <div class="form-group">
+          <label>お客様名 *</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="custName" placeholder="山田 太郎 様" style="flex: 1;">
+            <button class="voice-input-btn" onclick="startVoiceInput('custName')" title="音声入力">🎤</button>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>郵便番号</label>
+          <input type="text" id="custPostalCode" placeholder="123-4567">
+        </div>
+        
+        <div class="form-group">
+          <label>住所</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="custAddress" placeholder="東京都〇〇区..." style="flex: 1;">
+            <button class="voice-input-btn" onclick="startVoiceInput('custAddress')" title="音声入力">🎤</button>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>電話番号</label>
+          <input type="tel" id="custPhone" placeholder="090-1234-5678">
+        </div>
+        
+        <div class="form-group">
+          <label>メールアドレス</label>
+          <input type="email" id="custEmail" placeholder="example@email.com">
+        </div>
+        
+        <div class="form-group">
+          <label>メモ</label>
+          <textarea id="custMemo" rows="3" placeholder="紹介者、備考など..."></textarea>
+        </div>
+        
+        <div style="display: flex; gap: 8px; margin-top: 16px;">
+          <button class="data-btn backup" style="flex: 1;" onclick="closeCustomerForm()">キャンセル</button>
+          <button class="save-btn" style="flex: 1; padding: 12px;" onclick="saveCustomer()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 顧客選択モーダル（見積書・請求書用） -->
+  <div id="customerPickerModal" class="ocr-loading hidden" style="background: rgba(0,0,0,0.5);">
+    <div style="background: white; border-radius: 16px; width: 90%; max-width: 400px; max-height: 80vh; display: flex; flex-direction: column;">
+      <div style="padding: 16px; border-bottom: 1px solid #e5e7eb;">
+        <h3 style="margin: 0; font-size: 18px;">👤 顧客を選択</h3>
+      </div>
+      <div style="padding: 12px; border-bottom: 1px solid #e5e7eb;">
+        <input type="text" id="customerPickerSearch" placeholder="🔍 検索..." oninput="filterCustomerPicker()" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px;">
+      </div>
+      <div id="customerPickerList" style="flex: 1; overflow-y: auto; padding: 12px;">
+        <!-- 顧客リスト -->
+      </div>
+      <div style="padding: 12px; border-top: 1px solid #e5e7eb;">
+        <button class="data-btn backup" style="width: 100%;" onclick="closeCustomerPicker()">キャンセル</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 復元オプションモーダル -->
+  <div id="restoreOptionsModal" class="ocr-loading hidden" style="background: rgba(0,0,0,0.5);">
+    <div style="background: white; border-radius: 16px; width: 90%; max-width: 400px; padding: 20px;">
+      <h3 style="margin: 0 0 8px 0; font-size: 18px;">📂 復元方法を選択</h3>
+      <div id="backupDateInfo" style="font-size: 12px; color: #6b7280; margin-bottom: 16px;"></div>
+      
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <!-- 追加（マージ）モード -->
+        <button onclick="executeRestore('merge')" style="display: flex; align-items: flex-start; gap: 12px; padding: 16px; border: 2px solid #10b981; border-radius: 12px; background: #ecfdf5; cursor: pointer; text-align: left;">
+          <span style="font-size: 28px;">➕</span>
+          <div>
+            <div style="font-weight: bold; color: #059669; font-size: 16px;">追加する（おすすめ）</div>
+            <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">今のデータを残したまま、バックアップのデータを追加します。重複は自動でスキップされます。</div>
+          </div>
+        </button>
+        
+        <!-- 上書きモード -->
+        <button onclick="executeRestore('overwrite')" style="display: flex; align-items: flex-start; gap: 12px; padding: 16px; border: 2px solid #f59e0b; border-radius: 12px; background: #fffbeb; cursor: pointer; text-align: left;">
+          <span style="font-size: 28px;">🔄</span>
+          <div>
+            <div style="font-weight: bold; color: #d97706; font-size: 16px;">上書きする</div>
+            <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">今のデータを消して、バックアップの状態に戻します。⚠️ 現在のデータは失われます。</div>
+          </div>
+        </button>
+      </div>
+      
+      <button class="data-btn backup" style="width: 100%; margin-top: 16px;" onclick="closeRestoreOptions()">キャンセル</button>
+    </div>
+  </div>
+

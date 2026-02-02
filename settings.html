@@ -1,0 +1,368 @@
+  <!-- ========== 設定画面 ========== -->
+  <div id="settings-screen" class="screen">
+    <div class="header">
+      <button class="back-btn" onclick="showScreen('home')" title="ホームに戻る">🏠</button>
+      <h1>⚙️ 設定</h1>
+      <div style="width: 40px;"></div>
+    </div>
+    
+    <div class="form-container">
+      <!-- 会社情報 -->
+      <div class="form-section">
+        <h2>■ 会社情報</h2>
+        <div class="form-group">
+          <label>会社名</label>
+          <input type="text" id="companyName" placeholder="株式会社 〇〇設備">
+        </div>
+        <div class="form-group">
+          <label>郵便番号</label>
+          <input type="text" id="postalCode" placeholder="123-4567">
+        </div>
+        <div class="form-group">
+          <label>住所</label>
+          <input type="text" id="address" placeholder="千葉県袖ケ浦市〇〇町1-2-3">
+        </div>
+        <div class="form-group">
+          <label>電話番号</label>
+          <input type="tel" id="phone" placeholder="0438-XX-XXXX">
+        </div>
+        <div class="form-group">
+          <label>FAX</label>
+          <input type="tel" id="fax" placeholder="0438-XX-XXXX">
+        </div>
+        <div class="form-group">
+          <label>メールアドレス</label>
+          <input type="email" id="email" placeholder="info@example.com">
+        </div>
+      </div>
+      
+      <!-- 書類デザイン設定 -->
+      <div class="form-section">
+        <h2>■ 書類デザイン設定</h2>
+        
+        <!-- テンプレート選択 -->
+        <div class="form-group">
+          <label>テンプレート</label>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <label class="template-option">
+              <input type="radio" name="template" value="simple" checked onchange="updateTemplateSetting()">
+              <div class="template-preview simple-tpl">
+                <div style="font-size: 10px; font-weight: bold; text-align: center; margin-bottom: 4px;">見積書</div>
+                <div style="height: 2px; background: #333; margin-bottom: 4px;"></div>
+                <div style="font-size: 6px;">〇〇様</div>
+              </div>
+              <span>シンプル</span>
+            </label>
+            <label class="template-option">
+              <input type="radio" name="template" value="business" onchange="updateTemplateSetting()">
+              <div class="template-preview business-tpl">
+                <div style="display: flex; gap: 2px; margin-bottom: 4px;">
+                  <div style="width: 12px; height: 12px; background: #ddd; border-radius: 2px;"></div>
+                  <div style="font-size: 6px;">会社名</div>
+                </div>
+                <div style="font-size: 10px; font-weight: bold; text-align: center; border: 1px solid #333; padding: 2px;">御見積書</div>
+              </div>
+              <span>ビジネス</span>
+            </label>
+            <label class="template-option">
+              <input type="radio" name="template" value="modern" onchange="updateTemplateSetting()">
+              <div class="template-preview modern-tpl">
+                <div style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; font-size: 8px; padding: 4px; text-align: center; font-weight: bold;">見積書</div>
+                <div style="font-size: 6px; margin-top: 4px;">〇〇様</div>
+              </div>
+              <span>モダン</span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- 会社ロゴ -->
+        <div class="form-group">
+          <label>会社ロゴ</label>
+          <input type="file" id="companyLogoInput" accept="image/*" style="display: none;" onchange="handleLogoUpload(event)">
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <div id="logoPreviewContainer" style="width: 120px; height: 60px; border: 2px dashed #d1d5db; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer;" onclick="document.getElementById('companyLogoInput').click()">
+              <img id="logoPreview" style="max-width: 100%; max-height: 100%; display: none;">
+              <span id="logoPlaceholder" style="font-size: 12px; color: #9ca3af;">ロゴを選択</span>
+            </div>
+            <div>
+              <button class="master-btn edit" onclick="document.getElementById('companyLogoInput').click()">選択</button>
+              <button class="master-btn delete" onclick="clearLogo()">削除</button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- デジタル印鑑 -->
+        <div class="form-group">
+          <label>デジタル印鑑（角印）</label>
+          <input type="file" id="stampInput" accept="image/*" style="display: none;" onchange="handleStampUpload(event)">
+          <div style="display: flex; gap: 8px; align-items: flex-start;">
+            <div style="text-align: center;">
+              <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">元画像</div>
+              <div id="stampOriginalContainer" style="width: 80px; height: 80px; border: 2px dashed #d1d5db; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer;" onclick="document.getElementById('stampInput').click()">
+                <img id="stampOriginal" style="max-width: 100%; max-height: 100%; display: none;">
+                <span id="stampPlaceholder" style="font-size: 10px; color: #9ca3af; text-align: center;">印鑑を<br>撮影</span>
+              </div>
+            </div>
+            <div style="font-size: 20px; color: #9ca3af; align-self: center;">→</div>
+            <div style="text-align: center;">
+              <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">透過後</div>
+              <div id="stampProcessedContainer" style="width: 80px; height: 80px; border: 2px solid #10b981; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: repeating-conic-gradient(#ddd 0% 25%, #fff 0% 50%) 50% / 10px 10px;">
+                <img id="stampProcessed" style="max-width: 100%; max-height: 100%; display: none;">
+              </div>
+            </div>
+          </div>
+          <div style="margin-top: 8px;">
+            <button class="master-btn edit" onclick="document.getElementById('stampInput').click()">📷 印鑑を選択</button>
+            <button class="master-btn delete" onclick="clearStamp()">削除</button>
+          </div>
+          <div style="margin-top: 8px;">
+            <label style="font-size: 12px; color: #6b7280;">透過感度</label>
+            <input type="range" id="stampThreshold" min="100" max="250" value="200" style="width: 100%;" onchange="reprocessStamp()">
+            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #9ca3af;">
+              <span>弱（背景を多く残す）</span>
+              <span>強（背景を多く消す）</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- AI設定（Gemini API） -->
+      <div class="form-section">
+        <h2>■ AI設定（レシート読み取り）</h2>
+        <div class="form-group">
+          <label>Gemini APIキー</label>
+          <input type="password" id="geminiApiKey" placeholder="AIzaSy...">
+          <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #3b82f6;">Google AI Studio</a> で無料取得できます
+          </div>
+        </div>
+        <button class="data-btn backup" onclick="testGeminiApi()">🔍 接続テスト</button>
+        
+        <!-- 音声コマンド設定 -->
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
+          <div class="form-group checkbox">
+            <input type="checkbox" id="useGeminiForVoice" onchange="saveSettings()">
+            <label>音声コマンドの解析にGemini AIを使用する</label>
+          </div>
+          <div style="font-size: 12px; color: #6b7280; margin-left: 28px;">
+            ONにするとより自然な言い方で操作できます（API使用量が少し増えます）
+          </div>
+        </div>
+        
+        <!-- API使用量表示 -->
+        <div style="margin-top: 16px; padding: 12px; background: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd;">
+          <div style="font-size: 14px; font-weight: bold; color: #0369a1; margin-bottom: 8px;">📊 API使用量</div>
+          <div id="apiUsageDisplay" style="font-size: 13px; color: #0c4a6e;">
+            <!-- JSで動的に更新 -->
+          </div>
+          <button onclick="resetApiUsage()" style="margin-top: 8px; padding: 6px 12px; font-size: 12px; background: #e0f2fe; border: 1px solid #7dd3fc; border-radius: 4px; cursor: pointer;">カウントをリセット</button>
+        </div>
+      </div>
+      
+      <!-- インボイス制度 -->
+      <div class="form-section">
+        <h2>■ インボイス制度</h2>
+        <div class="form-group checkbox">
+          <input type="checkbox" id="isInvoiceRegistered" onchange="toggleInvoiceNumber()">
+          <label>適格請求書発行事業者</label>
+        </div>
+        <div class="form-group" id="invoiceNumberGroup" style="display: none;">
+          <label>登録番号</label>
+          <input type="text" id="invoiceNumber" placeholder="T1234567890123">
+        </div>
+        <div class="form-group">
+          <label>消費税率</label>
+          <select id="taxRate">
+            <option value="10">10%</option>
+            <option value="8">8%（軽減税率）</option>
+          </select>
+        </div>
+      </div>
+      
+      <!-- 振込先情報 -->
+      <div class="form-section">
+        <h2>■ 振込先情報</h2>
+        <div class="form-group">
+          <label>銀行名</label>
+          <input type="text" id="bankName" placeholder="〇〇銀行">
+        </div>
+        <div class="form-group">
+          <label>支店名</label>
+          <input type="text" id="branchName" placeholder="〇〇支店">
+        </div>
+        <div class="form-group">
+          <label>口座種別</label>
+          <select id="accountType">
+            <option value="普通">普通</option>
+            <option value="当座">当座</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>口座番号</label>
+          <input type="text" id="accountNumber" placeholder="1234567">
+        </div>
+        <div class="form-group">
+          <label>口座名義</label>
+          <input type="text" id="accountHolder" placeholder="カ）〇〇セツビ">
+        </div>
+      </div>
+      
+      <!-- デフォルト設定 -->
+      <div class="form-section">
+        <h2>■ デフォルト設定</h2>
+        <div class="form-group">
+          <label>見積有効期限</label>
+          <select id="estimateValidDays">
+            <option value="7">7日</option>
+            <option value="14">14日</option>
+            <option value="30" selected>30日</option>
+            <option value="60">60日</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>支払期限</label>
+          <select id="paymentTerms">
+            <option value="翌月末">翌月末</option>
+            <option value="翌々月末">翌々月末</option>
+            <option value="30日以内">30日以内</option>
+            <option value="即日">即日</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>日当（1人/日）</label>
+          <div class="yen-input">
+            <input type="number" id="dailyRate" placeholder="18000" value="18000">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>材料のデフォルト利益率（%）</label>
+          <input type="number" id="defaultProfitRate" placeholder="20" value="20" min="0" max="100" style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 16px;">
+          <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+            見積書作成時に材料費に自動適用されます
+          </div>
+        </div>
+      </div>
+      
+      <!-- セキュリティ設定 -->
+      <div class="form-section">
+        <h2>■ セキュリティ設定</h2>
+        <div id="passwordNotSet" style="display: block;">
+          <p style="font-size: 13px; color: #6b7280; margin-bottom: 12px;">
+            🔒 パスワードを設定すると、アプリ起動時に入力が必要になります。<br>
+            顧客情報を守るため、設定をおすすめします。
+          </p>
+          <div class="form-group">
+            <label>新しいパスワード</label>
+            <input type="password" id="newPassword" placeholder="4文字以上">
+          </div>
+          <div class="form-group">
+            <label>パスワード確認</label>
+            <input type="password" id="confirmPassword" placeholder="もう一度入力">
+          </div>
+          <div class="form-group">
+            <label>合言葉（パスワードを忘れた時用）</label>
+            <input type="text" id="recoveryWord" placeholder="例：好きな食べ物、ペットの名前など">
+            <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+              ※ パスワードを忘れた時に使います。覚えやすいものを！
+            </div>
+          </div>
+          <button class="data-btn backup" onclick="setPassword()" style="background: #10b981;">🔐 パスワードを設定</button>
+        </div>
+        <div id="passwordSet" style="display: none;">
+          <p style="font-size: 13px; color: #10b981; margin-bottom: 12px;">
+            ✅ パスワードが設定されています
+          </p>
+          <button class="data-btn backup" onclick="showChangePassword()">🔑 パスワードを変更</button>
+          <button class="data-btn backup" onclick="showChangeRecoveryWord()">💬 合言葉を変更</button>
+          <button class="data-btn danger" onclick="removePassword()">🔓 パスワードを解除</button>
+        </div>
+      </div>
+      
+      <!-- データ管理 -->
+      <div class="form-section">
+        <h2>■ データ管理</h2>
+        <button class="data-btn backup" onclick="backupData()">📤 データのバックアップ</button>
+        <button class="data-btn backup" onclick="restoreData()">📥 データの復元</button>
+        <button class="data-btn danger" onclick="clearAllData()">🗑️ 全データ削除</button>
+      </div>
+      
+      <!-- アプリ情報 -->
+      <div class="form-section">
+        <h2>■ アプリ情報</h2>
+        <div style="background: linear-gradient(180deg, #0a1628 0%, #0f2847 100%); border-radius: 16px; padding: 24px; text-align: center; margin-bottom: 16px;">
+          <div style="font-size: 24px; font-weight: 300; letter-spacing: 8px; color: #00d4ff; text-shadow: 0 0 20px rgba(0,212,255,0.6); margin-bottom: 12px;">COCOMI CORE</div>
+          <div style="font-size: 13px; color: rgba(255,255,255,0.9); line-height: 1.8; margin-bottom: 16px; font-family: 'Hiragino Kaku Gothic ProN', sans-serif;">
+            想いが構造になり、<br>構造が証明になる。
+          </div>
+          <div style="width: 100px; height: 20px; margin: 0 auto 16px;">
+            <svg viewBox="0 0 200 40" style="width: 100%; height: 100%;">
+              <path d="M0,20 L40,20 L50,20 L60,5 L70,35 L80,10 L90,25 L100,20 L200,20" fill="none" stroke="#00d4ff" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div style="font-size: 10px; color: rgba(255,255,255,0.7); letter-spacing: 1px; margin-bottom: 4px;">COCOMI OS</div>
+          <div style="font-size: 10px; color: rgba(255,255,255,0.7); letter-spacing: 1px; margin-bottom: 12px;">Reflective Intelligence Architecture</div>
+          <div style="font-size: 11px; color: #00d4ff; margin-bottom: 12px;">Persona Architecture by aki & AI:COCOMI Sisters</div>
+        </div>
+        
+        <!-- PERAFCA Core -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+          <div style="font-size: 14px; font-weight: bold; color: #1e3a5f; margin-bottom: 12px; text-align: center;">PERAFCA Core</div>
+          <div style="font-size: 11px; color: #64748b; line-height: 1.8;">
+            <div style="margin-bottom: 6px;"><span style="color: #3b82f6; font-weight: bold;">P.E.</span> — Prompt Engineering（プロンプト設計）</div>
+            <div style="margin-bottom: 6px;"><span style="color: #3b82f6; font-weight: bold;">R</span> — Retrieval Augmented（情報活用）</div>
+            <div style="margin-bottom: 6px;"><span style="color: #3b82f6; font-weight: bold;">A.F.</span> — Agent Framework（自律行動循環）</div>
+            <div style="margin-bottom: 6px;"><span style="color: #3b82f6; font-weight: bold;">C.A.</span> — Cognitive Architecture（認知アーキテクチャ）</div>
+            <div style="text-align: center; margin-top: 10px; color: #1e3a5f; font-size: 12px;">→ 心が異界を紡ぐ仕組み</div>
+          </div>
+        </div>
+        
+        <!-- アプリ情報・法的情報 -->
+        <div class="form-section">
+          <h2>■ アプリ情報</h2>
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <a href="privacy-policy.html" target="_blank" style="display: flex; align-items: center; gap: 12px; padding: 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; color: #1e293b;">
+              <span style="font-size: 20px;">🔒</span>
+              <div>
+                <div style="font-weight: bold;">プライバシーポリシー</div>
+                <div style="font-size: 11px; color: #64748b;">個人情報の取り扱いについて</div>
+              </div>
+              <span style="margin-left: auto; color: #94a3b8;">→</span>
+            </a>
+            <a href="javascript:void(0)" onclick="showTermsOfService()" style="display: flex; align-items: center; gap: 12px; padding: 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; color: #1e293b;">
+              <span style="font-size: 20px;">📜</span>
+              <div>
+                <div style="font-weight: bold;">利用規約</div>
+                <div style="font-size: 11px; color: #64748b;">サービスのご利用条件</div>
+              </div>
+              <span style="margin-left: auto; color: #94a3b8;">→</span>
+            </a>
+            <a href="javascript:void(0)" onclick="showLicenses()" style="display: flex; align-items: center; gap: 12px; padding: 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; color: #1e293b;">
+              <span style="font-size: 20px;">📋</span>
+              <div>
+                <div style="font-weight: bold;">オープンソースライセンス</div>
+                <div style="font-size: 11px; color: #64748b;">使用しているライブラリ</div>
+              </div>
+              <span style="margin-left: auto; color: #94a3b8;">→</span>
+            </a>
+          </div>
+        </div>
+        
+        <!-- バージョン情報 -->
+        <div style="text-align: center; color: #94a3b8; font-size: 11px;">
+          <div style="font-weight: bold; color: #3b82f6;">リフォーム見積・会計 Pro</div>
+          <div>Version 0.91 | 2025.01</div>
+          <div style="margin-top: 8px;">
+            <span style="color: #00d4ff;">♡</span> Powered by COCOMI Heart Core
+          </div>
+          <div style="margin-top: 4px; font-size: 10px; color: #cbd5e1;">
+            © 2025 COCOMIOS Project
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="save-bar">
+      <button class="save-btn" id="saveBtn" onclick="saveSettings()">保存</button>
+    </div>
+  </div>
+
