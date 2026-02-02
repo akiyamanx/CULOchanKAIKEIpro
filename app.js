@@ -37,6 +37,9 @@ function showScreen(screenId) {
   if (screenId === 'data') {
     initDataScreen();
   }
+  if (screenId === 'receipt') {
+    initReceiptScreen();
+  }
   if (screenId === 'tax') {
     // 確定申告画面の初期化
     const savedTaxType = localStorage.getItem('reform_app_tax_type') || 'blue';
