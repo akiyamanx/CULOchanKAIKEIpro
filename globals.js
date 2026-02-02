@@ -1,6 +1,6 @@
 // ==========================================
 // グローバル変数定義
-// Reform App Pro v0.91
+// Reform App Pro v0.92
 // ==========================================
 
 // 確定申告
@@ -11,6 +11,7 @@ let productMaster = [];
 
 // レシート関連
 let receiptItems = [];
+let projects = [];  // v0.92追加: 現場割り当て用
 let receiptImageData = null;
 let multiImageDataUrls = [];
 
