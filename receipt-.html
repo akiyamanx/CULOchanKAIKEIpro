@@ -1,0 +1,141 @@
+  <!-- ========== レシート読込画面 ========== -->
+  <div id="receipt-screen" class="screen">
+    <div class="header">
+      <button class="back-btn" onclick="showScreen('home')" title="ホームに戻る">🏠</button>
+      <h1>📷 レシート読込</h1>
+      <div style="width: 40px;"></div>
+    </div>
+    
+    <div class="form-container">
+      <!-- 画像選択エリア -->
+      <div class="form-section">
+        <h2>■ レシート画像</h2>
+        <div class="image-select-area">
+          <input type="file" id="receiptImage" accept="image/*" capture="environment" onchange="handleImageSelect(event)" style="display: none;">
+          <input type="file" id="receiptGallery" accept="image/*" onchange="handleImageSelect(event)" style="display: none;">
+          <input type="file" id="receiptAddImage" accept="image/*" onchange="handleAddImageSelect(event)" style="display: none;">
+          
+          <div id="imagePreviewArea" class="image-preview-area" onclick="document.getElementById('receiptGallery').click()">
+            <div id="imagePlaceholder" class="image-placeholder">
+              <span class="placeholder-icon">📷</span>
+              <span>タップして画像を選択</span>
+            </div>
+            <img id="imagePreview" class="image-preview" style="display: none;">
+          </div>
+          
+          <!-- 複数画像サムネイルエリア -->
+          <div id="multiImageArea" style="display: none; margin-top: 12px;">
+            <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px;">
+              📸 選択した画像（×で削除）
+            </div>
+            <div id="multiImageThumbnails" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;"></div>
+            <div style="margin-top: 8px; padding: 8px; background: #fef3c7; border-radius: 8px; font-size: 11px; color: #92400e;">
+              💡 複数枚は自動で縦に結合されてAIに送信されます
+            </div>
+          </div>
+          
+          <div class="image-buttons">
+            <button class="image-btn camera" onclick="document.getElementById('receiptImage').click()">
+              📷 カメラ
+            </button>
+            <button class="image-btn gallery" onclick="document.getElementById('receiptGallery').click()">
+              🖼️ 選択
+            </button>
+            <button class="image-btn gallery" onclick="document.getElementById('receiptAddImage').click()" style="background: linear-gradient(135deg, #8b5cf6, #a78bfa);">
+              ＋ 追加
+            </button>
+            <button class="image-btn gallery" onclick="clearAllImages()" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+              🗑️ クリア
+            </button>
+          </div>
+          <button class="ocr-btn" id="ocrBtn" onclick="runOCR()" disabled>
+            🔍 文字を読み取る（OCR）
+          </button>
+          <button class="ocr-btn" id="aiBtn" onclick="runAiOcr()" disabled style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); margin-top: 8px;">
+            🤖 AIで読み取る（Gemini）
+          </button>
+          <button class="ocr-btn" onclick="startVoiceCommand('receipt')" style="background: linear-gradient(135deg, #f59e0b, #d97706); margin-top: 8px;">
+            🎤 音声で修正
+          </button>
+          <div id="processedImagePreview" style="display: none; margin-top: 12px;">
+            <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">▼ 処理後の画像（OCR用）</div>
+            <img id="processedImage" style="max-width: 100%; border: 1px solid #e5e7eb; border-radius: 8px;">
+          </div>
+        </div>
+      </div>
+      
+      <!-- 基本情報 -->
+      <div class="form-section">
+        <h2>■ 基本情報</h2>
+        <div class="form-group">
+          <label>店名</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="receiptStoreName" placeholder="〇〇ホームセンター" style="flex: 1;">
+            <button class="voice-input-btn" onclick="startVoiceInput('receiptStoreName')" title="音声入力">🎤</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>日付</label>
+          <input type="date" id="receiptDate">
+        </div>
+      </div>
+      
+      <!-- 品目リスト -->
+      <div class="form-section">
+        <h2>■ 品目リスト</h2>
+        
+        <!-- 現場割り当てセクション -->
+        <div id="assignSection" class="assign-section" style="display: none;">
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <label style="display: flex; align-items: center; gap: 4px; font-size: 13px; color: #6b7280; cursor: pointer;">
+              <input type="checkbox" id="selectAllItems" onchange="toggleAllCheckboxes(this.checked)" style="width: 18px; height: 18px; accent-color: #3b82f6;">
+              全選択
+            </label>
+            <select id="projectSelect" class="project-select">
+              <option value="">現場を選択...</option>
+            </select>
+            <button class="assign-btn" onclick="assignSelectedItems()">✓ 割当</button>
+            <button class="clear-assign-btn" onclick="clearSelectedAssignments()">✕ 解除</button>
+          </div>
+          <!-- ★ 新規現場入力欄 -->
+          <div style="display: flex; gap: 8px; align-items: center; margin-top: 10px;">
+            <input type="text" id="newProjectName" placeholder="新しい現場名を入力..." 
+              style="flex: 1; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;"
+              onkeypress="if(event.key==='Enter')addNewProject()">
+            <button onclick="addNewProject()" 
+              style="padding: 8px 14px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+              ＋ 追加
+            </button>
+          </div>
+          <div id="assignedCount" style="font-size: 12px; color: #6b7280; margin-top: 8px;"></div>
+        </div>
+        
+        <div id="receiptItemsList">
+          <!-- 品目がここに追加される -->
+        </div>
+        <button class="add-item-btn" onclick="addReceiptItem()">
+          ＋ 品目を追加
+        </button>
+      </div>
+      
+      <!-- 合計表示 -->
+      <div class="form-section">
+        <div class="receipt-total">
+          <span>合計金額:</span>
+          <span id="receiptTotal">¥0</span>
+        </div>
+      </div>
+      
+      <!-- 画像保存オプション -->
+      <div class="form-section">
+        <div class="form-group checkbox">
+          <input type="checkbox" id="saveReceiptImage" checked>
+          <label>レシート画像を保存する</label>
+        </div>
+      </div>
+    </div>
+    
+    <div class="save-bar">
+      <button class="save-btn" onclick="saveReceipt()">仕訳を保存</button>
+    </div>
+  </div>
