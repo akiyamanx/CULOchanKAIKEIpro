@@ -719,7 +719,14 @@ function saveReceipt() {
   if (expenseCount > 0) message += `経費: ${expenseCount}件`;
   
   // v0.94.1追加: レシート履歴に保存（画像＋入力内容をセットで保管）
-  saveReceiptHistory(storeName, date, materials, expenses, saveImage);
+  // receipt-history.jsが読み込まれていない場合はスキップ
+  if (typeof saveReceiptHistory === 'function') {
+    try {
+      saveReceiptHistory(storeName, date, materials, expenses, saveImage);
+    } catch (e) {
+      console.warn('レシート履歴の保存に失敗:', e);
+    }
+  }
   
   alert(message);
   
