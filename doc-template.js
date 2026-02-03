@@ -457,45 +457,53 @@ function generateDocumentHTML(d) {
     margin-bottom: 4mm;
   }
 
-  .totals-table {
+  .totals-table, /* v0.95 後方互換 */
+  .totals-box {
     width: 60mm;
-    border-collapse: collapse;
     font-size: 10px;
     border: 1px solid #cbd5e0;
+    overflow: hidden;
   }
 
-  /* v0.95修正 - セルには左右のborderだけ。横線なし */
-  .totals-table td {
-    padding: 1.5mm 3mm;
-    border: none;
+  /* v0.95修正 - div方式でプリンタのborder問題を回避 */
+  .totals-row {
+    display: flex;
   }
 
-  /* ラベル列と値列の間の縦区切り線 */
-  .totals-table .label {
+  .totals-label {
     text-align: right;
     background: #f7fafc;
     font-weight: 500;
     width: 28mm;
+    padding: 1.5mm 3mm;
     border-right: 1px solid #cbd5e0;
   }
 
-  .totals-table .value {
+  .totals-value {
     text-align: right;
     font-weight: 500;
     width: 32mm;
+    padding: 1.5mm 3mm;
   }
 
-  .totals-table .grand-total td {
+  .totals-row.grand-total {
     background: #2c5282;
     color: white;
     font-weight: bold;
     font-size: 12px;
-    padding: 2mm 3mm;
-    border-color: #2c5282;
   }
 
-  .totals-table .grand-total .label {
+  .totals-row.grand-total .totals-label {
+    background: #2c5282;
+    color: white;
+    font-weight: bold;
+    padding: 2mm 3mm;
     border-right: 1px solid rgba(255,255,255,0.3);
+  }
+
+  .totals-row.grand-total .totals-value {
+    font-weight: bold;
+    padding: 2mm 3mm;
   }
 
   /* === 備考 === */
@@ -619,20 +627,20 @@ function generateDocumentHTML(d) {
 
   <!-- 合計エリア -->
   <div class="totals-area">
-    <table class="totals-table">
-      <tr>
-        <td class="label">小計</td>
-        <td class="value">¥${d.subtotal.toLocaleString()}</td>
-      </tr>
-      <tr>
-        <td class="label">消費税（${d.taxRate}%）</td>
-        <td class="value">¥${d.tax.toLocaleString()}</td>
-      </tr>
-      <tr class="grand-total">
-        <td class="label">合計</td>
-        <td class="value">¥${d.total.toLocaleString()}</td>
-      </tr>
-    </table>
+    <div class="totals-box">
+      <div class="totals-row">
+        <div class="totals-label">小計</div>
+        <div class="totals-value">¥${d.subtotal.toLocaleString()}</div>
+      </div>
+      <div class="totals-row">
+        <div class="totals-label">消費税（${d.taxRate}%）</div>
+        <div class="totals-value">¥${d.tax.toLocaleString()}</div>
+      </div>
+      <div class="totals-row grand-total">
+        <div class="totals-label">合計</div>
+        <div class="totals-value">¥${d.total.toLocaleString()}</div>
+      </div>
+    </div>
   </div>
 
   <!-- 備考 -->
