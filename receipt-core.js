@@ -1,10 +1,14 @@
 // ==========================================
 // レシート読込 - コア機能
-// Reform App Pro v0.93
+// Reform App Pro v0.94
 // ==========================================
 // 画面初期化、画像管理、品目UI、保存機能
 // + チェックボックス、現場割り当て機能（v0.92追加）
 // + 勘定科目カスタマイズ対応（v0.93追加）
+// + v0.94修正:
+//   - 連携フローの金額渡しをintに確実に変換
+//   - 新規書類にお客様名（_docFlowCustomerName）を反映
+//   - openDocScreen後にLocalStorageから画面にデータ読み込み
 // 
 // 依存ファイル:
 //   - globals.js (receiptItems, receiptImageData, multiImageDataUrls, categories, productMaster, projects)
@@ -719,6 +723,7 @@ function saveReceipt() {
 let _docFlowMaterials = [];
 let _docFlowTarget = ''; // 'estimate' or 'invoice'
 let _docFlowProjectName = '';
+let _docFlowCustomerName = ''; // v0.94追加: お客様名
 
 function openDocFlowModal() {
   const modal = document.getElementById('receiptDocFlowModal');
@@ -738,6 +743,10 @@ function showDocFlowStep1(materials) {
   // 現場名をまとめる
   const projectNames = [...new Set(materials.map(m => m.projectName))];
   _docFlowProjectName = projectNames[0] || '';
+  
+  // v0.94追加: お客様名を取得（レシート画面にフィールドがあれば）
+  const custEl = document.getElementById('receiptCustomerName');
+  _docFlowCustomerName = custEl ? custEl.value.trim() : '';
   
   const title = document.getElementById('docFlowTitle');
   const subtitle = document.getElementById('docFlowSubtitle');
@@ -868,21 +877,23 @@ function applyToExistingDoc(docId) {
   const doc = docs[docIndex];
   
   // 材料を追加
+  // v0.94修正: priceを確実に数値に変換
   _docFlowMaterials.forEach(m => {
+    const price = parseInt(m.price) || 0;
     const newMaterial = {
       id: Date.now() + Math.random(),
       name: m.name,
-      quantity: m.quantity
+      quantity: parseInt(m.quantity) || 1
     };
     
     if (isEstimate) {
       const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
       const profitRate = parseFloat(settings.defaultProfitRate) || 20;
-      newMaterial.costPrice = m.price;
+      newMaterial.costPrice = price;
       newMaterial.profitRate = profitRate;
-      newMaterial.sellingPrice = Math.ceil(m.price * (1 + profitRate / 100));
+      newMaterial.sellingPrice = Math.ceil(price * (1 + profitRate / 100));
     } else {
-      newMaterial.price = m.price;
+      newMaterial.price = price;
     }
     
     doc.materials.push(newMaterial);
@@ -909,27 +920,30 @@ function createNewDocWithMaterials() {
   const profitRate = parseFloat(settings.defaultProfitRate) || 20;
   
   // 材料データを作成
+  // v0.94修正: priceを確実に数値に変換
   const newMaterials = _docFlowMaterials.map(m => {
+    const price = parseInt(m.price) || 0;
     const mat = {
       id: Date.now() + Math.random(),
       name: m.name,
-      quantity: m.quantity
+      quantity: parseInt(m.quantity) || 1
     };
     if (isEstimate) {
-      mat.costPrice = m.price;
+      mat.costPrice = price;
       mat.profitRate = profitRate;
-      mat.sellingPrice = Math.ceil(m.price * (1 + profitRate / 100));
+      mat.sellingPrice = Math.ceil(price * (1 + profitRate / 100));
     } else {
-      mat.price = m.price;
+      mat.price = price;
     }
     return mat;
   });
   
   // 新規書類
+  // v0.94修正: customerNameに_docFlowCustomerName、subjectに_docFlowProjectNameをセット
   const newDoc = {
     id: Date.now(),
     status: 'draft',
-    customerName: '',
+    customerName: _docFlowCustomerName,
     subject: _docFlowProjectName,
     date: new Date().toISOString().split('T')[0],
     materials: newMaterials,
@@ -1028,6 +1042,7 @@ function showDocFlowStep3(docLabel, docNumber, isNew) {
 }
 
 // ── 書類画面を開く ──
+// v0.94修正: 画面遷移後にLocalStorageの下書きデータを読み込んで表示する
 function openDocScreen() {
   const modal = document.getElementById('receiptDocFlowModal');
   if (modal) modal.style.display = 'none';
@@ -1035,12 +1050,79 @@ function openDocScreen() {
   
   if (_docFlowTarget === 'estimate') {
     showScreen('estimate');
+    // 少し待ってから最新の下書きデータで画面を更新
+    setTimeout(() => loadLatestDraftToScreen('estimate'), 300);
   } else {
     showScreen('invoice');
+    setTimeout(() => loadLatestDraftToScreen('invoice'), 300);
+  }
+}
+
+// v0.94追加: 最新の下書きを画面に読み込む
+function loadLatestDraftToScreen(type) {
+  const isEstimate = type === 'estimate';
+  const storageKey = isEstimate ? 'reform_app_estimates' : 'reform_app_invoices';
+  const docs = JSON.parse(localStorage.getItem(storageKey) || '[]');
+  
+  // 最後に保存された下書きを取得
+  const latestDraft = docs.filter(d => d.status === 'draft').pop();
+  if (!latestDraft) return;
+  
+  if (isEstimate) {
+    // お客様名・件名を反映
+    const custEl = document.getElementById('estCustomerName');
+    const subjEl = document.getElementById('estSubject');
+    if (custEl) custEl.value = latestDraft.customerName || '';
+    if (subjEl) subjEl.value = latestDraft.subject || '';
+    
+    // 材料データをメモリに読み込み
+    estimateMaterials = (latestDraft.materials || []).map(m => ({
+      ...m,
+      id: m.id || Date.now() + Math.random()
+    }));
+    
+    // 作業データ
+    if (latestDraft.works && latestDraft.works.length > 0) {
+      estimateWorks = latestDraft.works.map(w => ({
+        ...w,
+        id: w.id || Date.now() + Math.random()
+      }));
+    }
+    
+    renderEstimateMaterials();
+    renderEstimateWorks();
+    calculateEstimateTotal();
+  } else {
+    // 請求書
+    const custEl = document.getElementById('invCustomerName');
+    const subjEl = document.getElementById('invSubject');
+    if (custEl) custEl.value = latestDraft.customerName || '';
+    if (subjEl) subjEl.value = latestDraft.subject || '';
+    
+    // 材料データをメモリに読み込み
+    invoiceMaterials = (latestDraft.materials || []).map(m => ({
+      ...m,
+      id: m.id || Date.now() + Math.random()
+    }));
+    
+    // 作業データ
+    if (latestDraft.works && latestDraft.works.length > 0) {
+      invoiceWorks = latestDraft.works.map(w => ({
+        ...w,
+        id: w.id || Date.now() + Math.random()
+      }));
+    }
+    
+    renderInvoiceMaterials();
+    renderInvoiceWorks();
+    calculateInvoiceTotal();
   }
 }
 
 function resetReceiptForm() {
+  // v0.94追加: お客様名もリセット
+  const custEl = document.getElementById('receiptCustomerName');
+  if (custEl) custEl.value = '';
   document.getElementById('receiptStoreName').value = '';
   document.getElementById('receiptDate').value = new Date().toISOString().split('T')[0];
   document.getElementById('imagePreview').style.display = 'none';

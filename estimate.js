@@ -1,7 +1,9 @@
 // ==========================================
 // 見積書作成機能
-// Reform App Pro v0.91
+// Reform App Pro v0.94
 // ==========================================
+// v0.94修正:
+//   - getEstimateData() の materialSubtotal 計算で sellingPrice を使用（金額0円バグ修正）
 
 
 // 見積書作成機能
@@ -1114,7 +1116,8 @@ function getEstimateData() {
   const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
   const taxRate = parseFloat(settings.taxRate) || 10;
   
-  const materialSubtotal = estimateMaterials.reduce((sum, m) => sum + (m.quantity || 0) * (m.price || 0), 0);
+  // v0.94修正: sellingPriceを使って計算（m.priceだと0円になるバグ修正）
+  const materialSubtotal = estimateMaterials.reduce((sum, m) => sum + (m.quantity || 0) * (m.sellingPrice || m.price || 0), 0);
   const workSubtotal = estimateWorks.reduce((sum, w) => {
     if (workType === 'construction') {
       return sum + (w.value || 0);
