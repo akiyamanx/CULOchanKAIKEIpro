@@ -146,8 +146,10 @@
     
     <div class="save-bar">
       <div style="display: flex; gap: 8px; width: 100%;">
-        <button style="flex: 1; padding: 14px; background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;"
+        <button style="flex: 1; padding: 14px; background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;"
           onclick="showReceiptHistory()">📋 履歴</button>
+        <button style="flex: 1; padding: 14px; background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;"
+          onclick="if(confirm('入力内容をリセットしますか？'))resetReceiptForm()">🔄 リセット</button>
         <button class="save-btn" style="flex: 2;" onclick="saveReceipt()">仕訳を保存</button>
       </div>
     </div>

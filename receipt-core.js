@@ -1,6 +1,6 @@
 // ==========================================
 // レシート読込 - コア機能
-// Reform App Pro v0.94
+// Reform App Pro v0.94.1
 // ==========================================
 // 画面初期化、画像管理、品目UI、保存機能
 // + チェックボックス、現場割り当て機能（v0.92追加）
@@ -9,18 +9,33 @@
 //   - 連携フローの金額渡しをintに確実に変換
 //   - 新規書類にお客様名（_docFlowCustomerName）を反映
 //   - openDocScreen後にLocalStorageから画面にデータ読み込み
+// + v0.94.1修正:
+//   - 連携後にレシート画面をリセットしない（内容を残す）
+//   - saveReceipt時にレシート履歴を保存（receipt-history.jsに依存）
 // 
 // 依存ファイル:
 //   - globals.js (receiptItems, receiptImageData, multiImageDataUrls, categories, productMaster, projects)
 //   - receipt-ocr.js (runOCR)
 //   - receipt-ai.js (runAiOcr)
+//   - receipt-history.js (saveReceiptHistory, v0.94.1追加)
 // ==========================================
 
 
 // ==========================================
 // 画面初期化
 // ==========================================
+// v0.94.1修正: 初回のみフルリセット、以降は現場セレクトの更新だけ
+// （他の画面から戻った時にデータが消えないようにする）
+let _receiptScreenInitialized = false;
+
 function initReceiptScreen() {
+  // 現場セレクトは毎回更新（新しい現場が追加されてる可能性がある）
+  initProjectSelect();
+
+  // 初回のみフルリセット
+  if (_receiptScreenInitialized) return;
+  _receiptScreenInitialized = true;
+
   // 今日の日付をセット
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('receiptDate').value = today;
@@ -40,8 +55,6 @@ function initReceiptScreen() {
   if (document.getElementById('imagePreview')) {
     document.getElementById('imagePreview').style.display = 'none';
   }
-  // 現場セレクトボックスを初期化
-  initProjectSelect();
   // 最初の品目を追加
   addReceiptItem();
 }
@@ -704,16 +717,18 @@ function saveReceipt() {
   let message = '保存しました！\n';
   if (materialCount > 0) message += `材料: ${materialCount}件\n`;
   if (expenseCount > 0) message += `経費: ${expenseCount}件`;
+  
+  // v0.94.1追加: レシート履歴に保存（画像＋入力内容をセットで保管）
+  saveReceiptHistory(storeName, date, materials, expenses, saveImage);
+  
   alert(message);
   
   // ★ v0.93: 現場割り当て済みの材料があれば見積もり/請求書連携を提案
   const assignedMaterials = materials.filter(m => m.projectName);
   if (assignedMaterials.length > 0) {
     showDocFlowStep1(assignedMaterials);
-  } else {
-    // リセット
-    resetReceiptForm();
   }
+  // v0.94.1: 保存後もレシート画面の内容を残す（リセットはリセットボタンで行う）
 }
 
 
@@ -733,7 +748,8 @@ function openDocFlowModal() {
 function closeDocFlowModal() {
   const modal = document.getElementById('receiptDocFlowModal');
   if (modal) modal.style.display = 'none';
-  resetReceiptForm();
+  // v0.94.1: リセットしない（レシート画面の内容を残す）
+  // resetReceiptForm();
 }
 
 // ── Step 1: 見積もり or 請求書？ ──
@@ -1043,14 +1059,14 @@ function showDocFlowStep3(docLabel, docNumber, isNew) {
 
 // ── 書類画面を開く ──
 // v0.94修正: 画面遷移後にLocalStorageの下書きデータを読み込んで表示する
+// v0.94.1修正: レシート画面をリセットしない（戻った時に内容が残る）
 function openDocScreen() {
   const modal = document.getElementById('receiptDocFlowModal');
   if (modal) modal.style.display = 'none';
-  resetReceiptForm();
+  // resetReceiptForm(); // v0.94.1: リセットしない（戻った時に内容を残す）
   
   if (_docFlowTarget === 'estimate') {
     showScreen('estimate');
-    // 少し待ってから最新の下書きデータで画面を更新
     setTimeout(() => loadLatestDraftToScreen('estimate'), 300);
   } else {
     showScreen('invoice');
@@ -1119,6 +1135,7 @@ function loadLatestDraftToScreen(type) {
   }
 }
 
+// v0.94.1修正: リセットボタン用（ユーザーが明示的にリセットする時のみ呼ばれる）
 function resetReceiptForm() {
   // v0.94追加: お客様名もリセット
   const custEl = document.getElementById('receiptCustomerName');
@@ -1127,11 +1144,23 @@ function resetReceiptForm() {
   document.getElementById('receiptDate').value = new Date().toISOString().split('T')[0];
   document.getElementById('imagePreview').style.display = 'none';
   document.getElementById('imagePlaceholder').style.display = 'flex';
-  document.getElementById('processedImagePreview').style.display = 'none';
+  const procPreview = document.getElementById('processedImagePreview');
+  if (procPreview) procPreview.style.display = 'none';
   document.getElementById('ocrBtn').disabled = true;
   document.getElementById('aiBtn').disabled = true;
   receiptImageData = null;
+  // v0.94.1追加: 複数画像もリセット
+  multiImageDataUrls = [];
+  if (document.getElementById('multiImageArea')) {
+    document.getElementById('multiImageArea').style.display = 'none';
+  }
+  if (document.getElementById('multiImageThumbnails')) {
+    document.getElementById('multiImageThumbnails').innerHTML = '';
+  }
   receiptItems = [];
   addReceiptItem();
   updateReceiptTotal();
+  // v0.94.1: initReceiptScreenが次回も初期化できるようにフラグを残す
+  // （リセット後は「初回状態」と同じ扱い）
+  // ※ただしフラグはリセットしない（画面遷移でのリセットを防ぐため）
 }
