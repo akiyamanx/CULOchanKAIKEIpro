@@ -82,6 +82,26 @@ function addProject(name) {
   return true;
 }
 
+// ★ 新規現場入力欄から追加する関数
+function addNewProject() {
+  const input = document.getElementById('newProjectName');
+  if (!input) return;
+  const name = input.value.trim();
+  if (!name) {
+    alert('現場名を入力してください');
+    return;
+  }
+  if (addProject(name)) {
+    // セレクトボックスで新しい現場を選択
+    const select = document.getElementById('projectSelect');
+    if (select) select.value = name;
+    input.value = '';
+    alert(`「${name}」を追加しました`);
+  } else {
+    alert('同じ名前の現場が既に存在します');
+  }
+}
+
 
 // ==========================================
 // 画像選択・管理
