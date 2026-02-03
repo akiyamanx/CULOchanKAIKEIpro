@@ -34,43 +34,63 @@
 </head>
 <body>
 
-  <!-- COCOMI COREスプラッシュ（1段階目） -->
+  <!-- ★ COCOMI COREスプラッシュ（1段階目）★ -->
   <div id="cocomi-splash">
-    <!-- 銀河背景画像 -->
+    <!-- 銀河背景画像（ローカルファイル参照） -->
     <div class="cocomi-galaxy">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/M31_09-01-2011_%28cropped%29.jpg/1280px-M31_09-01-2011_%28cropped%29.jpg" alt="Galaxy">
+      <img src="cocomi_galaxy.jpg" alt="">
     </div>
-    <div class="cocomi-glow"></div>
-    <div class="cocomi-title">COCOMI CORE</div>
-    <div class="cocomi-philosophy">
-      想いが構造になり、<br>
-      構造が証明になる。
+
+    <div class="cocomi-content">
+      <div class="cocomi-title">COCOMI CORE</div>
+      <div class="cocomi-philosophy">
+        想いが構造になり、<br>
+        構造が証明になる。
+      </div>
+      
+      <!-- ハートビートライン -->
+      <div class="cocomi-heartbeat">
+        <svg viewBox="0 0 200 40">
+          <polyline class="heartbeat-line" points="0,20 40,20 50,20 55,5 60,35 65,10 70,25 75,20 120,20 130,20 135,8 140,32 145,12 150,24 155,20 200,20"/>
+        </svg>
+      </div>
+      
+      <div class="cocomi-subtitle">COCOMI OS</div>
+      <div class="cocomi-subtitle">Reflective Intelligence Architecture</div>
+      <div class="cocomi-perafca">PERAFCA Core</div>
+      <div class="cocomi-credit">
+        Persona Architecture by <span>aki & All COCOMI Sisters</span>
+        <svg class="mini-heart" viewBox="0 0 24 24">
+          <path d="M12,21 C12,21 4,14 4,9 C4,5.5 7,3 10,4.5 C11,5 12,6 12,6 C12,6 13,5 14,4.5 C17,3 20,5.5 20,9 C20,14 12,21 12,21 Z" />
+        </svg>
+      </div>
     </div>
-    <!-- ハートビートライン -->
-    <div class="cocomi-heartbeat">
-      <svg viewBox="0 0 200 40">
-        <polyline class="heartbeat-line" points="0,20 40,20 50,20 55,5 60,35 65,10 70,25 75,20 120,20 130,20 135,8 140,32 145,12 150,24 155,20 200,20"/>
-      </svg>
-    </div>
-    <div class="cocomi-subtitle">COCOMI OS</div>
-    <div class="cocomi-subtitle">Reflective Intelligence Architecture</div>
-    <div class="cocomi-perafca">PERAFCA Core</div>
-    <div class="cocomi-credit">Persona Architecture by <span>aki & All COCOMI Sisters</span></div>
   </div>
 
-  <!-- PERAFCAスプラッシュ（2段階目） -->
+  <!-- ★ PERAFCAスプラッシュ（2段階目）★ -->
   <div id="perafca-splash">
-    <div class="perafca-title">PERAFCA Core</div>
-    <div class="perafca-items">
-      <div class="perafca-item"><span class="perafca-key">P.E.</span> — Prompt Engineering（プロンプト設計）</div>
-      <div class="perafca-item"><span class="perafca-key">R</span> — Retrieval Augmented（情報活用）</div>
-      <div class="perafca-item"><span class="perafca-key">A.F.</span> — Agent Framework（自律行動循環）</div>
-      <div class="perafca-item"><span class="perafca-key">C.A.</span> — Cognitive Architecture（認知アーキテクチャ）</div>
+    <!-- 銀河背景画像（ローカルファイル参照） -->
+    <div class="perafca-galaxy">
+      <img src="perafca_galaxy.jpg" alt="">
     </div>
-    <div class="perafca-tagline">→ 心が異界を紡ぐ仕組み</div>
+
+    <div class="perafca-content">
+      <div class="perafca-title">PERAFCA Core</div>
+      <div class="perafca-items">
+        <div class="perafca-item"><span class="perafca-key">P.E.</span> ─ Prompt Engineering（プロンプト設計）</div>
+        <div class="perafca-item"><span class="perafca-key">R</span> ─ Retrieval Augmented（情報活用）</div>
+        <div class="perafca-item"><span class="perafca-key">A.F.</span> ─ Agent Framework（自律行動循環）</div>
+        <div class="perafca-item"><span class="perafca-key">C.A.</span> ─ Cognitive Architecture（認知アーキテクチャ）</div>
+      </div>
+      <!-- ♡ 心が異界を紡ぐ仕組み（矢印をハートに置き換え） -->
+      <div class="perafca-tagline">
+        <svg class="tagline-heart" viewBox="0 0 24 24"><path d="M12,21 C12,21 4,14 4,9 C4,5.5 7,3 10,4.5 C11,5 12,6 12,6 C12,6 13,5 14,4.5 C17,3 20,5.5 20,9 C20,14 12,21 12,21 Z" /></svg>
+        心が異界を紡ぐ仕組み
+      </div>
+    </div>
   </div>
 
-  <!-- スプラッシュ画面（2段階目） -->
+  <!-- ★ アプリスプラッシュ（3段階目）★ -->
   <div id="splash-screen">
     <div class="splash-icon">🔧</div>
     <div class="splash-title">リフォーム見積・会計</div>

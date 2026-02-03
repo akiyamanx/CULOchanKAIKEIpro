@@ -11,7 +11,10 @@
       min-height: 100vh;
     }
     
-    /* スプラッシュ画面 */
+    /* ============================================ */
+    /* スプラッシュ画面 - COCOMI SPLASH DEMO v2.0   */
+    /* ============================================ */
+
     /* COCOMI COREスプラッシュ（1段階目） */
     #cocomi-splash {
       position: fixed;
@@ -19,12 +22,13 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: linear-gradient(180deg, #020810 0%, #0a1929 30%, #0d2137 50%, #0a1929 70%, #020810 100%);
+      background: #000;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       z-index: 10000;
+      opacity: 1;
       transition: opacity 0.8s ease;
       overflow: hidden;
     }
@@ -34,76 +38,50 @@
       pointer-events: none;
     }
     
-    /* 星空背景 */
+    /* 銀河画像の上に被せる暗めオーバーレイ */
     #cocomi-splash::before {
       content: '';
       position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
       height: 100%;
-      background-image: 
-        radial-gradient(2px 2px at 20px 30px, white, transparent),
-        radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
-        radial-gradient(1px 1px at 90px 40px, white, transparent),
-        radial-gradient(2px 2px at 160px 120px, rgba(255,255,255,0.9), transparent),
-        radial-gradient(1px 1px at 230px 80px, white, transparent),
-        radial-gradient(2px 2px at 300px 150px, rgba(255,255,255,0.7), transparent),
-        radial-gradient(1px 1px at 100px 200px, white, transparent),
-        radial-gradient(2px 2px at 200px 250px, rgba(255,255,255,0.8), transparent),
-        radial-gradient(1px 1px at 50px 300px, white, transparent),
-        radial-gradient(2px 2px at 280px 320px, rgba(255,255,255,0.6), transparent),
-        radial-gradient(1px 1px at 350px 60px, white, transparent),
-        radial-gradient(1px 1px at 380px 200px, rgba(255,255,255,0.9), transparent),
-        radial-gradient(2px 2px at 150px 350px, white, transparent),
-        radial-gradient(1px 1px at 250px 400px, rgba(255,255,255,0.7), transparent),
-        radial-gradient(2px 2px at 320px 450px, white, transparent);
-      background-size: 400px 500px;
-      animation: twinkle 4s ease-in-out infinite;
+      background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.5) 100%);
+      z-index: 1;
     }
     
-    @keyframes twinkle {
-      0%, 100% { opacity: 0.8; }
-      50% { opacity: 1; }
-    }
-    
-    /* 流れ星 */
-    #cocomi-splash::after {
-      content: '';
+    /* 銀河背景画像（共通） */
+    .cocomi-galaxy, .perafca-galaxy {
       position: absolute;
-      top: 10%;
-      right: 15%;
-      width: 100px;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, #00d4ff, white);
-      transform: rotate(45deg);
-      animation: shooting-star 3s ease-in-out infinite;
-      opacity: 0;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
     }
     
-    @keyframes shooting-star {
-      0% { opacity: 0; transform: rotate(45deg) translateX(0); }
-      10% { opacity: 1; }
-      30% { opacity: 0; transform: rotate(45deg) translateX(-200px); }
-      100% { opacity: 0; }
+    .cocomi-galaxy img, .perafca-galaxy img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     
-    /* 銀河の輝き */
-    .cocomi-glow {
-      position: absolute;
-      width: 300%;
-      height: 300%;
-      background: radial-gradient(ellipse at center, rgba(0, 150, 255, 0.15) 0%, transparent 40%);
-      animation: cocomi-glow 4s ease-in-out infinite;
-    }
-    
-    @keyframes cocomi-glow {
-      0%, 100% { opacity: 0.5; transform: scale(1); }
-      50% { opacity: 1; transform: scale(1.1); }
+    /* COCOMIコンテンツラッパー */
+    .cocomi-content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
     }
     
     .cocomi-title {
-      font-size: 28px;
+      font-size: 36px;
       font-weight: 300;
-      letter-spacing: 10px;
+      letter-spacing: 12px;
       color: #ffffff;
       text-shadow: 
         0 0 5px #00d4ff,
@@ -111,11 +89,8 @@
         0 0 20px #00d4ff,
         0 0 40px #00d4ff,
         0 0 60px #00d4ff,
-        0 0 80px rgba(0, 212, 255, 0.8),
-        0 0 100px rgba(0, 212, 255, 0.6),
-        0 0 150px rgba(0, 212, 255, 0.4);
-      margin-bottom: 20px;
-      z-index: 1;
+        0 0 80px rgba(0, 212, 255, 0.8);
+      margin-bottom: 36px;
       animation: text-glow 2s ease-in-out infinite;
     }
     
@@ -141,54 +116,19 @@
     }
     
     .cocomi-philosophy {
-      font-size: 15px;
+      font-size: 18px;
       color: rgba(255,255,255,0.95);
       text-align: center;
-      line-height: 2;
-      margin-bottom: 24px;
-      z-index: 1;
-      font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+      line-height: 2.4;
+      margin-bottom: 40px;
       text-shadow: 0 0 10px rgba(255,255,255,0.3);
-    }
-    
-    /* 本物の銀河画像 */
-    .cocomi-galaxy {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 100%;
-      height: 100%;
-      z-index: 0;
-    }
-    
-    .cocomi-galaxy img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      opacity: 0.9;
-    }
-    
-    @keyframes galaxy-float {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.03); }
-    }
-    
-    @keyframes galaxy-float {
-      0%, 100% { transform: translate(-50%, -50%) scale(1); }
-      50% { transform: translate(-50%, -50%) scale(1.05); }
-    }
-    
-    @keyframes galaxy-glow {
-      0%, 100% { opacity: 0.6; }
-      50% { opacity: 1; }
+      font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
     }
     
     .cocomi-heartbeat {
-      width: 200px;
-      height: 40px;
-      z-index: 1;
-      margin-bottom: 24px;
+      width: 240px;
+      height: 50px;
+      margin-bottom: 40px;
     }
     
     .cocomi-heartbeat svg {
@@ -214,26 +154,26 @@
     }
     
     .cocomi-subtitle {
-      font-size: 11px;
+      font-size: 13px;
       color: rgba(255,255,255,0.8);
-      letter-spacing: 2px;
-      margin-bottom: 4px;
-      z-index: 1;
+      letter-spacing: 3px;
+      margin-bottom: 8px;
     }
     
     .cocomi-perafca {
-      font-size: 10px;
+      font-size: 12px;
       color: rgba(0, 212, 255, 0.9);
-      letter-spacing: 1px;
-      margin-bottom: 16px;
-      z-index: 1;
+      letter-spacing: 2px;
+      margin-bottom: 24px;
       text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
     }
     
     .cocomi-credit {
-      font-size: 12px;
+      font-size: 14px;
       color: rgba(255,255,255,0.7);
-      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
     
     .cocomi-credit span {
@@ -241,6 +181,24 @@
       text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
     }
     
+    /* ★ ピンクハート（小）★ */
+    .mini-heart {
+      width: 14px;
+      height: 14px;
+      display: inline-block;
+      vertical-align: middle;
+      filter: drop-shadow(0 0 4px #ff69b4)
+              drop-shadow(0 0 8px rgba(255, 105, 180, 0.6));
+    }
+    
+    .mini-heart path {
+      fill: none;
+      stroke: #ff69b4;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
     /* PERAFCAスプラッシュ（2段階目） */
     #perafca-splash {
       position: fixed;
@@ -248,35 +206,56 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: 
-        radial-gradient(ellipse at center, rgba(20, 0, 50, 0.3) 0%, rgba(0, 0, 0, 0.8) 100%),
-        url('https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/M31_09-01-2011_%28cropped%29.jpg/1280px-M31_09-01-2011_%28cropped%29.jpg');
-      background-size: cover;
-      background-position: center;
-      display: none;
+      background: #000;
+      display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      z-index: 10001;
+      z-index: 9999;
       opacity: 0;
+      pointer-events: none;
       transition: opacity 0.8s ease;
+      overflow: hidden;
+    }
+    
+    #perafca-splash::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.5) 100%);
+      z-index: 1;
+    }
+    
+    .perafca-content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
     }
     
     #perafca-splash.active {
-      display: flex;
       opacity: 1;
+      pointer-events: auto;
+      z-index: 10001;
     }
     
     #perafca-splash.fade-out {
       opacity: 0;
+      pointer-events: none;
     }
     
     .perafca-title {
-      font-size: 28px;
+      font-size: 36px;
       font-weight: bold;
       color: #00d4ff;
-      letter-spacing: 4px;
-      margin-bottom: 30px;
+      letter-spacing: 6px;
+      margin-bottom: 50px;
       text-shadow: 
         0 0 20px rgba(0, 212, 255, 0.8),
         0 0 40px rgba(0, 212, 255, 0.5),
@@ -284,15 +263,20 @@
       animation: neonPulse 2s ease-in-out infinite;
     }
     
+    @keyframes neonPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.8; }
+    }
+    
     .perafca-items {
       text-align: left;
-      margin-bottom: 24px;
+      margin-bottom: 40px;
     }
     
     .perafca-item {
-      font-size: 14px;
+      font-size: 17px;
       color: rgba(255, 255, 255, 0.9);
-      margin-bottom: 12px;
+      margin-bottom: 20px;
       letter-spacing: 1px;
       text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
     }
@@ -304,13 +288,35 @@
     }
     
     .perafca-tagline {
-      font-size: 16px;
+      font-size: 20px;
       color: #00d4ff;
-      margin-top: 10px;
-      letter-spacing: 2px;
+      margin-top: 16px;
+      letter-spacing: 3px;
       text-shadow: 0 0 15px rgba(0, 212, 255, 0.6);
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
     
+    /* ★ ピンクハート（大・tagline用）★ */
+    .tagline-heart {
+      width: 20px;
+      height: 20px;
+      display: inline-block;
+      vertical-align: middle;
+      filter: drop-shadow(0 0 4px #ff69b4)
+              drop-shadow(0 0 8px rgba(255, 105, 180, 0.6))
+              drop-shadow(0 0 12px rgba(255, 105, 180, 0.4));
+    }
+    
+    .tagline-heart path {
+      fill: none;
+      stroke: #ff69b4;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
     /* アプリスプラッシュ（3段階目） */
     #splash-screen {
       position: fixed;
