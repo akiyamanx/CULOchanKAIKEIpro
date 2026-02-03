@@ -158,6 +158,30 @@ function generateDocumentHTML(d) {
       </tr>`;
   }
 
+  // v0.95修正 - A4いっぱいに空行を追加（最低25行）
+  const MIN_ROWS = 25;
+  // データ行数をカウント（セクションヘッダ・小計行は除く）
+  let dataRowCount = 0;
+  if (d.materials) {
+    dataRowCount += d.materials.filter(m => m.name).length;
+    dataRowCount += 2; // セクションヘッダ + 小計行
+  }
+  if (d.works) {
+    dataRowCount += d.works.filter(w => w.name || w.value).length;
+    dataRowCount += 2; // セクションヘッダ + 小計行
+  }
+  const emptyRows = Math.max(0, MIN_ROWS - dataRowCount);
+  for (let i = 0; i < emptyRows; i++) {
+    itemRows += `
+      <tr class="empty-row">
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+      </tr>`;
+  }
+
   // ロゴHTML
   const logoHtml = d.logoData 
     ? `<img src="${d.logoData}" class="logo-img" alt="ロゴ">` 
@@ -421,6 +445,11 @@ function generateDocumentHTML(d) {
     padding: 1.5mm 2mm !important;
   }
 
+  /* 空行（マス目だけ） */
+  .empty-row td {
+    height: 5.5mm;
+  }
+
   /* === 合計エリア === */
   .totals-area {
     display: flex;
@@ -432,24 +461,22 @@ function generateDocumentHTML(d) {
     width: 60mm;
     border-collapse: collapse;
     font-size: 10px;
+    border: 1px solid #cbd5e0;
   }
 
-  /* v0.95修正 - 行間の余分な横線を除去 */
+  /* v0.95修正 - セルには左右のborderだけ。横線なし */
   .totals-table td {
     padding: 1.5mm 3mm;
-    border-left: 1px solid #cbd5e0;
-    border-right: 1px solid #cbd5e0;
+    border: none;
   }
 
-  .totals-table tr:first-child td {
-    border-top: 1px solid #cbd5e0;
-  }
-
+  /* ラベル列と値列の間の縦区切り線 */
   .totals-table .label {
     text-align: right;
     background: #f7fafc;
     font-weight: 500;
     width: 28mm;
+    border-right: 1px solid #cbd5e0;
   }
 
   .totals-table .value {
@@ -464,7 +491,11 @@ function generateDocumentHTML(d) {
     font-weight: bold;
     font-size: 12px;
     padding: 2mm 3mm;
-    border: 1px solid #2c5282;
+    border-color: #2c5282;
+  }
+
+  .totals-table .grand-total .label {
+    border-right: 1px solid rgba(255,255,255,0.3);
   }
 
   /* === 備考 === */
