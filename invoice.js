@@ -187,6 +187,7 @@ function addInvoiceWork(name = '', value = 0, unit = '') {
     quantity: 1
   });
   renderInvoiceWorks();
+  calculateInvoiceTotal(); // v0.94.1追加: 作業費を合計に反映
 }
 
 function removeInvoiceWork(id) {
@@ -259,6 +260,7 @@ function renderInvoiceWorks() {
     }
   }, 0);
   document.getElementById('invWorkSubtotal').textContent = '¥' + subtotal.toLocaleString();
+  calculateInvoiceTotal(); // v0.94.1追加: 作業費変更時に合計も更新
 }
 
 function calculateInvoiceTotal() {

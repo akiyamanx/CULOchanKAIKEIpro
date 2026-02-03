@@ -1,9 +1,7 @@
 // ==========================================
 // 見積書作成機能
-// Reform App Pro v0.94
+// Reform App Pro v0.91
 // ==========================================
-// v0.94修正:
-//   - getEstimateData() の materialSubtotal 計算で sellingPrice を使用（金額0円バグ修正）
 
 
 // 見積書作成機能
@@ -338,6 +336,7 @@ function addEstimateWork(name = '', value = 0, unit = '') {
     quantity: 1
   });
   renderEstimateWorks();
+  calculateEstimateTotal(); // v0.94.1追加: 作業費を合計に反映
 }
 
 function removeEstimateWork(id) {
@@ -413,6 +412,7 @@ function renderEstimateWorks() {
     }
   }, 0);
   document.getElementById('estWorkSubtotal').textContent = '¥' + subtotal.toLocaleString();
+  calculateEstimateTotal(); // v0.94.1追加: 作業費変更時に合計も更新
 }
 
 function calculateEstimateTotal() {
@@ -1116,8 +1116,7 @@ function getEstimateData() {
   const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
   const taxRate = parseFloat(settings.taxRate) || 10;
   
-  // v0.94修正: sellingPriceを使って計算（m.priceだと0円になるバグ修正）
-  const materialSubtotal = estimateMaterials.reduce((sum, m) => sum + (m.quantity || 0) * (m.sellingPrice || m.price || 0), 0);
+  const materialSubtotal = estimateMaterials.reduce((sum, m) => sum + (m.quantity || 0) * (m.price || 0), 0);
   const workSubtotal = estimateWorks.reduce((sum, w) => {
     if (workType === 'construction') {
       return sum + (w.value || 0);
