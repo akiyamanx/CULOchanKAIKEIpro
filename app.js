@@ -1,17 +1,15 @@
 // ==========================================
 // Reform App Pro - コア機能
-// v0.94 - スプラッシュ修正 + async画面読み込み
+// v0.95 - スプラッシュ白画面防止 + シームレス切替
 // ==========================================
 
 // ==========================================
 // 画面切り替え
 // ==========================================
 function showScreen(screenId) {
-  // 全画面を非表示
   document.querySelectorAll('.screen').forEach(screen => {
     screen.classList.remove('active');
   });
-  // 指定画面を表示
   const targetScreen = document.getElementById(screenId + '-screen');
   if (targetScreen) {
     targetScreen.classList.add('active');
@@ -19,15 +17,12 @@ function showScreen(screenId) {
     console.error(`画面が見つかりません: ${screenId}-screen`);
     return;
   }
-  // 画面トップにスクロール
   window.scrollTo(0, 0);
   
-  // バックボタン用に履歴を追加（ホーム以外）
   if (screenId !== 'home') {
     history.pushState({ screen: screenId }, '', '');
   }
   
-  // 画面ごとの初期化
   if (screenId === 'materials') {
     if (typeof filterMaster === 'function') filterMaster();
   }
@@ -62,17 +57,19 @@ function showScreen(screenId) {
 }
 
 // ==========================================
-// ホーム画面を表示する関数
+// ホーム画面を表示
 // ==========================================
 function showHomeScreen() {
+  // ★ body背景を元に戻す
+  document.body.style.backgroundColor = '#f3f4f6';
+  
   const homeScreen = document.getElementById('home-screen');
   if (homeScreen) {
     homeScreen.classList.add('active');
     console.log('✓ ホーム画面を表示しました');
   } else {
-    console.error('home-screen が見つかりません - 画面がまだ読み込まれていない可能性があります');
+    console.error('home-screen が見つかりません');
   }
-  // パスワードチェック
   if (typeof checkPasswordOnLoad === 'function') {
     checkPasswordOnLoad();
   }
@@ -80,9 +77,12 @@ function showHomeScreen() {
 
 // ==========================================
 // スプラッシュシーケンス
-// ★ perafca-splash が存在しなくても動作するように修正
+// ★ v0.95: 白画面防止 - body背景黒 + シームレスクロスフェード
 // ==========================================
 function scheduleSplashSequence() {
+  // ★ 白画面防止: スプラッシュ中はbody背景を黒に
+  document.body.style.backgroundColor = '#000';
+  
   // 1段階目: COCOMI CORE（4秒表示）
   setTimeout(() => {
     const cocomiSplash = document.getElementById('cocomi-splash');
@@ -90,34 +90,54 @@ function scheduleSplashSequence() {
     const appSplash = document.getElementById('splash-screen');
     
     if (!cocomiSplash) {
-      // COCOMI splashすらない場合は直接ホームへ
       showHomeScreen();
       return;
     }
     
+    // ★ perafcaがあれば裏で先に準備（cocomiの下に透明で配置）
+    if (perafcaSplash) {
+      perafcaSplash.style.display = 'flex';
+      perafcaSplash.style.opacity = '0';
+      perafcaSplash.style.zIndex = '9998';
+      // フェードイン開始（cocomiの下で徐々に見えてくる）
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          perafcaSplash.style.transition = 'opacity 0.8s ease';
+          perafcaSplash.style.opacity = '1';
+        });
+      });
+    }
+    
+    // cocomiをフェードアウト（perafcaが下から現れる）
     cocomiSplash.classList.add('fade-out');
     
     setTimeout(() => {
       cocomiSplash.style.display = 'none';
       
       if (perafcaSplash) {
-        // ★ perafca-splash が存在する場合: 3段階スプラッシュ
-        perafcaSplash.classList.add('active');
+        // perafcaを最前面に
+        perafcaSplash.style.zIndex = '10001';
         
+        // 2.5秒表示してからフェードアウト
         setTimeout(() => {
-          perafcaSplash.classList.add('fade-out');
+          // ★ appSplashを裏で先に準備
+          if (appSplash) {
+            appSplash.style.opacity = '1';
+            appSplash.style.pointerEvents = 'auto';
+            appSplash.style.display = 'flex';
+          }
+          
+          perafcaSplash.style.opacity = '0';
           
           setTimeout(() => {
             perafcaSplash.style.display = 'none';
-            showAppSplashThenHome(appSplash);
+            finishWithAppSplash(appSplash);
           }, 800);
         }, 2500);
         
       } else {
-        // ★ perafca-splash が存在しない場合: 2段階スプラッシュ
-        // COCOMI → アプリスプラッシュ → ホーム
-        console.log('perafca-splash が存在しないため、アプリスプラッシュへスキップ');
-        showAppSplashThenHome(appSplash);
+        // perafcaなし → appSplashへ
+        finishWithAppSplash(appSplash);
       }
     }, 800);
   }, 4000);
@@ -126,10 +146,14 @@ function scheduleSplashSequence() {
 // ==========================================
 // アプリスプラッシュ → ホーム画面
 // ==========================================
-function showAppSplashThenHome(appSplash) {
+function finishWithAppSplash(appSplash) {
   if (appSplash) {
-    appSplash.classList.add('active');
+    // appSplashが未表示なら表示
+    if (!appSplash.classList.contains('active')) {
+      appSplash.classList.add('active');
+    }
     
+    // 3.5秒表示してからフェードアウト
     setTimeout(() => {
       appSplash.classList.add('fade-out');
       setTimeout(() => {
@@ -138,23 +162,19 @@ function showAppSplashThenHome(appSplash) {
       }, 500);
     }, 3500);
   } else {
-    // アプリスプラッシュもない場合は直接ホームへ
-    console.log('splash-screen が存在しないため、直接ホーム画面へ');
     showHomeScreen();
   }
 }
 
 // ==========================================
 // 初期化
-// ★ async/await で画面読み込み完了を待ってから初期化
-// ★ スプラッシュは即座にスケジュール（awaitの影響を受けない）
 // ==========================================
 document.addEventListener('DOMContentLoaded', async () => {
   
-  // ★ スプラッシュタイマーを即座に開始（画面読み込みと並行）
+  // ★ スプラッシュタイマーを即座に開始
   scheduleSplashSequence();
   
-  // ★ 画面HTMLを読み込む（ルート直下のHTMLファイル）
+  // ★ 画面HTMLを読み込む
   console.log('画面の読み込みを開始...');
   try {
     await loadAllScreens();
@@ -184,7 +204,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (typeof updatePasswordUI === 'function') updatePasswordUI();
   } catch(e) { console.error('updatePasswordUI error:', e); }
   
-  console.log('✓ アプリ初期化完了');
+  console.log('✓ アプリ初期化完了 v0.95');
 });
 
 // ==========================================
@@ -202,5 +222,4 @@ window.addEventListener('popstate', function(event) {
   history.pushState({ screen: 'home' }, '', '');
 });
 
-// 初期履歴を設定
 history.replaceState({ screen: 'home' }, '', '');
