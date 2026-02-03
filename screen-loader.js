@@ -3,16 +3,11 @@
  * 分割された画面HTMLを動的に読み込むモジュール
  * 
  * COCOMI CORE - リフォーム見積・会計アプリ
- * v1.1 - app.jsから呼び出される形に変更
+ * v1.2 - パス修正: ルート直下のHTMLを読み込み
  * 
- * 使い方:
- *   app.js の DOMContentLoaded 内で
- *   await loadAllScreens() を呼び出すと
- *   screens/ フォルダ内のHTMLファイルがすべて読み込まれます
- * 
- * ※ 旧バージョンではDOMContentLoaded内で自動実行していましたが、
- *   app.jsのinitReceiptScreen()等と競合するため、
- *   app.js側で await して順序を保証する方式に変更しました。
+ * ★ v1.2変更点:
+ *   - fetch先を screens/ → ルート直下に変更（GitHubリポジトリ構造に合わせる）
+ *   - DOMContentLoaded自動実行を削除（app.jsから呼び出す）
  */
 
 // 画面ファイルの定義
@@ -54,7 +49,8 @@ async function loadAllScreens() {
   
   const loadPromises = SCREEN_FILES.map(async (screenName) => {
     try {
-      const response = await fetch(`screens/${screenName}.html`);
+      // ★ v1.2: ルート直下から読み込む（screens/ フォルダは存在しない）
+      const response = await fetch(`${screenName}.html`);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -79,7 +75,7 @@ async function loadAllScreens() {
   });
 
   screensLoaded = true;
-  console.log(`画面の読み込み完了: ${loadedCount}/${SCREEN_FILES.length} 画面`);
+  console.log(`✓ 全画面の読み込み完了: ${loadedCount}/${SCREEN_FILES.length} 画面`);
 }
 
 /**
@@ -88,7 +84,6 @@ async function loadAllScreens() {
  * @returns {Promise<boolean>}
  */
 async function loadScreen(screenName) {
-  // 既に読み込み済みかチェック
   if (document.getElementById(`${screenName}-screen`)) {
     return true;
   }
@@ -100,7 +95,8 @@ async function loadScreen(screenName) {
   }
 
   try {
-    const response = await fetch(`screens/${screenName}.html`);
+    // ★ v1.2: ルート直下から読み込む
+    const response = await fetch(`${screenName}.html`);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -126,9 +122,8 @@ function resetScreens() {
   }
 }
 
-// ★ 旧バージョンにあったDOMContentLoaded自動実行は削除
-// ★ app.js の DOMContentLoaded で await loadAllScreens() を呼ぶ形に変更
-// ★ これにより、画面読み込み完了 → 初期化 の順序が保証される
+// ★ DOMContentLoaded自動実行は削除
+// ★ app.js の DOMContentLoaded で await loadAllScreens() を呼ぶ
 
 // グローバルに公開
 window.loadAllScreens = loadAllScreens;

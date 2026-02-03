@@ -1,25 +1,27 @@
 // ==========================================
 // Service Worker - リフォーム見積・会計 Pro
-// Version: 1.2.0
-// v1.6.0→v1.7.0: screens/HTMLファイルをキャッシュに追加
+// Version: 1.8.0
+// ★ v1.8.0: HTML画面ファイルをキャッシュリストに追加
 // ==========================================
 
-const CACHE_NAME = 'reform-app-v1.7.0';
+const CACHE_NAME = 'reform-app-v1.8.0';
 const OFFLINE_URL = 'index.html';
 
 // キャッシュするファイル（相対パス）
 const FILES_TO_CACHE = [
   './',
   'index.html',
-  'products.js',
   'styles.css',
+  'receipt-styles-add.css',
   'manifest.json',
+  // JS モジュール
   'globals.js',
   'storage.js',
   'settings.js',
   'customer.js',
   'tax.js',
   'master.js',
+  'products.js',
   'receipt-core.js',
   'receipt-ai.js',
   'receipt-ocr.js',
@@ -30,24 +32,24 @@ const FILES_TO_CACHE = [
   'data.js',
   'screen-loader.js',
   'app.js',
-  // ★ 分割された画面HTMLファイル（screen-loader.jsがfetchで読み込む）
-  'screens/home.html',
-  'screens/pricesearch.html',
-  'screens/help.html',
-  'screens/tax.html',
-  'screens/settings.html',
-  'screens/receipt.html',
-  'screens/estimate.html',
-  'screens/invoice.html',
-  'screens/customers.html',
-  'screens/materials.html',
-  'screens/expenses.html',
-  'screens/data.html'
+  // ★ 画面HTMLファイル（ルート直下）
+  'home.html',
+  'pricesearch.html',
+  'help.html',
+  'tax.html',
+  'settings.html',
+  'receipt.html',
+  'estimate.html',
+  'invoice.html',
+  'customers.html',
+  'materials.html',
+  'expenses.html',
+  'data.html'
 ];
 
 // インストール時
 self.addEventListener('install', event => {
-  console.log('[SW] インストール開始');
+  console.log('[SW] インストール開始 v1.8.0');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -130,8 +132,7 @@ self.addEventListener('fetch', event => {
 self.addEventListener('sync', event => {
   if (event.tag === 'sync-data') {
     console.log('[SW] バックグラウンド同期実行');
-    // 将来的にここでデータ同期処理
   }
 });
 
-console.log('[SW] Service Worker ロード完了');
+console.log('[SW] Service Worker ロード完了 v1.8.0');
