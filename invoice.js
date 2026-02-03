@@ -67,10 +67,26 @@ function updateBankInfo() {
   }
 }
 
+// v0.94.1修正: タイプ切り替え時に作業データのvalue/unit/quantityをリセット
 function setInvWorkType(type) {
+  const prevType = invWorkType;
   invWorkType = type;
   document.getElementById('invWorkTypeConstruction').classList.toggle('active', type === 'construction');
   document.getElementById('invWorkTypeDaily').classList.toggle('active', type === 'daily');
+  
+  // タイプが変わった場合、既存の作業データを新しいタイプ用にリセット
+  if (prevType !== type) {
+    const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
+    const dailyRate = settings.dailyRate || 18000;
+    invoiceWorks = invoiceWorks.map(w => ({
+      id: w.id,
+      name: w.name || '',
+      value: type === 'daily' ? dailyRate : 0,
+      unit: type === 'daily' ? '日' : '式',
+      quantity: type === 'daily' ? 1 : (w.quantity || 1)
+    }));
+  }
+  
   renderInvoiceWorks();
 }
 

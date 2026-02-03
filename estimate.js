@@ -38,10 +38,26 @@ function initEstimateScreen() {
   calculateEstimateTotal();
 }
 
+// v0.94.1修正: タイプ切り替え時に作業データのvalue/unit/quantityをリセット
 function setWorkType(type) {
+  const prevType = workType;
   workType = type;
   document.getElementById('workTypeConstruction').classList.toggle('active', type === 'construction');
   document.getElementById('workTypeDaily').classList.toggle('active', type === 'daily');
+  
+  // タイプが変わった場合、既存の作業データを新しいタイプ用にリセット
+  if (prevType !== type) {
+    const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
+    const dailyRate = settings.dailyRate || 18000;
+    estimateWorks = estimateWorks.map(w => ({
+      id: w.id,
+      name: w.name || '',
+      value: type === 'daily' ? dailyRate : 0,
+      unit: type === 'daily' ? '日' : '式',
+      quantity: type === 'daily' ? 1 : (w.quantity || 1)
+    }));
+  }
+  
   renderEstimateWorks();
 }
 
