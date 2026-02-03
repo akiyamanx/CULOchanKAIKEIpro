@@ -67,6 +67,14 @@
       <!-- 基本情報 -->
       <div class="form-section">
         <h2>■ 基本情報</h2>
+        <!-- v0.94追加: お客様名（工務店名など） -->
+        <div class="form-group">
+          <label>お客様名（工務店名など）</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="receiptCustomerName" placeholder="例：山田工務店" style="flex: 1;">
+            <button class="voice-input-btn" onclick="startVoiceInput('receiptCustomerName')" title="音声入力">🎤</button>
+          </div>
+        </div>
         <div class="form-group">
           <label>店名</label>
           <div style="display: flex; gap: 8px;">
