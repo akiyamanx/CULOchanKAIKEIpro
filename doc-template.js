@@ -434,9 +434,15 @@ function generateDocumentHTML(d) {
     font-size: 10px;
   }
 
+  /* v0.95修正 - 行間の余分な横線を除去 */
   .totals-table td {
     padding: 1.5mm 3mm;
-    border: 1px solid #cbd5e0;
+    border-left: 1px solid #cbd5e0;
+    border-right: 1px solid #cbd5e0;
+  }
+
+  .totals-table tr:first-child td {
+    border-top: 1px solid #cbd5e0;
   }
 
   .totals-table .label {
@@ -458,6 +464,7 @@ function generateDocumentHTML(d) {
     font-weight: bold;
     font-size: 12px;
     padding: 2mm 3mm;
+    border: 1px solid #2c5282;
   }
 
   /* === 備考 === */
