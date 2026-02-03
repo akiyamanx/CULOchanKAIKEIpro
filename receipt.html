@@ -140,3 +140,23 @@
       <button class="save-btn" onclick="saveReceipt()">仕訳を保存</button>
     </div>
   </div>
+
+  <!-- ★ v0.93: レシート→見積もり/請求書 連携モーダル -->
+  <div id="receiptDocFlowModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 16px; width: 90%; max-width: 400px; max-height: 80vh; overflow-y: auto; padding: 0;">
+      
+      <!-- ヘッダー -->
+      <div style="padding: 20px 20px 12px; border-bottom: 1px solid #e5e7eb;">
+        <h3 id="docFlowTitle" style="margin: 0; font-size: 18px; color: #1f2937;">📋 書類に反映</h3>
+        <div id="docFlowSubtitle" style="font-size: 13px; color: #6b7280; margin-top: 4px;"></div>
+      </div>
+      
+      <!-- コンテンツ（JSで動的に変更） -->
+      <div id="docFlowContent" style="padding: 16px 20px;">
+      </div>
+      
+      <!-- フッター -->
+      <div id="docFlowFooter" style="padding: 12px 20px 20px; border-top: 1px solid #e5e7eb;">
+      </div>
+    </div>
+  </div>

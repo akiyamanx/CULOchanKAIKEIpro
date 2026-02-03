@@ -702,8 +702,342 @@ function saveReceipt() {
   if (expenseCount > 0) message += `経費: ${expenseCount}件`;
   alert(message);
   
-  // リセット
+  // ★ v0.93: 現場割り当て済みの材料があれば見積もり/請求書連携を提案
+  const assignedMaterials = materials.filter(m => m.projectName);
+  if (assignedMaterials.length > 0) {
+    showDocFlowStep1(assignedMaterials);
+  } else {
+    // リセット
+    resetReceiptForm();
+  }
+}
+
+
+// ==========================================
+// ★ v0.93: レシート→見積もり/請求書 連携フロー
+// ==========================================
+let _docFlowMaterials = [];
+let _docFlowTarget = ''; // 'estimate' or 'invoice'
+let _docFlowProjectName = '';
+
+function openDocFlowModal() {
+  const modal = document.getElementById('receiptDocFlowModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeDocFlowModal() {
+  const modal = document.getElementById('receiptDocFlowModal');
+  if (modal) modal.style.display = 'none';
   resetReceiptForm();
+}
+
+// ── Step 1: 見積もり or 請求書？ ──
+function showDocFlowStep1(materials) {
+  _docFlowMaterials = materials;
+  
+  // 現場名をまとめる
+  const projectNames = [...new Set(materials.map(m => m.projectName))];
+  _docFlowProjectName = projectNames[0] || '';
+  
+  const title = document.getElementById('docFlowTitle');
+  const subtitle = document.getElementById('docFlowSubtitle');
+  const content = document.getElementById('docFlowContent');
+  const footer = document.getElementById('docFlowFooter');
+  
+  title.textContent = '📋 書類に反映';
+  subtitle.textContent = `📍 ${projectNames.join(', ')} の材料 ${materials.length}件`;
+  
+  content.innerHTML = `
+    <div style="text-align: center; margin-bottom: 16px;">
+      <div style="font-size: 15px; color: #374151; font-weight: 500;">
+        見積もり・請求書に反映しますか？
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <button onclick="showDocFlowStep2('estimate')" 
+        style="padding: 16px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 24px;">📝</span>
+        <div style="text-align: left;">
+          <div>見積書に反映</div>
+          <div style="font-size: 12px; font-weight: 400; opacity: 0.9;">仕入単価として材料費を追加</div>
+        </div>
+      </button>
+      <button onclick="showDocFlowStep2('invoice')" 
+        style="padding: 16px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 24px;">📄</span>
+        <div style="text-align: left;">
+          <div>請求書に反映</div>
+          <div style="font-size: 12px; font-weight: 400; opacity: 0.9;">単価として材料費を追加</div>
+        </div>
+      </button>
+    </div>
+  `;
+  
+  footer.innerHTML = `
+    <button onclick="closeDocFlowModal()" 
+      style="width: 100%; padding: 12px; background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; cursor: pointer;">
+      今はしない
+    </button>
+  `;
+  
+  openDocFlowModal();
+}
+
+// ── Step 2: 既存の下書きから選ぶ or 新規作成 ──
+function showDocFlowStep2(target) {
+  _docFlowTarget = target;
+  
+  const title = document.getElementById('docFlowTitle');
+  const subtitle = document.getElementById('docFlowSubtitle');
+  const content = document.getElementById('docFlowContent');
+  const footer = document.getElementById('docFlowFooter');
+  
+  const isEstimate = target === 'estimate';
+  const storageKey = isEstimate ? 'reform_app_estimates' : 'reform_app_invoices';
+  const docLabel = isEstimate ? '見積書' : '請求書';
+  const docs = JSON.parse(localStorage.getItem(storageKey) || '[]');
+  
+  // 下書きを取得（全下書き表示、プロジェクト名一致は上に）
+  const drafts = docs.filter(d => d.status === 'draft');
+  
+  title.textContent = `${isEstimate ? '📝' : '📄'} ${docLabel}に反映`;
+  subtitle.textContent = `反映先の${docLabel}を選んでください`;
+  
+  let listHtml = '';
+  
+  if (drafts.length > 0) {
+    // プロジェクト名一致のものを上に
+    const sorted = [...drafts].sort((a, b) => {
+      const aMatch = (a.subject || '').includes(_docFlowProjectName) ? 0 : 1;
+      const bMatch = (b.subject || '').includes(_docFlowProjectName) ? 0 : 1;
+      return aMatch - bMatch;
+    });
+    
+    listHtml = sorted.map(doc => {
+      const matchBadge = (doc.subject || '').includes(_docFlowProjectName) 
+        ? '<span style="background: #dbeafe; color: #2563eb; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">一致</span>' 
+        : '';
+      return `
+        <button onclick="applyToExistingDoc('${doc.id}')" 
+          style="width: 100%; padding: 14px; background: white; border: 1px solid #e5e7eb; border-radius: 10px; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 600; color: #1f2937;">${escapeHtml(doc.number || '番号なし')}</span>
+            ${matchBadge}
+          </div>
+          <div style="font-size: 13px; color: #6b7280;">${escapeHtml(doc.customerName || '顧客未設定')} — ${escapeHtml(doc.subject || '件名なし')}</div>
+          <div style="font-size: 12px; color: #9ca3af;">${doc.date || ''} / ¥${(doc.total || 0).toLocaleString()}</div>
+        </button>
+      `;
+    }).join('');
+  } else {
+    listHtml = `<div style="text-align: center; padding: 20px; color: #9ca3af;">下書きの${docLabel}はまだありません</div>`;
+  }
+  
+  content.innerHTML = `
+    <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+      ${listHtml}
+    </div>
+    <button onclick="createNewDocWithMaterials()" 
+      style="width: 100%; padding: 14px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;">
+      ＋ 新規${docLabel}を作成
+    </button>
+  `;
+  
+  footer.innerHTML = `
+    <button onclick="showDocFlowStep1(_docFlowMaterials)" 
+      style="width: 100%; padding: 12px; background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; cursor: pointer;">
+      ← 戻る
+    </button>
+  `;
+}
+
+// ── 既存の下書きに反映 ──
+function applyToExistingDoc(docId) {
+  const isEstimate = _docFlowTarget === 'estimate';
+  const storageKey = isEstimate ? 'reform_app_estimates' : 'reform_app_invoices';
+  const docLabel = isEstimate ? '見積書' : '請求書';
+  
+  const docs = JSON.parse(localStorage.getItem(storageKey) || '[]');
+  const docIndex = docs.findIndex(d => String(d.id) === String(docId));
+  
+  if (docIndex === -1) {
+    alert('書類が見つかりませんでした');
+    return;
+  }
+  
+  const doc = docs[docIndex];
+  
+  // 材料を追加
+  _docFlowMaterials.forEach(m => {
+    const newMaterial = {
+      id: Date.now() + Math.random(),
+      name: m.name,
+      quantity: m.quantity
+    };
+    
+    if (isEstimate) {
+      const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
+      const profitRate = parseFloat(settings.defaultProfitRate) || 20;
+      newMaterial.costPrice = m.price;
+      newMaterial.profitRate = profitRate;
+      newMaterial.sellingPrice = Math.ceil(m.price * (1 + profitRate / 100));
+    } else {
+      newMaterial.price = m.price;
+    }
+    
+    doc.materials.push(newMaterial);
+  });
+  
+  // 小計・合計を再計算
+  recalcDocTotals(doc, isEstimate);
+  
+  // 保存
+  docs[docIndex] = doc;
+  localStorage.setItem(storageKey, JSON.stringify(docs));
+  
+  showDocFlowStep3(docLabel, doc.number, false);
+}
+
+// ── 新規作成して反映 ──
+function createNewDocWithMaterials() {
+  const isEstimate = _docFlowTarget === 'estimate';
+  const storageKey = isEstimate ? 'reform_app_estimates' : 'reform_app_invoices';
+  const docLabel = isEstimate ? '見積書' : '請求書';
+  
+  const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
+  const taxRate = parseFloat(settings.taxRate) || 10;
+  const profitRate = parseFloat(settings.defaultProfitRate) || 20;
+  
+  // 材料データを作成
+  const newMaterials = _docFlowMaterials.map(m => {
+    const mat = {
+      id: Date.now() + Math.random(),
+      name: m.name,
+      quantity: m.quantity
+    };
+    if (isEstimate) {
+      mat.costPrice = m.price;
+      mat.profitRate = profitRate;
+      mat.sellingPrice = Math.ceil(m.price * (1 + profitRate / 100));
+    } else {
+      mat.price = m.price;
+    }
+    return mat;
+  });
+  
+  // 新規書類
+  const newDoc = {
+    id: Date.now(),
+    status: 'draft',
+    customerName: '',
+    subject: _docFlowProjectName,
+    date: new Date().toISOString().split('T')[0],
+    materials: newMaterials,
+    works: [],
+    workType: 'construction',
+    notes: '',
+    taxRate: taxRate,
+    createdAt: new Date().toISOString()
+  };
+  
+  if (isEstimate) {
+    newDoc.number = generateEstimateNumber();
+    const validDays = parseInt(settings.estimateValidDays) || 30;
+    const validDate = new Date();
+    validDate.setDate(validDate.getDate() + validDays);
+    newDoc.validDate = validDate.toISOString().split('T')[0];
+  } else {
+    newDoc.number = generateInvoiceNumber();
+    newDoc.dueDate = '';
+  }
+  
+  recalcDocTotals(newDoc, isEstimate);
+  
+  // 保存
+  const docs = JSON.parse(localStorage.getItem(storageKey) || '[]');
+  docs.push(newDoc);
+  localStorage.setItem(storageKey, JSON.stringify(docs));
+  
+  showDocFlowStep3(docLabel, newDoc.number, true);
+}
+
+// ── 書類の小計・合計を再計算 ──
+function recalcDocTotals(doc, isEstimate) {
+  const taxRate = doc.taxRate || 10;
+  
+  if (isEstimate) {
+    doc.materialSubtotal = (doc.materials || []).reduce((sum, m) => 
+      sum + (m.quantity || 0) * (m.sellingPrice || m.price || 0), 0);
+  } else {
+    doc.materialSubtotal = (doc.materials || []).reduce((sum, m) => 
+      sum + (m.quantity || 0) * (m.price || 0), 0);
+  }
+  
+  doc.workSubtotal = (doc.works || []).reduce((sum, w) => {
+    if (doc.workType === 'daily') {
+      return sum + (w.quantity || 1) * (w.value || 0);
+    }
+    return sum + (w.value || 0);
+  }, 0);
+  
+  doc.subtotal = doc.materialSubtotal + doc.workSubtotal;
+  doc.tax = Math.floor(doc.subtotal * taxRate / 100);
+  doc.total = doc.subtotal + doc.tax;
+}
+
+// ── Step 3: 完了 → 開く？ ──
+function showDocFlowStep3(docLabel, docNumber, isNew) {
+  const title = document.getElementById('docFlowTitle');
+  const subtitle = document.getElementById('docFlowSubtitle');
+  const content = document.getElementById('docFlowContent');
+  const footer = document.getElementById('docFlowFooter');
+  
+  const isEstimate = _docFlowTarget === 'estimate';
+  const count = _docFlowMaterials.length;
+  
+  title.textContent = '✅ 反映完了！';
+  subtitle.textContent = '';
+  
+  content.innerHTML = `
+    <div style="text-align: center; padding: 16px 0;">
+      <div style="font-size: 48px; margin-bottom: 12px;">${isEstimate ? '📝' : '📄'}</div>
+      <div style="font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 8px;">
+        ${isNew ? '新規' : '既存の'}${docLabel}に反映しました
+      </div>
+      <div style="font-size: 14px; color: #6b7280;">
+        ${docNumber} — 材料 ${count}件追加
+      </div>
+    </div>
+    <div style="text-align: center; font-size: 15px; color: #374151; font-weight: 500; margin-top: 8px;">
+      今 ${docLabel}を開きますか？
+    </div>
+  `;
+  
+  footer.innerHTML = `
+    <div style="display: flex; gap: 8px;">
+      <button onclick="closeDocFlowModal()" 
+        style="flex: 1; padding: 14px; background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; cursor: pointer;">
+        レシートに戻る
+      </button>
+      <button onclick="openDocScreen()" 
+        style="flex: 2; padding: 14px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;">
+        開く →
+      </button>
+    </div>
+  `;
+}
+
+// ── 書類画面を開く ──
+function openDocScreen() {
+  const modal = document.getElementById('receiptDocFlowModal');
+  if (modal) modal.style.display = 'none';
+  resetReceiptForm();
+  
+  if (_docFlowTarget === 'estimate') {
+    showScreen('estimate');
+  } else {
+    showScreen('invoice');
+  }
 }
 
 function resetReceiptForm() {
