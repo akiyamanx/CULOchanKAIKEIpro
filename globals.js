@@ -1,6 +1,6 @@
 // ==========================================
 // グローバル変数定義
-// Reform App Pro v0.92
+// Reform App Pro v0.93
 // ==========================================
 
 // 確定申告
@@ -99,8 +99,12 @@ function resetApiUsage() {
   }
 }
 
-// カテゴリ定義（レシート・経費用）
-const categories = {
+// ==========================================
+// カテゴリ管理（v0.93 カスタマイズ対応）
+// ==========================================
+
+// デフォルトカテゴリ定義（リセット用）
+const DEFAULT_CATEGORIES = {
   material: [
     { value: 'pipes', label: '配管材' },
     { value: 'fittings', label: '継手' },
@@ -129,6 +133,221 @@ const categories = {
     { value: 'other_expense', label: 'その他経費' }
   ]
 };
+
+// カスタマイズ可能なカテゴリ（LocalStorageから読み込み）
+let categories = loadCategories();
+
+function loadCategories() {
+  const saved = localStorage.getItem('reform_app_categories');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      // 最低限の構造チェック
+      if (parsed.material && parsed.expense) {
+        return parsed;
+      }
+    } catch (e) {
+      console.error('カテゴリの読み込みに失敗:', e);
+    }
+  }
+  // デフォルトのコピーを返す
+  return JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+}
+
+function saveCategories() {
+  localStorage.setItem('reform_app_categories', JSON.stringify(categories));
+}
+
+// カテゴリ追加
+function addCategoryItem(type, label) {
+  if (!categories[type]) return false;
+  // valueをlabelから自動生成（ユニーク化）
+  const value = 'custom_' + Date.now();
+  if (categories[type].find(c => c.label === label)) {
+    alert('同じ名前の科目が既にあります');
+    return false;
+  }
+  categories[type].push({ value, label });
+  saveCategories();
+  return true;
+}
+
+// カテゴリ削除
+function removeCategoryItem(type, value) {
+  if (!categories[type]) return false;
+  const index = categories[type].findIndex(c => c.value === value);
+  if (index === -1) return false;
+  categories[type].splice(index, 1);
+  saveCategories();
+  return true;
+}
+
+// カテゴリ名変更
+function editCategoryItem(type, value, newLabel) {
+  if (!categories[type]) return false;
+  const item = categories[type].find(c => c.value === value);
+  if (!item) return false;
+  item.label = newLabel;
+  saveCategories();
+  return true;
+}
+
+// カテゴリ並び替え
+function moveCategoryItem(type, fromIndex, toIndex) {
+  if (!categories[type]) return false;
+  const arr = categories[type];
+  if (fromIndex < 0 || fromIndex >= arr.length || toIndex < 0 || toIndex >= arr.length) return false;
+  const [item] = arr.splice(fromIndex, 1);
+  arr.splice(toIndex, 0, item);
+  saveCategories();
+  return true;
+}
+
+// デフォルトにリセット
+function resetCategories() {
+  if (confirm('勘定科目をデフォルトに戻しますか？\nカスタマイズした内容は消えます。')) {
+    categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+    saveCategories();
+    return true;
+  }
+  return false;
+}
+
+// カテゴリのラベルを取得（value → label変換）
+function getCategoryLabel(value) {
+  for (const type of Object.keys(categories)) {
+    const found = categories[type].find(c => c.value === value);
+    if (found) return found.label;
+  }
+  return value;
+}
+
+// ==========================================
+// カテゴリエディタUI（設定画面用）
+// ==========================================
+let currentCategoryTab = 'material';
+
+function switchCategoryTab(type) {
+  currentCategoryTab = type;
+  
+  // タブのスタイル更新
+  ['material', 'expense'].forEach(t => {
+    const tab = document.getElementById(`catTab-${t}`);
+    if (!tab) return;
+    if (t === type) {
+      tab.style.background = '#3b82f6';
+      tab.style.color = 'white';
+      tab.style.borderColor = '#3b82f6';
+    } else {
+      tab.style.background = 'white';
+      tab.style.color = '#374151';
+      tab.style.borderColor = '#d1d5db';
+    }
+  });
+  
+  renderCategoryEditor();
+}
+
+function renderCategoryEditor() {
+  const container = document.getElementById('categoryEditorList');
+  if (!container) return;
+  
+  const type = currentCategoryTab;
+  const items = categories[type] || [];
+  
+  // カウント更新
+  const matCount = document.getElementById('catCount-material');
+  const expCount = document.getElementById('catCount-expense');
+  if (matCount) matCount.textContent = categories.material.length;
+  if (expCount) expCount.textContent = categories.expense.length;
+  
+  if (items.length === 0) {
+    container.innerHTML = '<div style="text-align: center; padding: 24px; color: #9ca3af;">科目がありません</div>';
+    return;
+  }
+  
+  container.innerHTML = items.map((item, index) => `
+    <div style="display: flex; align-items: center; gap: 6px; padding: 10px 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;" data-cat-index="${index}">
+      <span style="font-size: 13px; color: #9ca3af; min-width: 24px; text-align: center;">${index + 1}</span>
+      <span style="flex: 1; font-size: 14px; color: #1f2937; font-weight: 500;">${escapeHtml(item.label)}</span>
+      <button onclick="moveCategoryInEditor(${index}, ${index - 1})" 
+        style="width: 32px; height: 32px; border: 1px solid #d1d5db; border-radius: 6px; background: white; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;"
+        ${index === 0 ? 'disabled style="opacity:0.3; width: 32px; height: 32px; border: 1px solid #d1d5db; border-radius: 6px; background: white; cursor: default; font-size: 14px; display: flex; align-items: center; justify-content: center;"' : ''}>↑</button>
+      <button onclick="moveCategoryInEditor(${index}, ${index + 1})" 
+        style="width: 32px; height: 32px; border: 1px solid #d1d5db; border-radius: 6px; background: white; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;"
+        ${index === items.length - 1 ? 'disabled style="opacity:0.3; width: 32px; height: 32px; border: 1px solid #d1d5db; border-radius: 6px; background: white; cursor: default; font-size: 14px; display: flex; align-items: center; justify-content: center;"' : ''}>↓</button>
+      <button onclick="editCategoryInEditor('${item.value}')" 
+        style="width: 32px; height: 32px; border: 1px solid #93c5fd; border-radius: 6px; background: #eff6ff; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;">✏️</button>
+      <button onclick="removeCategoryInEditor('${item.value}', '${escapeHtml(item.label)}')" 
+        style="width: 32px; height: 32px; border: 1px solid #fca5a5; border-radius: 6px; background: #fef2f2; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;">🗑️</button>
+    </div>
+  `).join('');
+}
+
+function moveCategoryInEditor(fromIndex, toIndex) {
+  moveCategoryItem(currentCategoryTab, fromIndex, toIndex);
+  renderCategoryEditor();
+}
+
+function editCategoryInEditor(value) {
+  const item = categories[currentCategoryTab].find(c => c.value === value);
+  if (!item) return;
+  const newLabel = prompt('科目名を編集:', item.label);
+  if (newLabel && newLabel.trim()) {
+    editCategoryItem(currentCategoryTab, value, newLabel.trim());
+    renderCategoryEditor();
+  }
+}
+
+function removeCategoryInEditor(value, label) {
+  if (confirm(`「${label}」を削除しますか？`)) {
+    removeCategoryItem(currentCategoryTab, value);
+    renderCategoryEditor();
+  }
+}
+
+function addCategoryFromEditor() {
+  const input = document.getElementById('newCategoryName');
+  if (!input) return;
+  const name = input.value.trim();
+  if (!name) {
+    alert('科目名を入力してください');
+    return;
+  }
+  if (addCategoryItem(currentCategoryTab, name)) {
+    input.value = '';
+    renderCategoryEditor();
+  }
+}
+
+function resetCategoriesFromEditor() {
+  if (resetCategories()) {
+    renderCategoryEditor();
+  }
+}
+
+// 設定画面表示時にエディタを初期化
+function initCategoryEditor() {
+  currentCategoryTab = 'material';
+  switchCategoryTab('material');
+}
+
+// v0.93: showScreenを自動フックしてカテゴリエディタを初期化
+(function autoHookCategoryEditor() {
+  if (typeof window.showScreen === 'function' && !window._catEditorHooked) {
+    const _origShowScreen = window.showScreen;
+    window.showScreen = function(screenName) {
+      _origShowScreen(screenName);
+      if (screenName === 'settings') {
+        initCategoryEditor();
+      }
+    };
+    window._catEditorHooked = true;
+    console.log('✓ カテゴリエディタ: showScreenフック完了');
+  } else {
+    setTimeout(autoHookCategoryEditor, 300);
+  }
+})();
 
 // 顧客管理
 let customers = [];

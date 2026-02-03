@@ -1,9 +1,10 @@
 // ==========================================
 // レシート読込 - コア機能
-// Reform App Pro v0.92
+// Reform App Pro v0.93
 // ==========================================
 // 画面初期化、画像管理、品目UI、保存機能
 // + チェックボックス、現場割り当て機能（v0.92追加）
+// + 勘定科目カスタマイズ対応（v0.93追加）
 // 
 // 依存ファイル:
 //   - globals.js (receiptItems, receiptImageData, multiImageDataUrls, categories, productMaster, projects)
@@ -295,7 +296,7 @@ function addReceiptItem() {
     quantity: 1,
     price: 0,
     type: 'material', // material, expense, exclude
-    category: 'pipe',
+    category: categories.material.length > 0 ? categories.material[0].value : '',
     checked: false,      // v0.92追加: チェック状態
     projectName: ''      // v0.92追加: 割り当て現場
   });
@@ -313,9 +314,9 @@ function updateReceiptItem(itemId, field, value) {
   if (item) {
     item[field] = value;
     if (field === 'type') {
-      // タイプが変わったらカテゴリをリセット
-      item.category = value === 'material' ? 'pipe' : 
-                      value === 'expense' ? 'consumable' : '';
+      // タイプが変わったらカテゴリを先頭のものにリセット
+      const catList = categories[value];
+      item.category = catList && catList.length > 0 ? catList[0].value : '';
       renderReceiptItems();
     }
     updateReceiptTotal();

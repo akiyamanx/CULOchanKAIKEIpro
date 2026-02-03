@@ -243,6 +243,50 @@
         </div>
       </div>
       
+      <!-- 勘定科目カスタマイズ（v0.93追加） -->
+      <div class="form-section">
+        <h2>■ 勘定科目カスタマイズ</h2>
+        <div style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">
+          レシート読込時の科目を自由に追加・編集・並び替えできます
+        </div>
+        
+        <!-- タブ切り替え -->
+        <div style="display: flex; gap: 4px; margin-bottom: 16px;">
+          <button id="catTab-material" class="type-btn active" 
+            onclick="switchCategoryTab('material')"
+            style="flex: 1; padding: 10px; font-size: 14px; font-weight: 600; border: 2px solid #3b82f6; border-radius: 8px; cursor: pointer; background: #3b82f6; color: white;">
+            🔧 材料（<span id="catCount-material">0</span>）
+          </button>
+          <button id="catTab-expense" class="type-btn" 
+            onclick="switchCategoryTab('expense')"
+            style="flex: 1; padding: 10px; font-size: 14px; font-weight: 600; border: 2px solid #d1d5db; border-radius: 8px; cursor: pointer; background: white; color: #374151;">
+            💰 経費（<span id="catCount-expense">0</span>）
+          </button>
+        </div>
+        
+        <!-- カテゴリリスト -->
+        <div id="categoryEditorList" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; max-height: 400px; overflow-y: auto; padding: 4px;">
+          <!-- JSで動的に生成 -->
+        </div>
+        
+        <!-- 新規追加 -->
+        <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 12px;">
+          <input type="text" id="newCategoryName" placeholder="新しい科目名を入力..." 
+            style="flex: 1; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;"
+            onkeypress="if(event.key==='Enter')addCategoryFromEditor()">
+          <button onclick="addCategoryFromEditor()" 
+            style="padding: 10px 16px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+            ＋ 追加
+          </button>
+        </div>
+        
+        <!-- リセットボタン -->
+        <button onclick="resetCategoriesFromEditor()" 
+          style="width: 100%; padding: 10px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 8px; font-size: 13px; cursor: pointer;">
+          🔄 デフォルトに戻す
+        </button>
+      </div>
+      
       <!-- セキュリティ設定 -->
       <div class="form-section">
         <h2>■ セキュリティ設定</h2>
@@ -350,7 +394,7 @@
         <!-- バージョン情報 -->
         <div style="text-align: center; color: #94a3b8; font-size: 11px;">
           <div style="font-weight: bold; color: #3b82f6;">リフォーム見積・会計 Pro</div>
-          <div>Version 0.91 | 2025.01</div>
+          <div>Version 0.93 | 2025.02</div>
           <div style="margin-top: 8px;">
             <span style="color: #00d4ff;">♡</span> Powered by COCOMI Heart Core
           </div>
