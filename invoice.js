@@ -1,6 +1,6 @@
 // ==========================================
 // 請求書作成機能
-// Reform App Pro v0.91
+// Reform App Pro v0.95
 // ==========================================
 
 
@@ -501,123 +501,10 @@ function closeInvOutputModal() {
 
 // v0.95: PDF出力はdoc-template.jsに移行（exportInvoicePDF関数）
 
-// Excel出力（請求書）
+// v0.95: Excel出力はexcel-template.jsに移行（exportInvoiceExcelStyled関数）
+// 互換性のため旧関数名もエイリアスとして残す
 function exportInvoiceExcel() {
-  const data = getInvoiceData();
-  const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
-  const invoiceNumber = generateInvoiceNumber();
-  
-  const wb = XLSX.utils.book_new();
-  
-  const rows = [
-    ['請求書'],
-    [],
-    ['請求番号', invoiceNumber],
-    ['請求日', data.date],
-    ['お支払期限', data.dueDate],
-    [],
-    ['お客様名', data.customerName + ' 様'],
-    ['件名', data.subject],
-    [],
-    ['ご請求金額（税込）', data.total],
-    [],
-    ['No.', '品名・作業内容', '数量', '単価', '金額'],
-  ];
-  
-  let no = 1;
-  
-  rows.push(['【材料費】', '', '', '', '']);
-  data.materials.forEach(m => {
-    if (m.name) {
-      const amount = (m.quantity || 0) * (m.price || 0);
-      rows.push([no, m.name, m.quantity, m.price, amount]);
-      no++;
-    }
-  });
-  rows.push(['', '材料費 小計', '', '', data.materialSubtotal]);
-  
-  rows.push(['【作業費】', '', '', '', '']);
-  data.works.forEach(w => {
-    if (w.name || w.value) {
-      const name = w.name || '作業';
-      let amount, qty, price;
-      
-      if (data.workType === 'construction') {
-        amount = w.value || 0;
-        qty = w.unit || '1式';
-        price = '';
-      } else {
-        amount = (w.quantity || 1) * (w.value || 0);
-        qty = `${w.quantity || 1}日`;
-        price = w.value || 0;
-      }
-      
-      rows.push([no, name, qty, price, amount]);
-      no++;
-    }
-  });
-  rows.push(['', '作業費 小計', '', '', data.workSubtotal]);
-  
-  rows.push([]);
-  rows.push(['', '', '', '小計', data.subtotal]);
-  rows.push(['', '', '', `消費税（${data.taxRate}%）`, data.tax]);
-  rows.push(['', '', '', '合計', data.total]);
-  
-  // 振込先
-  rows.push([]);
-  rows.push(['【お振込先】']);
-  if (settings.bankName) {
-    rows.push([`${settings.bankName} ${settings.branchName || ''}`]);
-    rows.push([`${settings.accountType || '普通'} ${settings.accountNumber || ''}`]);
-    rows.push([`口座名義: ${settings.accountHolder || ''}`]);
-  }
-  
-  // 備考
-  if (data.notes) {
-    rows.push([]);
-    rows.push(['【備考】']);
-    data.notes.split('\n').forEach(line => {
-      rows.push([line]);
-    });
-  }
-  
-  // 会社情報
-  rows.push([]);
-  rows.push([settings.companyName || '']);
-  if (settings.postalCode || settings.address) {
-    rows.push([`〒${settings.postalCode || ''} ${settings.address || ''}`]);
-  }
-  if (settings.phone) rows.push([`TEL: ${settings.phone}`]);
-  if (settings.isInvoiceRegistered && settings.invoiceNumber) {
-    rows.push([`登録番号: ${settings.invoiceNumber}`]);
-  }
-  
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [
-    { wch: 5 },
-    { wch: 30 },
-    { wch: 10 },
-    { wch: 12 },
-    { wch: 15 },
-  ];
-  
-  XLSX.utils.book_append_sheet(wb, ws, '請求書');
-  
-  const filename = `請求書_${data.customerName}_${data.date}.xlsx`;
-  XLSX.writeFile(wb, filename);
-  
-  // 請求書を保存
-  const invoice = data;
-  invoice.status = 'completed';
-  invoice.id = Date.now();
-  invoice.number = invoiceNumber;
-  
-  const invoices = JSON.parse(localStorage.getItem('reform_app_invoices') || '[]');
-  invoices.push(invoice);
-  localStorage.setItem('reform_app_invoices', JSON.stringify(invoices));
-  
-  closeInvOutputModal();
-  alert(`Excel出力完了！\n請求番号: ${invoiceNumber}\nファイル: ${filename}`);
+  exportInvoiceExcelStyled();
 }
 
 // ==========================================
