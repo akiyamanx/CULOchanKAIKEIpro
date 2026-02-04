@@ -535,7 +535,7 @@ function generateDocumentHTML(d) {
     color: #a0aec0;
     text-align: center;
     padding-top: 2mm;
-    border-top: 1px solid #e2e8f0;
+    /* v0.95修正: border-top削除 → RICOHプリンタで余計な横線が出る原因だった */
   }
 
   /* === 印刷時の制御 === */
