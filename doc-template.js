@@ -159,7 +159,6 @@ function generateDocumentHTML(d) {
   }
 
   // v0.95修正 - A4いっぱいに空行を追加（最低25行）
-  // 合計3行分（小計・消費税・合計）もテーブル内に入れるので-3
   const MIN_ROWS = 25;
   let dataRowCount = 0;
   if (d.materials) {
@@ -170,8 +169,7 @@ function generateDocumentHTML(d) {
     dataRowCount += d.works.filter(w => w.name || w.value).length;
     dataRowCount += 2; // セクションヘッダ + 小計行
   }
-  const totalRows = 3; // 小計・消費税・合計
-  const emptyRows = Math.max(0, MIN_ROWS - dataRowCount - totalRows);
+  const emptyRows = Math.max(0, MIN_ROWS - dataRowCount);
   for (let i = 0; i < emptyRows; i++) {
     itemRows += `
       <tr class="empty-row">
@@ -182,24 +180,6 @@ function generateDocumentHTML(d) {
         <td>&nbsp;</td>
       </tr>`;
   }
-
-  // v0.95修正 - 合計行を明細テーブル内に組み込み（RICOHプリンタ対策）
-  itemRows += `
-      <tr class="total-summary-row">
-        <td colspan="3"></td>
-        <td class="right bold">小計</td>
-        <td class="right bold">¥${d.subtotal.toLocaleString()}</td>
-      </tr>
-      <tr class="total-summary-row">
-        <td colspan="3"></td>
-        <td class="right bold">消費税（${d.taxRate}%）</td>
-        <td class="right bold">¥${d.tax.toLocaleString()}</td>
-      </tr>
-      <tr class="grand-total-row">
-        <td colspan="3"></td>
-        <td class="right bold">合計</td>
-        <td class="right bold">¥${d.total.toLocaleString()}</td>
-      </tr>`;
 
   // ロゴHTML
   const logoHtml = d.logoData 
@@ -469,30 +449,59 @@ function generateDocumentHTML(d) {
     height: 5.5mm;
   }
 
-  /* v0.95 合計行（明細テーブル内に統合） */
-  .total-summary-row td {
-    background: #f7fafc !important;
-    border-top: none;
-  }
-  .total-summary-row td:nth-child(1) {
-    border-left: none;
-    border-right: none;
-    border-bottom: none;
-    background: transparent !important;
+  /* === 合計エリア（borderを一切使わない！RICOHプリンタ対策） === */
+  .totals-area {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 4mm;
+    margin-bottom: 4mm;
   }
 
-  .grand-total-row td {
-    background: #2c5282 !important;
-    color: white !important;
-    font-size: 12px;
-    padding: 2mm 2mm !important;
+  .totals-box {
+    width: 60mm;
+    font-size: 10px;
+    box-shadow: 0 0 0 1px #cbd5e0;
+    overflow: hidden;
   }
-  .grand-total-row td:nth-child(1) {
-    border-left: none;
-    border-right: none;
-    border-bottom: none;
-    background: transparent !important;
-    color: #1a1a1a !important;
+
+  .totals-row {
+    display: flex;
+  }
+
+  .totals-label {
+    text-align: right;
+    background: #f7fafc;
+    font-weight: 500;
+    width: 28mm;
+    padding: 1.5mm 3mm;
+    box-shadow: 1px 0 0 0 #cbd5e0;
+  }
+
+  .totals-value {
+    text-align: right;
+    font-weight: 500;
+    width: 32mm;
+    padding: 1.5mm 3mm;
+  }
+
+  .totals-row.grand-total {
+    background: #2c5282;
+  }
+
+  .totals-row.grand-total .totals-label {
+    background: #2c5282;
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+    padding: 2mm 3mm;
+    box-shadow: 1px 0 0 0 rgba(255,255,255,0.3);
+  }
+
+  .totals-row.grand-total .totals-value {
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+    padding: 2mm 3mm;
   }
 
   /* === 備考 === */
@@ -613,6 +622,24 @@ function generateDocumentHTML(d) {
       ${itemRows}
     </tbody>
   </table>
+
+  <!-- 合計エリア（borderなし・box-shadowで罫線表現） -->
+  <div class="totals-area">
+    <div class="totals-box">
+      <div class="totals-row">
+        <div class="totals-label">小計</div>
+        <div class="totals-value">¥${d.subtotal.toLocaleString()}</div>
+      </div>
+      <div class="totals-row">
+        <div class="totals-label">消費税（${d.taxRate}%）</div>
+        <div class="totals-value">¥${d.tax.toLocaleString()}</div>
+      </div>
+      <div class="totals-row grand-total">
+        <div class="totals-label">合計</div>
+        <div class="totals-value">¥${d.total.toLocaleString()}</div>
+      </div>
+    </div>
+  </div>
 
   <!-- 備考 -->
   ${notesHtml}
