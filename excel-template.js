@@ -24,13 +24,13 @@ const EXCEL_COLORS = {
   navyDark: '1A365D',   // タイトル文字
   white: 'FFFFFF',
   black: '1A1A1A',
-  grayLight: 'F7FAFC',  // 偶数行背景
+  grayLight: 'E8F0FE',  // v0.95修正: 偶数行背景（薄い青）
   grayBorder: 'CBD5E0', // 罫線色
   grayText: '555555',   // ラベル文字
   sectionBg: 'EDF2F7',  // セクション行背景
   sectionText: '2D3748', // セクション行文字
   notesBg: 'FFFEF5',    // 備考背景
-  totalBoxBg: 'F7FAFC',  // 合計欄背景
+  totalBoxBg: 'EBF5FB',  // v0.95修正: 合計欄背景（薄い青）
 };
 
 // 罫線スタイル
@@ -422,7 +422,7 @@ function generateStyledExcel(d) {
         var unitPrice = m.sellingPrice || m.price || 0;
         var amount = (m.quantity || 0) * unitPrice;
         var isEven = dataRowCount % 2 === 1;
-        var rowBg = isEven ? { fgColor: { rgb: EXCEL_COLORS.grayLight } } : {};
+        var rowBg = isEven ? { fgColor: { rgb: EXCEL_COLORS.grayLight } } : { fgColor: { rgb: EXCEL_COLORS.white } };
         var cb = { font: FONT_NORMAL, border: BORDER_THIN, fill: rowBg };
 
         rows.push([
@@ -497,7 +497,7 @@ function generateStyledExcel(d) {
         }
 
         var isEven = dataRowCount % 2 === 1;
-        var rowBg = isEven ? { fgColor: { rgb: EXCEL_COLORS.grayLight } } : {};
+        var rowBg = isEven ? { fgColor: { rgb: EXCEL_COLORS.grayLight } } : { fgColor: { rgb: EXCEL_COLORS.white } };
         var cb = { font: FONT_NORMAL, border: BORDER_THIN, fill: rowBg };
 
         rows.push([
@@ -547,7 +547,7 @@ function generateStyledExcel(d) {
   var minRows = 25;
   while (dataRowCount < minRows) {
     var isEven = dataRowCount % 2 === 1;
-    var rowBg = isEven ? { fgColor: { rgb: EXCEL_COLORS.grayLight } } : {};
+    var rowBg = isEven ? { fgColor: { rgb: EXCEL_COLORS.grayLight } } : { fgColor: { rgb: EXCEL_COLORS.white } };
     var cb = { font: FONT_NORMAL, border: BORDER_THIN, fill: rowBg };
     rows.push([
       xlEmptyCell(Object.assign({}, cb, { alignment: { horizontal: 'center' } })),
