@@ -158,6 +158,28 @@ function generateDocumentHTML(d) {
       </tr>`;
   }
 
+  // v0.95追加: 動的空行パディング（1ページに収まるよう調整）
+  // データ行数を計算（セクションヘッダー+データ行+小計行）
+  const materialDataCount = (d.materials || []).filter(m => m.name).length;
+  const workDataCount = (d.works || []).filter(w => w.name || w.value).length;
+  const totalDataRows = materialDataCount + workDataCount
+    + (materialDataCount > 0 ? 2 : 0)  // 【材料費】+ 小計
+    + (workDataCount > 0 ? 2 : 0);      // 【作業費】+ 小計
+  // RICOH対応: 最大18行まで（ヘッダー等を考慮した安全値）
+  const MAX_TABLE_ROWS = 18;
+  const emptyRows = Math.max(0, MAX_TABLE_ROWS - totalDataRows);
+  for (let i = 0; i < emptyRows; i++) {
+    const bgClass = (totalDataRows + i) % 2 === 1 ? ' style="background:#f7fafc;"' : '';
+    itemRows += `
+      <tr${bgClass}>
+        <td class="center"></td>
+        <td class="item-name"></td>
+        <td class="center"></td>
+        <td class="right"></td>
+        <td class="right"></td>
+      </tr>`;
+  }
+
   // ロゴHTML
   const logoHtml = d.logoData 
     ? `<img src="${d.logoData}" class="logo-img" alt="ロゴ">` 
@@ -210,7 +232,7 @@ function generateDocumentHTML(d) {
 
   .page {
     width: 190mm;
-    min-height: 267mm;
+    min-height: auto;
     margin: 0 auto;
     position: relative;
   }
