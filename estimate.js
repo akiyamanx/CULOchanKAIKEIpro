@@ -1,6 +1,6 @@
 // ==========================================
 // 見積書作成機能
-// Reform App Pro v0.91
+// Reform App Pro v0.95
 // ==========================================
 
 
@@ -1201,124 +1201,10 @@ function closeOutputModal() {
 
 // v0.95: PDF出力はdoc-template.jsに移行（exportEstimatePDF関数）
 
-// Excel出力
+// v0.95: Excel出力はexcel-template.jsに移行（exportEstimateExcelStyled関数）
+// 互換性のため旧関数名もエイリアスとして残す
 function exportEstimateExcel() {
-  const data = getEstimateData();
-  const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
-  const estimateNumber = generateEstimateNumber();
-  
-  // ワークブック作成
-  const wb = XLSX.utils.book_new();
-  
-  // データ配列作成
-  const rows = [
-    ['見積書'],
-    [],
-    ['見積番号', estimateNumber],
-    ['見積日', data.date],
-    ['有効期限', data.validDate],
-    [],
-    ['お客様名', data.customerName + ' 様'],
-    ['件名', data.subject],
-    [],
-    ['ご請求金額（税込）', data.total],
-    [],
-    ['No.', '品名・作業内容', '数量', '単価', '金額'],
-  ];
-  
-  let no = 1;
-  
-  // 材料費
-  rows.push(['【材料費】', '', '', '', '']);
-  data.materials.forEach(m => {
-    if (m.name) {
-      const unitPrice = m.sellingPrice || m.price || 0; // v0.94.1修正: sellingPrice優先
-      const amount = (m.quantity || 0) * unitPrice;
-      rows.push([no, m.name, m.quantity, unitPrice, amount]);
-      no++;
-    }
-  });
-  rows.push(['', '材料費 小計', '', '', data.materialSubtotal]);
-  
-  // 作業費
-  rows.push(['【作業費】', '', '', '', '']);
-  data.works.forEach(w => {
-    if (w.name || w.value) {
-      const name = w.name || '作業';
-      let amount, qty, price;
-      
-      if (data.workType === 'construction') {
-        amount = w.value || 0;
-        qty = w.unit || '1式';
-        price = '';
-      } else {
-        amount = (w.quantity || 1) * (w.value || 0);
-        qty = `${w.quantity || 1}日`;
-        price = w.value || 0;
-      }
-      
-      rows.push([no, name, qty, price, amount]);
-      no++;
-    }
-  });
-  rows.push(['', '作業費 小計', '', '', data.workSubtotal]);
-  
-  // 合計
-  rows.push([]);
-  rows.push(['', '', '', '小計', data.subtotal]);
-  rows.push(['', '', '', `消費税（${data.taxRate}%）`, data.tax]);
-  rows.push(['', '', '', '合計', data.total]);
-  
-  // 備考
-  if (data.notes) {
-    rows.push([]);
-    rows.push(['【備考】']);
-    data.notes.split('\n').forEach(line => {
-      rows.push([line]);
-    });
-  }
-  
-  // 会社情報
-  rows.push([]);
-  rows.push([settings.companyName || '']);
-  if (settings.postalCode || settings.address) {
-    rows.push([`〒${settings.postalCode || ''} ${settings.address || ''}`]);
-  }
-  if (settings.phone) rows.push([`TEL: ${settings.phone}`]);
-  if (settings.isInvoiceRegistered && settings.invoiceNumber) {
-    rows.push([`登録番号: ${settings.invoiceNumber}`]);
-  }
-  
-  // シート作成
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  
-  // 列幅設定
-  ws['!cols'] = [
-    { wch: 5 },   // No
-    { wch: 30 },  // 品名
-    { wch: 10 },  // 数量
-    { wch: 12 },  // 単価
-    { wch: 15 },  // 金額
-  ];
-  
-  XLSX.utils.book_append_sheet(wb, ws, '見積書');
-  
-  // ダウンロード
-  const filename = `見積書_${data.customerName}_${data.date}.xlsx`;
-  XLSX.writeFile(wb, filename);
-  
-  // 見積もりを保存
-  const estimate = data;
-  estimate.status = 'completed';
-  estimate.id = Date.now();
-  estimate.number = estimateNumber;
-  
-  const estimates = JSON.parse(localStorage.getItem('reform_app_estimates') || '[]');
-  estimates.push(estimate);
-  localStorage.setItem('reform_app_estimates', JSON.stringify(estimates));
-  
-  closeOutputModal();
-  alert(`Excel出力完了！\n見積番号: ${estimateNumber}\nファイル: ${filename}`);
+  exportEstimateExcelStyled();
 }
 
 function formatDate(dateStr) {
