@@ -158,29 +158,6 @@ function generateDocumentHTML(d) {
       </tr>`;
   }
 
-  // v0.95修正 - A4いっぱいに空行を追加（最低25行）
-  const MIN_ROWS = 25;
-  let dataRowCount = 0;
-  if (d.materials) {
-    dataRowCount += d.materials.filter(m => m.name).length;
-    dataRowCount += 2; // セクションヘッダ + 小計行
-  }
-  if (d.works) {
-    dataRowCount += d.works.filter(w => w.name || w.value).length;
-    dataRowCount += 2; // セクションヘッダ + 小計行
-  }
-  const emptyRows = Math.max(0, MIN_ROWS - dataRowCount);
-  for (let i = 0; i < emptyRows; i++) {
-    itemRows += `
-      <tr class="empty-row">
-        <td>&nbsp;</td>
-        <td>&nbsp;</td>
-        <td>&nbsp;</td>
-        <td>&nbsp;</td>
-        <td>&nbsp;</td>
-      </tr>`;
-  }
-
   // ロゴHTML
   const logoHtml = d.logoData 
     ? `<img src="${d.logoData}" class="logo-img" alt="ロゴ">` 
@@ -219,7 +196,7 @@ function generateDocumentHTML(d) {
   
   @page {
     size: A4 portrait;
-    margin: 12mm 10mm 12mm 10mm;
+    margin: 8mm 10mm 8mm 10mm;
   }
 
   body {
@@ -243,8 +220,8 @@ function generateDocumentHTML(d) {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 6mm;
-    padding-bottom: 3mm;
+    margin-bottom: 4mm;
+    padding-bottom: 2mm;
     border-bottom: 2px solid #2c5282;
   }
 
@@ -308,7 +285,7 @@ function generateDocumentHTML(d) {
   .info-area {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 5mm;
+    margin-bottom: 3mm;
   }
 
   .customer-block {
@@ -363,8 +340,8 @@ function generateDocumentHTML(d) {
   /* === 合計金額枠 === */
   .total-box {
     border: 2px solid #2c5282;
-    padding: 3mm 5mm;
-    margin-bottom: 5mm;
+    padding: 2mm 5mm;
+    margin-bottom: 3mm;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -388,7 +365,7 @@ function generateDocumentHTML(d) {
   .items-table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 4mm;
+    margin-bottom: 2mm;
     font-size: 9px;
   }
 
@@ -444,60 +421,41 @@ function generateDocumentHTML(d) {
     padding: 1.5mm 2mm !important;
   }
 
-  /* 空行（マス目だけ） */
-  .empty-row td {
-    height: 5.5mm;
-  }
-
-  /* === 合計エリア（borderを一切使わない！RICOHプリンタ対策） === */
+  /* === 合計エリア === */
   .totals-area {
     display: flex;
     justify-content: flex-end;
-    margin-top: 4mm;
-    margin-bottom: 4mm;
+    margin-bottom: 3mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
-  .totals-box {
+  .totals-table {
     width: 60mm;
+    border-collapse: collapse;
     font-size: 10px;
-    box-shadow: 0 0 0 1px #cbd5e0;
-    overflow: hidden;
   }
 
-  .totals-row {
-    display: flex;
+  .totals-table td {
+    padding: 1.5mm 3mm;
+    border: 1px solid #cbd5e0;
   }
 
-  .totals-label {
+  .totals-table .label {
     text-align: right;
     background: #f7fafc;
     font-weight: 500;
     width: 28mm;
-    padding: 1.5mm 3mm;
-    box-shadow: 1px 0 0 0 #cbd5e0;
   }
 
-  .totals-value {
+  .totals-table .value {
     text-align: right;
     font-weight: 500;
     width: 32mm;
-    padding: 1.5mm 3mm;
   }
 
-  .totals-row.grand-total {
+  .totals-table .grand-total td {
     background: #2c5282;
-  }
-
-  .totals-row.grand-total .totals-label {
-    background: #2c5282;
-    color: white;
-    font-weight: bold;
-    font-size: 12px;
-    padding: 2mm 3mm;
-    box-shadow: 1px 0 0 0 rgba(255,255,255,0.3);
-  }
-
-  .totals-row.grand-total .totals-value {
     color: white;
     font-weight: bold;
     font-size: 12px;
@@ -535,7 +493,6 @@ function generateDocumentHTML(d) {
     color: #a0aec0;
     text-align: center;
     padding-top: 2mm;
-    /* v0.95修正: border-top削除 → RICOHプリンタで余計な横線が出る原因だった */
   }
 
   /* === 印刷時の制御 === */
@@ -557,7 +514,7 @@ function generateDocumentHTML(d) {
     .page {
       background: white;
       box-shadow: 0 2px 10px rgba(0,0,0,0.15);
-      padding: 12mm 10mm;
+      padding: 8mm 10mm;
       border-radius: 2px;
     }
   }
@@ -623,22 +580,22 @@ function generateDocumentHTML(d) {
     </tbody>
   </table>
 
-  <!-- 合計エリア（borderなし・box-shadowで罫線表現） -->
+  <!-- 合計エリア -->
   <div class="totals-area">
-    <div class="totals-box">
-      <div class="totals-row">
-        <div class="totals-label">小計</div>
-        <div class="totals-value">¥${d.subtotal.toLocaleString()}</div>
-      </div>
-      <div class="totals-row">
-        <div class="totals-label">消費税（${d.taxRate}%）</div>
-        <div class="totals-value">¥${d.tax.toLocaleString()}</div>
-      </div>
-      <div class="totals-row grand-total">
-        <div class="totals-label">合計</div>
-        <div class="totals-value">¥${d.total.toLocaleString()}</div>
-      </div>
-    </div>
+    <table class="totals-table">
+      <tr>
+        <td class="label">小計</td>
+        <td class="value">¥${d.subtotal.toLocaleString()}</td>
+      </tr>
+      <tr>
+        <td class="label">消費税（${d.taxRate}%）</td>
+        <td class="value">¥${d.tax.toLocaleString()}</td>
+      </tr>
+      <tr class="grand-total">
+        <td class="label">合計</td>
+        <td class="value">¥${d.total.toLocaleString()}</td>
+      </tr>
+    </table>
   </div>
 
   <!-- 備考 -->
