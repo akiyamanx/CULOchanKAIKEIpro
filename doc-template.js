@@ -159,17 +159,18 @@ function generateDocumentHTML(d) {
   }
 
   // v0.95追加: 動的空行パディング（1ページに収まるよう調整）
-  // データ行数を計算（セクションヘッダー+データ行+小計行）
+  // データ行数を計算（セクションヘッダー+データ行+小計行+合計3行）
   const materialDataCount = (d.materials || []).filter(m => m.name).length;
   const workDataCount = (d.works || []).filter(w => w.name || w.value).length;
   const totalDataRows = materialDataCount + workDataCount
     + (materialDataCount > 0 ? 2 : 0)  // 【材料費】+ 小計
-    + (workDataCount > 0 ? 2 : 0);      // 【作業費】+ 小計
+    + (workDataCount > 0 ? 2 : 0)      // 【作業費】+ 小計
+    + 3;                                 // 小計・消費税・合計行
   // RICOH対応: 最大18行まで（ヘッダー等を考慮した安全値）
   const MAX_TABLE_ROWS = 18;
   const emptyRows = Math.max(0, MAX_TABLE_ROWS - totalDataRows);
   for (let i = 0; i < emptyRows; i++) {
-    const bgClass = (totalDataRows + i) % 2 === 1 ? ' style="background:#f7fafc;"' : '';
+    const bgClass = (totalDataRows - 3 + i) % 2 === 1 ? ' style="background:#f7fafc;"' : '';
     itemRows += `
       <tr${bgClass}>
         <td class="center"></td>
@@ -179,6 +180,24 @@ function generateDocumentHTML(d) {
         <td class="right"></td>
       </tr>`;
   }
+
+  // v0.95追加: 合計行をテーブル内に統合（ページ分割しても自然な見た目）
+  itemRows += `
+      <tr class="totals-row">
+        <td colspan="3" class="totals-spacer-cell"></td>
+        <td class="right bold totals-label-cell">小計</td>
+        <td class="right bold totals-value-cell">¥${d.subtotal.toLocaleString()}</td>
+      </tr>
+      <tr class="totals-row">
+        <td colspan="3" class="totals-spacer-cell"></td>
+        <td class="right bold totals-label-cell">消費税（${d.taxRate}%）</td>
+        <td class="right bold totals-value-cell">¥${d.tax.toLocaleString()}</td>
+      </tr>
+      <tr class="totals-row grand-total-row">
+        <td colspan="3" class="totals-spacer-cell"></td>
+        <td class="right bold totals-gt-label-cell">合計</td>
+        <td class="right bold totals-gt-value-cell">¥${d.total.toLocaleString()}</td>
+      </tr>`;
 
   // ロゴHTML
   const logoHtml = d.logoData 
@@ -443,60 +462,39 @@ function generateDocumentHTML(d) {
     padding: 1.5mm 2mm !important;
   }
 
-  /* === 合計エリア（インライン統合） === */
-  .totals-inline-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 2mm;
-    margin-bottom: 3mm;
-    break-inside: avoid;
-    page-break-inside: avoid;
+  /* === 合計行（テーブル内統合） === */
+  .totals-row .totals-spacer-cell {
+    border: none !important;
+    background: transparent !important;
   }
 
-  .totals-inline-table .totals-spacer {
-    border: none;
-    width: auto;
-  }
-
-  .totals-inline-table .totals-label {
-    text-align: right;
-    background: #f7fafc;
-    font-weight: 500;
+  .totals-row .totals-label-cell {
+    background: #f7fafc !important;
     font-size: 10px;
-    padding: 1.5mm 3mm;
+    padding: 1.5mm 3mm !important;
     border: 1px solid #cbd5e0;
-    width: 28mm;
   }
 
-  .totals-inline-table .totals-value {
-    text-align: right;
-    font-weight: 500;
+  .totals-row .totals-value-cell {
     font-size: 10px;
-    padding: 1.5mm 3mm;
+    padding: 1.5mm 3mm !important;
     border: 1px solid #cbd5e0;
-    width: 32mm;
   }
 
-  .totals-inline-table .totals-gt-label {
-    text-align: right;
-    background: #2c5282;
+  .grand-total-row .totals-gt-label-cell {
+    background: #2c5282 !important;
     color: white;
-    font-weight: bold;
     font-size: 12px;
-    padding: 2mm 3mm;
+    padding: 2mm 3mm !important;
     border: 1px solid #2c5282;
-    width: 28mm;
   }
 
-  .totals-inline-table .totals-gt-value {
-    text-align: right;
-    background: #2c5282;
+  .grand-total-row .totals-gt-value-cell {
+    background: #2c5282 !important;
     color: white;
-    font-weight: bold;
     font-size: 12px;
-    padding: 2mm 3mm;
+    padding: 2mm 3mm !important;
     border: 1px solid #2c5282;
-    width: 32mm;
   }
 
   /* === 備考 === */
@@ -612,25 +610,6 @@ function generateDocumentHTML(d) {
     <tbody>
       ${itemRows}
     </tbody>
-  </table>
-
-  <!-- 合計エリア（テーブル内統合でページ分割防止） -->
-  <table class="totals-inline-table">
-    <tr>
-      <td class="totals-spacer"></td>
-      <td class="totals-label">小計</td>
-      <td class="totals-value">¥${d.subtotal.toLocaleString()}</td>
-    </tr>
-    <tr>
-      <td class="totals-spacer"></td>
-      <td class="totals-label">消費税（${d.taxRate}%）</td>
-      <td class="totals-value">¥${d.tax.toLocaleString()}</td>
-    </tr>
-    <tr class="grand-total-row">
-      <td class="totals-spacer"></td>
-      <td class="totals-gt-label">合計</td>
-      <td class="totals-gt-value">¥${d.total.toLocaleString()}</td>
-    </tr>
   </table>
 
   <!-- 備考 -->
