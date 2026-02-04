@@ -443,45 +443,60 @@ function generateDocumentHTML(d) {
     padding: 1.5mm 2mm !important;
   }
 
-  /* === 合計エリア === */
-  .totals-area {
-    display: flex;
-    justify-content: flex-end;
+  /* === 合計エリア（インライン統合） === */
+  .totals-inline-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 2mm;
     margin-bottom: 3mm;
     break-inside: avoid;
     page-break-inside: avoid;
   }
 
-  .totals-table {
-    width: 60mm;
-    border-collapse: collapse;
-    font-size: 10px;
+  .totals-inline-table .totals-spacer {
+    border: none;
+    width: auto;
   }
 
-  .totals-table td {
-    padding: 1.5mm 3mm;
-    border: 1px solid #cbd5e0;
-  }
-
-  .totals-table .label {
+  .totals-inline-table .totals-label {
     text-align: right;
     background: #f7fafc;
     font-weight: 500;
+    font-size: 10px;
+    padding: 1.5mm 3mm;
+    border: 1px solid #cbd5e0;
     width: 28mm;
   }
 
-  .totals-table .value {
+  .totals-inline-table .totals-value {
     text-align: right;
     font-weight: 500;
+    font-size: 10px;
+    padding: 1.5mm 3mm;
+    border: 1px solid #cbd5e0;
     width: 32mm;
   }
 
-  .totals-table .grand-total td {
+  .totals-inline-table .totals-gt-label {
+    text-align: right;
     background: #2c5282;
     color: white;
     font-weight: bold;
     font-size: 12px;
     padding: 2mm 3mm;
+    border: 1px solid #2c5282;
+    width: 28mm;
+  }
+
+  .totals-inline-table .totals-gt-value {
+    text-align: right;
+    background: #2c5282;
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+    padding: 2mm 3mm;
+    border: 1px solid #2c5282;
+    width: 32mm;
   }
 
   /* === 備考 === */
@@ -507,14 +522,11 @@ function generateDocumentHTML(d) {
 
   /* === フッター === */
   .doc-footer {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
     font-size: 8px;
     color: #a0aec0;
     text-align: center;
-    padding-top: 2mm;
+    padding-top: 3mm;
+    margin-top: 2mm;
   }
 
   /* === 印刷時の制御 === */
@@ -602,23 +614,24 @@ function generateDocumentHTML(d) {
     </tbody>
   </table>
 
-  <!-- 合計エリア -->
-  <div class="totals-area">
-    <table class="totals-table">
-      <tr>
-        <td class="label">小計</td>
-        <td class="value">¥${d.subtotal.toLocaleString()}</td>
-      </tr>
-      <tr>
-        <td class="label">消費税（${d.taxRate}%）</td>
-        <td class="value">¥${d.tax.toLocaleString()}</td>
-      </tr>
-      <tr class="grand-total">
-        <td class="label">合計</td>
-        <td class="value">¥${d.total.toLocaleString()}</td>
-      </tr>
-    </table>
-  </div>
+  <!-- 合計エリア（テーブル内統合でページ分割防止） -->
+  <table class="totals-inline-table">
+    <tr>
+      <td class="totals-spacer"></td>
+      <td class="totals-label">小計</td>
+      <td class="totals-value">¥${d.subtotal.toLocaleString()}</td>
+    </tr>
+    <tr>
+      <td class="totals-spacer"></td>
+      <td class="totals-label">消費税（${d.taxRate}%）</td>
+      <td class="totals-value">¥${d.tax.toLocaleString()}</td>
+    </tr>
+    <tr class="grand-total-row">
+      <td class="totals-spacer"></td>
+      <td class="totals-gt-label">合計</td>
+      <td class="totals-gt-value">¥${d.total.toLocaleString()}</td>
+    </tr>
+  </table>
 
   <!-- 備考 -->
   ${notesHtml}
