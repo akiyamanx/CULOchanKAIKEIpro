@@ -1,6 +1,11 @@
 // ==========================================
 // データ管理画面
-// Reform App Pro v0.91
+// Reform App Pro v0.95.1
+// ==========================================
+// v0.95.1改善:
+//   - 保存データ一覧に時刻表示を追加
+//   - formatDateTime関数を追加（日付+時刻）
+//   - createdAtを使って保存した時刻を表示
 // ==========================================
 
 
@@ -31,6 +36,53 @@ function filterDataList() {
   }
 }
 
+// ==========================================
+// v0.95.1追加: 日付+時刻フォーマット関数
+// ==========================================
+
+/**
+ * 日時を「2026年2月5日 18:34」形式でフォーマット
+ * @param {string|Date} dateTime - ISO形式の日時文字列またはDateオブジェクト
+ * @returns {string} フォーマットされた日時文字列
+ */
+function formatDateTime(dateTime) {
+  if (!dateTime) return '';
+  
+  const d = new Date(dateTime);
+  if (isNaN(d.getTime())) return '';
+  
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const hours = d.getHours().toString().padStart(2, '0');
+  const minutes = d.getMinutes().toString().padStart(2, '0');
+  
+  return `${year}年${month}月${day}日 ${hours}:${minutes}`;
+}
+
+/**
+ * 日時を短縮形式「2/5 18:34」でフォーマット（一覧用）
+ * @param {string|Date} dateTime - ISO形式の日時文字列またはDateオブジェクト
+ * @returns {string} フォーマットされた日時文字列
+ */
+function formatDateTimeShort(dateTime) {
+  if (!dateTime) return '';
+  
+  const d = new Date(dateTime);
+  if (isNaN(d.getTime())) return '';
+  
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const hours = d.getHours().toString().padStart(2, '0');
+  const minutes = d.getMinutes().toString().padStart(2, '0');
+  
+  return `${month}/${day} ${hours}:${minutes}`;
+}
+
+
+// ==========================================
+// 見積書一覧
+// ==========================================
 function renderEstimatesList(search = '') {
   let estimates = JSON.parse(localStorage.getItem('reform_app_estimates') || '[]');
   
@@ -56,6 +108,7 @@ function renderEstimatesList(search = '') {
     return;
   }
   
+  // v0.95.1: createdAtで保存時刻を表示
   container.innerHTML = estimates.map(e => `
     <div class="data-list-item" onclick="viewEstimateDetail('${e.id}')">
       <div class="data-list-item-header">
@@ -64,11 +117,16 @@ function renderEstimatesList(search = '') {
       </div>
       <div class="data-list-item-title">${e.customerName || '顧客名なし'}</div>
       <div class="data-list-item-detail">${e.subject || '件名なし'} | ${formatDate(e.date)}</div>
+      <div class="data-list-item-time">保存: ${formatDateTimeShort(e.createdAt)}</div>
       <div class="data-list-item-amount">¥${(e.total || 0).toLocaleString()}</div>
     </div>
   `).join('');
 }
 
+
+// ==========================================
+// 請求書一覧
+// ==========================================
 function renderInvoicesList(search = '') {
   let invoices = JSON.parse(localStorage.getItem('reform_app_invoices') || '[]');
   
@@ -94,6 +152,7 @@ function renderInvoicesList(search = '') {
     return;
   }
   
+  // v0.95.1: createdAtで保存時刻を表示
   container.innerHTML = invoices.map(i => `
     <div class="data-list-item" onclick="viewInvoiceDetail('${i.id}')">
       <div class="data-list-item-header">
@@ -102,11 +161,16 @@ function renderInvoicesList(search = '') {
       </div>
       <div class="data-list-item-title">${i.customerName || '顧客名なし'}</div>
       <div class="data-list-item-detail">${i.subject || '件名なし'} | ${formatDate(i.date)}</div>
+      <div class="data-list-item-time">保存: ${formatDateTimeShort(i.createdAt)}</div>
       <div class="data-list-item-amount">¥${(i.total || 0).toLocaleString()}</div>
     </div>
   `).join('');
 }
 
+
+// ==========================================
+// 材料一覧
+// ==========================================
 function renderMaterialsDataList(search = '') {
   let materials = JSON.parse(localStorage.getItem('reform_app_materials') || '[]');
   
@@ -131,6 +195,7 @@ function renderMaterialsDataList(search = '') {
     return;
   }
   
+  // v0.95.1: createdAtで保存時刻を表示
   container.innerHTML = materials.map(m => `
     <div class="data-list-item">
       <div class="data-list-item-title">${m.name || '名称なし'}</div>
@@ -140,11 +205,16 @@ function renderMaterialsDataList(search = '') {
       <div class="data-list-item-detail">
         数量: ${m.quantity || 1} | 単価: ¥${(m.price || 0).toLocaleString()}
       </div>
+      <div class="data-list-item-time">保存: ${formatDateTimeShort(m.createdAt)}</div>
       <div class="data-list-item-amount">¥${((m.price || 0) * (m.quantity || 1)).toLocaleString()}</div>
     </div>
   `).join('');
 }
 
+
+// ==========================================
+// 詳細表示
+// ==========================================
 function viewEstimateDetail(estimateId) {
   const estimates = JSON.parse(localStorage.getItem('reform_app_estimates') || '[]');
   const estimate = estimates.find(e => String(e.id) === String(estimateId));
