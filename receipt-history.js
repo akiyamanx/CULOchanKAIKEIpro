@@ -1,32 +1,86 @@
 // ==========================================
 // レシート履歴管理
-// Reform App Pro v0.94.1
+// Reform App Pro v0.95
 // ==========================================
-// このファイルはレシートの履歴保存・一覧表示・
-// 画像閲覧・呼び戻し機能を提供する
+// このファイルはレシートの履歴保存・重複チェック・
+// 一覧表示・画像閲覧・呼び戻し機能を提供する
+//
+// v0.95変更:
+//   - 重複チェック機能追加（複合判定: 店名+日付+合計+品目数+レシート番号）
+//   - 保存時に品名マスター自動変換を適用
+//   - レコードにreceiptNumber（レシート番号）フィールド追加
+//   - 容量上限を100→300件に拡張
 //
 // LocalStorageキー: reform_app_receipt_history
-// 各レコード: { id, storeName, customerName, date,
+// 各レコード: { id, storeName, customerName, date, receiptNumber,
 //   items[], imageData, totalAmount, createdAt }
 //
 // 依存ファイル:
-//   - globals.js (receiptItems, receiptImageData, escapeHtml)
+//   - globals.js (receiptItems, receiptImageData, escapeHtml, productMaster)
 //   - receipt-core.js (renderReceiptItems, updateReceiptTotal, initProjectSelect)
+//   - receipt-list.js (リスト表示・フィルタ・品名一括変換)
 // ==========================================
+
+
+// ==========================================
+// レシート重複チェック（v0.95追加）
+// ==========================================
+
+/**
+ * 保存済み履歴と比較して重複レシートかチェック
+ * 複合判定: 店名+日付+合計金額+品目数+レシート番号
+ * @param {string} storeName - 店名
+ * @param {string} date - 日付(YYYY-MM-DD)
+ * @param {number} totalAmount - 合計金額
+ * @param {number} itemCount - 品目数
+ * @param {string} receiptNumber - レシート番号（空文字の場合は判定対象外）
+ * @returns {{isDuplicate: boolean, matchedRecord: object|null}}
+ */
+function checkReceiptDuplicate(storeName, date, totalAmount, itemCount, receiptNumber) {
+  const histories = JSON.parse(localStorage.getItem('reform_app_receipt_history') || '[]');
+
+  for (const h of histories) {
+    // レシート番号が両方あれば番号で判定（最も確実）
+    if (receiptNumber && h.receiptNumber && receiptNumber === h.receiptNumber) {
+      // 番号一致 + 店名一致なら確実に重複
+      if ((h.storeName || '').trim() === storeName.trim()) {
+        return { isDuplicate: true, matchedRecord: h };
+      }
+    }
+
+    // 複合判定: 店名+日付+合計+品目数がすべて一致
+    const storeMatch = (h.storeName || '').trim() === storeName.trim();
+    const dateMatch = h.date === date;
+    const amountMatch = (h.totalAmount || 0) === totalAmount;
+    const countMatch = (h.items || []).length === itemCount;
+
+    if (storeMatch && dateMatch && amountMatch && countMatch) {
+      return { isDuplicate: true, matchedRecord: h };
+    }
+  }
+
+  return { isDuplicate: false, matchedRecord: null };
+}
 
 
 // ==========================================
 // レシート履歴の保存
 // ==========================================
 
-// v0.94.1追加: レシート保存時に履歴としても保管する
-// receipt-core.jsのsaveReceipt()から呼ばれる
+/**
+ * レシート保存時に履歴としても保管する
+ * receipt-core.jsのsaveReceipt()から呼ばれる
+ * v0.95: 重複チェック追加、品名マスター変換適用
+ * @returns {boolean} 保存成功ならtrue、重複で中止ならfalse
+ */
 function saveReceiptHistory(storeName, date, materials, expenses, saveImage) {
-  const histories = JSON.parse(localStorage.getItem('reform_app_receipt_history') || '[]');
-
   // お客様名を取得
   const custEl = document.getElementById('receiptCustomerName');
   const customerName = custEl ? custEl.value.trim() : '';
+
+  // レシート番号を取得（AI解析で抽出された場合）
+  const numEl = document.getElementById('receiptNumber');
+  const receiptNumber = numEl ? numEl.value.trim() : '';
 
   // 全品目をまとめる（除外以外）
   const allItems = receiptItems
@@ -37,17 +91,39 @@ function saveReceiptHistory(storeName, date, materials, expenses, saveImage) {
       price: i.price,
       type: i.type,
       category: i.category,
-      projectName: i.projectName || ''
+      projectName: i.projectName || '',
+      originalName: i.originalName || i.name  // v0.95: 変換前の名前を保持
     }));
 
   // 合計金額
   const totalAmount = allItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
 
+  // v0.95: 重複チェック
+  const dupCheck = checkReceiptDuplicate(
+    storeName, date, totalAmount, allItems.length, receiptNumber
+  );
+  if (dupCheck.isDuplicate) {
+    const matched = dupCheck.matchedRecord;
+    const matchDate = matched.date || '日付不明';
+    const matchStore = matched.storeName || '店名不明';
+    alert(
+      `⚠️ このレシートは既に取り込み済みです！\n\n` +
+      `📋 一致した履歴:\n` +
+      `  店名: ${matchStore}\n` +
+      `  日付: ${matchDate}\n` +
+      `  金額: ¥${(matched.totalAmount || 0).toLocaleString()}\n\n` +
+      `同じレシートの二重登録を防ぎました。`
+    );
+    return false;
+  }
+
   // 履歴レコードを作成
+  const histories = JSON.parse(localStorage.getItem('reform_app_receipt_history') || '[]');
   const record = {
     id: Date.now() + Math.random(),
     storeName: storeName,
     customerName: customerName,
+    receiptNumber: receiptNumber,  // v0.95追加
     date: date,
     items: allItems,
     imageData: saveImage ? receiptImageData : null,
@@ -59,12 +135,70 @@ function saveReceiptHistory(storeName, date, materials, expenses, saveImage) {
 
   histories.push(record);
 
-  // 容量対策: 最大100件まで保持（古いものから削除）
-  while (histories.length > 100) {
+  // v0.95: 容量上限を300件に拡張
+  while (histories.length > 300) {
     histories.shift();
   }
 
-  localStorage.setItem('reform_app_receipt_history', JSON.stringify(histories));
+  // v0.95修正: LocalStorage容量オーバー対策
+  if (!trySaveHistories(histories)) {
+    // 保存失敗 → 今回のレシート画像を除外して再試行
+    console.warn('[receipt-history] 容量オーバー: 今回の画像を除外して再試行');
+    record.imageData = null;
+    if (!trySaveHistories(histories)) {
+      // それでもダメ → 古い履歴の画像を順番に削除
+      console.warn('[receipt-history] まだ容量オーバー: 古い画像を削除中...');
+      let freed = false;
+      for (let i = 0; i < histories.length - 1; i++) {
+        if (histories[i].imageData) {
+          histories[i].imageData = null;
+          if (trySaveHistories(histories)) {
+            freed = true;
+            break;
+          }
+        }
+      }
+      if (!freed) {
+        // 古い履歴を削除して容量確保
+        while (histories.length > 1) {
+          histories.shift();
+          if (trySaveHistories(histories)) {
+            freed = true;
+            break;
+          }
+        }
+      }
+      if (!freed) {
+        alert('⚠️ ストレージ容量が不足しています。\n設定画面からデータを整理してください。');
+        return false;
+      }
+      alert('💡 ストレージ容量を確保するため、古いレシート画像を自動削除しました。\n品目データはそのまま残っています。');
+    } else {
+      alert('💡 ストレージ容量の都合で、今回のレシート画像は保存されませんでした。\n品目データは正常に保存されました。');
+    }
+  }
+
+  return true;
+}
+
+
+/**
+ * LocalStorageに履歴を安全に保存（容量チェック付き）
+ * v0.95追加
+ * @param {Array} histories - 履歴配列
+ * @returns {boolean} 保存成功ならtrue
+ */
+function trySaveHistories(histories) {
+  try {
+    localStorage.setItem('reform_app_receipt_history', JSON.stringify(histories));
+    return true;
+  } catch (e) {
+    if (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014) {
+      return false; // 容量オーバー
+    }
+    console.error('[receipt-history] 保存エラー:', e);
+    return false;
+  }
 }
 
 
