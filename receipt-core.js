@@ -394,6 +394,8 @@ function updateReceiptItem(itemId, field, value) {
       renderReceiptItems();
     }
     updateReceiptTotal();
+    // v0.95追加: 自動保存トリガー
+    if (typeof markDirty === 'function') markDirty();
   }
 }
 
@@ -610,50 +612,84 @@ function saveProductMaster() {
 
 // ==========================================
 // レシート保存
+// v0.95修正: try-catchでエラー可視化
 // ==========================================
 function saveReceipt() {
-  const storeName = document.getElementById('receiptStoreName').value.trim();
-  const date = document.getElementById('receiptDate').value;
-  const saveImage = document.getElementById('saveReceiptImage').checked;
-  
-  if (!storeName) {
-    alert('店名を入力してください');
-    return;
-  }
-  
-  // 材料と経費を分ける
-  const materials = receiptItems
-    .filter(item => item.type === 'material' && item.name)
-    .map(item => ({
-      name: item.name,
-      quantity: item.quantity,
-      price: item.price,
-      category: item.category,
-      projectName: item.projectName || ''
-    }));
+  try {
+    console.log('[saveReceipt] 開始');
     
-  const expenses = receiptItems
-    .filter(item => item.type === 'expense' && item.name)
-    .map(item => ({
-      name: item.name,
-      quantity: item.quantity,
-      price: item.price,
-      category: item.category,
-      projectName: item.projectName || ''
-    }));
-  
-  if (materials.length === 0 && expenses.length === 0) {
-    alert('保存する品目がありません');
-    return;
+    const storeEl = document.getElementById('receiptStoreName');
+    const dateEl = document.getElementById('receiptDate');
+    const saveImgEl = document.getElementById('saveReceiptImage');
+    
+    // 要素の存在チェック
+    if (!storeEl) { alert('❌ エラー: receiptStoreName要素が見つかりません'); return; }
+    if (!dateEl) { alert('❌ エラー: receiptDate要素が見つかりません'); return; }
+    if (!saveImgEl) { alert('❌ エラー: saveReceiptImage要素が見つかりません'); return; }
+    
+    const storeName = storeEl.value.trim();
+    const date = dateEl.value;
+    const saveImage = saveImgEl.checked;
+    
+    console.log('[saveReceipt] 店名:', storeName, '日付:', date, '品目数:', receiptItems.length);
+    
+    if (!storeName) {
+      alert('店名を入力してください');
+      return;
+    }
+    
+    // 材料と経費を分ける
+    const materials = receiptItems
+      .filter(item => item.type === 'material' && item.name)
+      .map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        category: item.category,
+        projectName: item.projectName || ''
+      }));
+      
+    const expenses = receiptItems
+      .filter(item => item.type === 'expense' && item.name)
+      .map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        category: item.category,
+        projectName: item.projectName || ''
+      }));
+    
+    console.log('[saveReceipt] 材料:', materials.length, '経費:', expenses.length);
+    
+    if (materials.length === 0 && expenses.length === 0) {
+      alert('保存する品目がありません');
+      return;
+    }
+    
+    // v0.94.1追加: 履歴として保存
+    // v0.95: 重複チェック結果を確認（falseなら重複で中止）
+    if (typeof saveReceiptHistory === 'function') {
+      console.log('[saveReceipt] 履歴保存を実行...');
+      const saved = saveReceiptHistory(storeName, date, materials, expenses, saveImage);
+      if (saved === false) return; // 重複のため中止
+      console.log('[saveReceipt] 履歴保存完了');
+    } else {
+      console.warn('[saveReceipt] saveReceiptHistory関数が未定義');
+    }
+
+    // v0.95: 自動保存データをクリア（手動保存成功）
+    if (typeof onManualSaveSuccess === 'function') {
+      onManualSaveSuccess('receipt');
+    }
+
+    // 連携フローを開始
+    console.log('[saveReceipt] 連携フローを開始');
+    showDocFlowModal(storeName, date, materials, expenses);
+    
+  } catch (e) {
+    console.error('[saveReceipt] エラー:', e);
+    alert('❌ 保存中にエラーが発生しました\n\n' + e.message + '\n\n場所: ' + (e.stack ? e.stack.split('\n')[1] : '不明'));
   }
-  
-  // v0.94.1追加: 履歴として保存
-  if (typeof saveReceiptHistory === 'function') {
-    saveReceiptHistory(storeName, date, materials, expenses, saveImage);
-  }
-  
-  // 連携フローを開始
-  showDocFlowModal(storeName, date, materials, expenses);
 }
 
 
