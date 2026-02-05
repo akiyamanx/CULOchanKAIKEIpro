@@ -133,6 +133,70 @@ function clearStamp() {
 }
 
 // ==========================================
+// Gemini API 接続テスト（v0.95追加）
+// ==========================================
+
+/**
+ * Gemini APIキーの接続テストを実行
+ * 設定画面の「🔍 接続テスト」ボタンから呼ばれる
+ */
+async function testGeminiApi() {
+  const apiKeyEl = document.getElementById('geminiApiKey');
+  if (!apiKeyEl) return;
+
+  const apiKey = apiKeyEl.value.trim();
+  if (!apiKey) {
+    alert('❌ APIキーが入力されていません。\n\nGoogle AI Studio で取得したキーを入力してください。');
+    apiKeyEl.focus();
+    return;
+  }
+
+  // テスト中の表示
+  const btn = event.target;
+  const originalText = btn.textContent;
+  btn.textContent = '⏳ テスト中...';
+  btn.disabled = true;
+
+  try {
+    // Gemini APIに簡単なリクエストを送信
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: 'テスト。「OK」とだけ返してください。' }] }]
+        })
+      }
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      alert(`✅ 接続成功！\n\nGemini APIが正常に応答しました。\n応答: ${text.slice(0, 50)}`);
+    } else {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMsg = errorData?.error?.message || `HTTPエラー: ${response.status}`;
+
+      if (response.status === 400) {
+        alert(`❌ APIキーが無効です。\n\n${errorMsg}\n\nキーを確認してください。`);
+      } else if (response.status === 403) {
+        alert(`❌ APIキーの権限がありません。\n\n${errorMsg}\n\nGemini APIが有効になっているか確認してください。`);
+      } else if (response.status === 429) {
+        alert(`⚠️ API使用回数の上限に達しています。\n\n${errorMsg}\n\nしばらく待ってからお試しください。`);
+      } else {
+        alert(`❌ 接続エラー\n\n${errorMsg}`);
+      }
+    }
+  } catch (e) {
+    alert(`❌ 通信エラー\n\nインターネット接続を確認してください。\n\nエラー: ${e.message}`);
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+}
+
+// ==========================================
 // 設定の保存・読み込み
 // ==========================================
 function saveSettings() {
