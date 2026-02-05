@@ -200,6 +200,9 @@ async function testGeminiApi() {
 // 設定の保存・読み込み
 // ==========================================
 function saveSettings() {
+  // v0.95.1: デバッグ用 - 問題特定後に削除
+  console.log('[saveSettings] 開始');
+  try {
   const settings = {
     geminiApiKey: document.getElementById('geminiApiKey').value,
     useGeminiForVoice: document.getElementById('useGeminiForVoice').checked,
@@ -238,6 +241,14 @@ function saveSettings() {
     btn.textContent = '保存';
     btn.classList.remove('saved');
   }, 2000);
+  
+  // v0.95.1: デバッグ用
+  console.log('[saveSettings] 完了');
+  } catch (e) {
+    // v0.95.1: エラーをアラートで表示（デバッグ用）
+    alert('❌ 設定保存エラー:\n' + e.message + '\n\n' + e.stack);
+    console.error('[saveSettings] エラー:', e);
+  }
 }
 
 function loadSettings() {
