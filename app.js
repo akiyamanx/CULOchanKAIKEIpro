@@ -6,17 +6,31 @@
 // ==========================================
 // 画面切り替え
 // ==========================================
-function showScreen(screenId) {
+// v0.95改善: 画面が見つからない場合のフェイルセーフ + 遅延ロード対応
+async function showScreen(screenId) {
+  let targetScreen = document.getElementById(screenId + '-screen');
+
+  // v0.95: 画面が見つからない場合、動的ロードを試みる
+  if (!targetScreen) {
+    console.warn(`${screenId}-screen が未読込。動的ロードを試行...`);
+    if (typeof loadScreen === 'function') {
+      await loadScreen(screenId);
+      targetScreen = document.getElementById(screenId + '-screen');
+    }
+  }
+
+  // それでも見つからなければホームに留まる（真っ白防止）
+  if (!targetScreen) {
+    console.error(`画面が見つかりません: ${screenId}-screen`);
+    alert(`⚠️ 「${screenId}」画面の読み込みに失敗しました。\nファイルが配置されているか確認してください。`);
+    return; // activeを外さないのでホーム画面のまま
+  }
+
+  // ★ 対象が見つかってから他画面を非表示にする（真っ白防止）
   document.querySelectorAll('.screen').forEach(screen => {
     screen.classList.remove('active');
   });
-  const targetScreen = document.getElementById(screenId + '-screen');
-  if (targetScreen) {
-    targetScreen.classList.add('active');
-  } else {
-    console.error(`画面が見つかりません: ${screenId}-screen`);
-    return;
-  }
+  targetScreen.classList.add('active');
   window.scrollTo(0, 0);
   
   if (screenId !== 'home') {
