@@ -530,6 +530,47 @@ function getAllProductNames() {
 
 
 // ==========================================
+// 品名一括変換UIラッパー（v0.95追加）
+// receipt-list.htmlのボタンから呼ばれる
+// ==========================================
+
+/**
+ * 品名一括変換の実行（確認ダイアログ付き）
+ * レシートリスト画面の「🔄品名マスターで一括変換」ボタンから呼ばれる
+ */
+function runBulkConvert() {
+  if (!confirm('品名マスターのキーワードで、全レシート履歴の商品名を一括変換しますか？\n\n（変換前の名前はoriginalNameとして保持されます）')) {
+    return;
+  }
+
+  if (typeof bulkConvertAllProducts !== 'function') {
+    alert('品名変換機能が読み込まれていません');
+    return;
+  }
+
+  const result = bulkConvertAllProducts();
+
+  if (result.totalConverted === 0) {
+    alert('✅ 変換対象はありませんでした\n（すべて正式名称に統一済み、またはマスター未登録です）');
+  } else {
+    // 変換結果のサマリーを表示
+    const summary = result.details.slice(0, 10).map(d =>
+      `「${d.from}」→「${d.to}」`
+    ).join('\n');
+    const more = result.totalConverted > 10 ? `\n...他${result.totalConverted - 10}件` : '';
+
+    alert(
+      `✅ ${result.totalConverted}件の品名を変換しました！\n\n` +
+      `${summary}${more}`
+    );
+
+    // リストを再描画
+    renderReceiptList();
+  }
+}
+
+
+// ==========================================
 // グローバル公開
 // ==========================================
 window.initReceiptList = initReceiptList;
@@ -541,3 +582,4 @@ window.toggleStoreDetail = toggleStoreDetail;
 window.bulkRenameProduct = bulkRenameProduct;
 window.bulkConvertAllProducts = bulkConvertAllProducts;
 window.getAllProductNames = getAllProductNames;
+window.runBulkConvert = runBulkConvert; // v0.95追加
