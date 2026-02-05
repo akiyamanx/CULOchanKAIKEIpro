@@ -11,6 +11,7 @@
  */
 
 // 画面ファイルの定義
+// v0.95追加: receipt-list（レシートリスト画面）
 const SCREEN_FILES = [
   'home',
   'pricesearch', 
@@ -18,6 +19,7 @@ const SCREEN_FILES = [
   'tax',
   'settings',
   'receipt',
+  'receipt-list',
   'estimate',
   'invoice',
   'customers',

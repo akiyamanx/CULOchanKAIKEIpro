@@ -4,6 +4,42 @@
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
     }
+
+    /* ============================================ */
+    /* レシートリスト画面 v0.95追加                    */
+    /* ============================================ */
+
+    /* ソート切替ボタン */
+    .receipt-sort-btn {
+      padding: 6px 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 20px;
+      background: white;
+      font-size: 12px;
+      color: #6b7280;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .receipt-sort-btn.active {
+      background: #8b5cf6;
+      color: white;
+      border-color: #8b5cf6;
+    }
+
+    /* レシートリストカード */
+    .receipt-list-card {
+      padding: 14px;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: box-shadow 0.2s;
+    }
+    .receipt-list-card:active {
+      box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
+    }
     
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif;

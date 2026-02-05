@@ -41,6 +41,10 @@ function showScreen(screenId) {
   if (screenId === 'receipt') {
     if (typeof initReceiptScreen === 'function') initReceiptScreen();
   }
+  // v0.95追加: レシートリスト画面の初期化
+  if (screenId === 'receipt-list') {
+    if (typeof initReceiptList === 'function') initReceiptList();
+  }
   if (screenId === 'tax') {
     if (typeof selectTaxType === 'function') {
       const savedTaxType = localStorage.getItem('reform_app_tax_type') || 'blue';
@@ -203,6 +207,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     if (typeof updatePasswordUI === 'function') updatePasswordUI();
   } catch(e) { console.error('updatePasswordUI error:', e); }
+  
+  // v0.95追加: 自動保存システム初期化
+  try {
+    if (typeof initAutoSave === 'function') initAutoSave();
+  } catch(e) { console.error('initAutoSave error:', e); }
   
   console.log('✓ アプリ初期化完了 v0.95');
 });
