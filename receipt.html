@@ -1,4 +1,5 @@
   <!-- ========== レシート読込画面 ========== -->
+  <!-- v0.95: OCR機能削除、AI一括解析に一本化 -->
   <div id="receipt-screen" class="screen">
     <div class="header">
       <button class="back-btn" onclick="showScreen('home')" title="ホームに戻る">🏠</button>
@@ -14,6 +15,8 @@
           <input type="file" id="receiptImage" accept="image/*" capture="environment" onchange="handleImageSelect(event)" style="display: none;">
           <input type="file" id="receiptGallery" accept="image/*" onchange="handleImageSelect(event)" style="display: none;">
           <input type="file" id="receiptAddImage" accept="image/*" onchange="handleAddImageSelect(event)" style="display: none;">
+          <!-- v0.95追加: 複数枚一括選択用 -->
+          <input type="file" id="receiptMultiSelect" accept="image/*" multiple onchange="handleMultiImageSelect(event)" style="display: none;">
           
           <div id="imagePreviewArea" class="image-preview-area" onclick="document.getElementById('receiptGallery').click()">
             <div id="imagePlaceholder" class="image-placeholder">
@@ -48,19 +51,19 @@
               🗑️ クリア
             </button>
           </div>
-          <button class="ocr-btn" id="ocrBtn" onclick="runOCR()" disabled>
-            🔍 文字を読み取る（OCR）
+          
+          <!-- v0.95: 一括選択ボタン追加 -->
+          <button class="ocr-btn" onclick="document.getElementById('receiptMultiSelect').click()" style="background: linear-gradient(135deg, #10b981, #059669); margin-top: 8px;">
+            📁 複数枚まとめて選択
           </button>
+          
+          <!-- v0.95: OCRボタン削除、AIボタンのみ -->
           <button class="ocr-btn" id="aiBtn" onclick="runAiOcr()" disabled style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); margin-top: 8px;">
             🤖 AIで読み取る（Gemini）
           </button>
           <button class="ocr-btn" onclick="startVoiceCommand('receipt')" style="background: linear-gradient(135deg, #f59e0b, #d97706); margin-top: 8px;">
             🎤 音声で修正
           </button>
-          <div id="processedImagePreview" style="display: none; margin-top: 12px;">
-            <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">▼ 処理後の画像（OCR用）</div>
-            <img id="processedImage" style="max-width: 100%; border: 1px solid #e5e7eb; border-radius: 8px;">
-          </div>
         </div>
       </div>
       
@@ -113,7 +116,7 @@
             <select id="projectSelect" class="project-select">
               <option value="">現場を選択...</option>
             </select>
-            <button class="assign-btn" onclick="assignSelectedItems()">✓ 割当</button>
+            <button class="assign-btn" onclick="assignSelectedItems()">✔ 割当</button>
             <button class="clear-assign-btn" onclick="clearSelectedAssignments()">✕ 解除</button>
           </div>
           <div id="assignedCount" style="font-size: 12px; color: #6b7280; margin-top: 8px;"></div>

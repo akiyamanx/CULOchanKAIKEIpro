@@ -1,6 +1,6 @@
 // ==========================================
 // レシート読込 - コア機能
-// Reform App Pro v0.94.1
+// Reform App Pro v0.95
 // ==========================================
 // 画面初期化、画像管理、品目UI、保存機能
 // + チェックボックス、現場割り当て機能（v0.92追加）
@@ -12,10 +12,12 @@
 // + v0.94.1修正:
 //   - 連携後にレシート画面をリセットしない（内容を残す）
 //   - saveReceipt時にレシート履歴を保存（receipt-history.jsに依存）
+// + v0.95修正:
+//   - OCR機能削除（AI解析に一本化）
+//   - 複数枚一括選択機能追加（handleMultiImageSelect）
 // 
 // 依存ファイル:
 //   - globals.js (receiptItems, receiptImageData, multiImageDataUrls, categories, productMaster, projects)
-//   - receipt-ocr.js (runOCR)
 //   - receipt-ai.js (runAiOcr)
 //   - receipt-history.js (saveReceiptHistory, v0.94.1追加)
 // ==========================================
@@ -140,8 +142,7 @@ function handleImageSelect(event) {
     document.getElementById('imagePreview').style.display = 'block';
     document.getElementById('imagePlaceholder').style.display = 'none';
     document.getElementById('imagePreviewArea').style.display = 'block';
-    // OCRボタンを有効化
-    document.getElementById('ocrBtn').disabled = false;
+    // v0.95: OCRボタン削除のため、ocrBtn操作を削除
     // AIボタンを有効化（APIキーがあれば）
     const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
     document.getElementById('aiBtn').disabled = !settings.geminiApiKey;
@@ -159,9 +160,9 @@ function handleAddImageSelect(event) {
   const file = event.target.files[0];
   if (!file) return;
   
-  // 最大3枚まで
-  if (multiImageDataUrls.length >= 3) {
-    alert('最大3枚まで追加できます');
+  // 最大10枚まで（v0.95: 3枚→10枚に拡張）
+  if (multiImageDataUrls.length >= 10) {
+    alert('最大10枚まで追加できます');
     event.target.value = '';
     return;
   }
@@ -182,12 +183,64 @@ function handleAddImageSelect(event) {
     
     renderMultiImageThumbnails();
     
-    // ボタン有効化
-    document.getElementById('ocrBtn').disabled = true; // OCRは単一のみ
+    // v0.95: OCRボタン削除
     const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
     document.getElementById('aiBtn').disabled = !settings.geminiApiKey;
   };
   reader.readAsDataURL(file);
+  // inputをリセット
+  event.target.value = '';
+}
+
+// v0.95追加: 複数枚一括選択
+function handleMultiImageSelect(event) {
+  const files = event.target.files;
+  if (!files || files.length === 0) return;
+  
+  // 最大10枚まで
+  const maxFiles = 10;
+  const filesToProcess = Array.from(files).slice(0, maxFiles);
+  
+  if (files.length > maxFiles) {
+    alert(`最大${maxFiles}枚まで選択できます。最初の${maxFiles}枚を読み込みます。`);
+  }
+  
+  // 既存の画像をクリア
+  multiImageDataUrls = [];
+  receiptImageData = null;
+  
+  // 読み込みカウンター
+  let loadedCount = 0;
+  
+  filesToProcess.forEach((file, index) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      multiImageDataUrls[index] = e.target.result;
+      loadedCount++;
+      
+      // 全部読み込み完了したら表示更新
+      if (loadedCount === filesToProcess.length) {
+        // null/undefinedを除去
+        multiImageDataUrls = multiImageDataUrls.filter(Boolean);
+        
+        // 単一画像プレビューを非表示
+        document.getElementById('imagePreviewArea').style.display = 'none';
+        document.getElementById('multiImageArea').style.display = 'block';
+        
+        renderMultiImageThumbnails();
+        
+        // AIボタン有効化
+        const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
+        document.getElementById('aiBtn').disabled = !settings.geminiApiKey;
+        
+        if (!settings.geminiApiKey) {
+          alert('Gemini APIキーが設定されていません。\n設定画面からAPIキーを入力してください。');
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+  
   // inputをリセット
   event.target.value = '';
 }
@@ -208,13 +261,19 @@ function renderMultiImageThumbnails() {
     container.appendChild(thumb);
   });
   
-  // 追加ボタン（3枚未満の場合）
-  if (multiImageDataUrls.length < 3) {
+  // 追加ボタン（10枚未満の場合）
+  if (multiImageDataUrls.length < 10) {
     const addBtn = document.createElement('div');
     addBtn.style.cssText = 'width: 80px; height: 80px; border: 2px dashed #d1d5db; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #9ca3af; font-size: 24px;';
     addBtn.innerHTML = '＋';
     addBtn.onclick = () => document.getElementById('receiptAddImage').click();
     container.appendChild(addBtn);
+  }
+  
+  // 枚数表示更新
+  const countEl = container.parentElement.querySelector('div:first-child');
+  if (countEl) {
+    countEl.innerHTML = `📸 選択した画像（${multiImageDataUrls.length}枚）×で削除`;
   }
 }
 
@@ -229,7 +288,6 @@ function removeMultiImage(index) {
     document.getElementById('imagePlaceholder').style.display = 'block';
     document.getElementById('imagePreview').style.display = 'none';
     document.getElementById('aiBtn').disabled = true;
-    document.getElementById('ocrBtn').disabled = true;
     receiptImageData = null;
   } else if (multiImageDataUrls.length === 1) {
     // 1枚だけになったら単一画像モードに戻る
@@ -239,7 +297,6 @@ function removeMultiImage(index) {
     document.getElementById('imagePreview').src = receiptImageData;
     document.getElementById('imagePreview').style.display = 'block';
     document.getElementById('imagePlaceholder').style.display = 'none';
-    document.getElementById('ocrBtn').disabled = false;
     multiImageDataUrls = [];
   } else {
     renderMultiImageThumbnails();
@@ -256,7 +313,7 @@ function clearAllImages() {
   document.getElementById('imagePlaceholder').style.display = 'block';
   document.getElementById('imagePreview').style.display = 'none';
   document.getElementById('aiBtn').disabled = true;
-  document.getElementById('ocrBtn').disabled = true;
+  // v0.95: ocrBtn削除
 }
 
 // 複数画像を縦に結合
@@ -354,7 +411,7 @@ function renderReceiptItems() {
     const categoryOptions = item.type === 'material' ? categories.material :
                            item.type === 'expense' ? categories.expense : [];
     
-    // OCRマッチング情報
+    // AIマッチング情報（v0.95: OCR→AI）
     let matchInfo = '';
     if (item.originalName && item.originalName !== item.name) {
       matchInfo = `
@@ -399,54 +456,40 @@ function renderReceiptItems() {
           <span style="font-size: 11px; color: #6b7280; padding-left: 4px;">数量</span>
           <span style="font-size: 11px; color: #6b7280; padding-left: 4px;">金額</span>
         </div>
-        <div class="receipt-item-row">
-          <div class="suggest-container">
-            <input type="text" placeholder="品名" value="${escapeHtml(item.name)}" 
-              oninput="showSuggestions(this, ${item.id})"
-              onfocus="showSuggestions(this, ${item.id})"
-              onblur="setTimeout(() => hideSuggestions(${item.id}), 200)"
-              onchange="updateReceiptItem(${item.id}, 'name', this.value)">
-            <div class="suggest-dropdown" id="suggest-${item.id}"></div>
-          </div>
-          <input type="number" placeholder="数量" value="${item.quantity}" min="1"
-            onchange="updateReceiptItem(${item.id}, 'quantity', parseInt(this.value) || 1)">
-          <input type="number" placeholder="金額" value="${item.price || ''}" 
-            onchange="updateReceiptItem(${item.id}, 'price', parseInt(this.value) || 0)">
+        <div class="receipt-item-fields" style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px;">
+          <input type="text" value="${escapeHtml(item.name)}" placeholder="品名" 
+            oninput="updateReceiptItem(${item.id}, 'name', this.value)">
+          <input type="number" value="${item.quantity}" min="1" placeholder="数量"
+            oninput="updateReceiptItem(${item.id}, 'quantity', parseInt(this.value) || 1)">
+          <input type="number" value="${item.price}" min="0" placeholder="金額"
+            oninput="updateReceiptItem(${item.id}, 'price', parseInt(this.value) || 0)">
         </div>
         ${matchInfo}
         <div class="receipt-item-type">
-          <button class="type-btn ${item.type === 'material' ? 'active' : ''}" 
-            onclick="updateReceiptItem(${item.id}, 'type', 'material')">材料</button>
-          <button class="type-btn ${item.type === 'expense' ? 'active' : ''}" 
-            onclick="updateReceiptItem(${item.id}, 'type', 'expense')">経費</button>
-          <button class="type-btn ${item.type === 'exclude' ? 'active' : ''}" 
-            onclick="updateReceiptItem(${item.id}, 'type', 'exclude')">除外</button>
-        </div>
-        ${item.type !== 'exclude' ? `
-          <div class="receipt-item-category">
+          <select onchange="updateReceiptItem(${item.id}, 'type', this.value)">
+            <option value="material" ${item.type === 'material' ? 'selected' : ''}>材料費</option>
+            <option value="expense" ${item.type === 'expense' ? 'selected' : ''}>経費</option>
+            <option value="exclude" ${item.type === 'exclude' ? 'selected' : ''}>除外</option>
+          </select>
+          ${item.type !== 'exclude' ? `
             <select onchange="updateReceiptItem(${item.id}, 'category', this.value)">
-              ${categoryOptions.map(opt => 
-                `<option value="${opt.value}" ${item.category === opt.value ? 'selected' : ''}>${opt.label}</option>`
+              ${categoryOptions.map(cat => 
+                `<option value="${cat.value}" ${item.category === cat.value ? 'selected' : ''}>${cat.label}</option>`
               ).join('')}
             </select>
-          </div>
-        ` : ''}
+          ` : ''}
+        </div>
       </div>
     `;
-    container.innerHTML += itemHtml;
+    container.insertAdjacentHTML('beforeend', itemHtml);
   });
-  
-  // 割り当て状況を更新
-  updateAssignedCount();
 }
 
-function escapeHtml(str) {
-  if (!str) return '';
-  return str.replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
+function updateReceiptTotal() {
+  const total = receiptItems
+    .filter(item => item.type !== 'exclude')
+    .reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  document.getElementById('receiptTotal').textContent = `¥${total.toLocaleString()}`;
 }
 
 
@@ -457,13 +500,9 @@ function toggleItemCheck(itemId, checked) {
   const item = receiptItems.find(i => i.id === itemId);
   if (item) {
     item.checked = checked;
-    // チェック状態のスタイル更新
-    const itemEl = document.querySelector(`.receipt-item[data-id="${itemId}"]`);
-    if (itemEl) {
-      itemEl.classList.toggle('checked', checked);
-    }
-    // 全選択チェックボックスの状態を更新
-    updateSelectAllCheckbox();
+    // 見た目の更新
+    const el = document.querySelector(`.receipt-item[data-id="${itemId}"]`);
+    if (el) el.classList.toggle('checked', checked);
     updateAssignedCount();
   }
 }
@@ -473,189 +512,107 @@ function toggleAllCheckboxes(checked) {
     item.checked = checked;
   });
   renderReceiptItems();
-}
-
-function updateSelectAllCheckbox() {
-  const selectAll = document.getElementById('selectAllItems');
-  if (selectAll) {
-    const allChecked = receiptItems.length > 0 && receiptItems.every(item => item.checked);
-    const someChecked = receiptItems.some(item => item.checked);
-    selectAll.checked = allChecked;
-    selectAll.indeterminate = someChecked && !allChecked;
-  }
-}
-
-function updateAssignedCount() {
-  const countEl = document.getElementById('assignedCount');
-  if (!countEl) return;
-  
-  const checkedCount = receiptItems.filter(i => i.checked).length;
-  const assignedCount = receiptItems.filter(i => i.projectName).length;
-  
-  let text = '';
-  if (checkedCount > 0) {
-    text += `✓ ${checkedCount}件選択中`;
-  }
-  if (assignedCount > 0) {
-    text += text ? ' / ' : '';
-    text += `📍 ${assignedCount}件割当済`;
-  }
-  countEl.textContent = text;
+  updateAssignedCount();
 }
 
 function assignSelectedItems() {
   const select = document.getElementById('projectSelect');
   const projectName = select.value;
-  
   if (!projectName) {
-    // 新規現場を追加するか確認
-    const newProject = prompt('現場名を入力してください（新規追加も可）:');
-    if (newProject) {
-      addProject(newProject);
-      select.value = newProject;
-      assignSelectedItems(); // 再帰呼び出し
+    alert('現場を選択してください');
+    return;
+  }
+  
+  let count = 0;
+  receiptItems.forEach(item => {
+    if (item.checked) {
+      item.projectName = projectName;
+      item.checked = false;
+      count++;
     }
-    return;
-  }
-  
-  const checkedItems = receiptItems.filter(i => i.checked);
-  if (checkedItems.length === 0) {
-    alert('品目を選択してください');
-    return;
-  }
-  
-  checkedItems.forEach(item => {
-    item.projectName = projectName;
-    item.checked = false; // 割り当て後はチェックを外す
   });
   
+  if (count === 0) {
+    alert('チェックされた品目がありません');
+    return;
+  }
+  
+  // 全選択チェックボックスをリセット
+  document.getElementById('selectAllItems').checked = false;
+  
   renderReceiptItems();
-  alert(`${checkedItems.length}件を「${projectName}」に割り当てました`);
+  updateAssignedCount();
+  alert(`${count}件を「${projectName}」に割り当てました`);
 }
 
 function clearSelectedAssignments() {
-  const checkedItems = receiptItems.filter(i => i.checked);
-  
-  if (checkedItems.length === 0) {
-    // チェックがない場合は全部の割り当てを解除するか確認
-    if (confirm('すべての現場割り当てを解除しますか？')) {
-      receiptItems.forEach(item => {
-        item.projectName = '';
-      });
-      renderReceiptItems();
+  let count = 0;
+  receiptItems.forEach(item => {
+    if (item.checked && item.projectName) {
+      item.projectName = '';
+      item.checked = false;
+      count++;
     }
-    return;
-  }
-  
-  checkedItems.forEach(item => {
-    item.projectName = '';
-    item.checked = false;
   });
   
+  if (count === 0) {
+    alert('解除できる品目がありません\n（チェック＋現場割り当て済みの品目）');
+    return;
+  }
+  
+  document.getElementById('selectAllItems').checked = false;
   renderReceiptItems();
-  alert(`${checkedItems.length}件の割り当てを解除しました`);
+  updateAssignedCount();
+  alert(`${count}件の現場割り当てを解除しました`);
+}
+
+function updateAssignedCount() {
+  const el = document.getElementById('assignedCount');
+  if (!el) return;
+  
+  const checkedCount = receiptItems.filter(i => i.checked).length;
+  const assignedCount = receiptItems.filter(i => i.projectName).length;
+  
+  el.textContent = `選択中: ${checkedCount}件 ／ 現場割り当て済み: ${assignedCount}件`;
 }
 
 
 // ==========================================
-// サジェスト機能
+// 品名マスター登録
 // ==========================================
-function showSuggestions(input, itemId) {
-  const value = input.value.toLowerCase();
-  const dropdown = document.getElementById(`suggest-${itemId}`);
-  
-  if (!value || value.length < 1) {
-    dropdown.classList.remove('show');
-    return;
-  }
-  
-  // 品名マスターから検索
-  const matches = productMaster.filter(p => 
-    p.officialName.toLowerCase().includes(value) ||
-    p.aliases.some(a => a.toLowerCase().includes(value))
-  ).slice(0, 5);
-  
-  if (matches.length === 0) {
-    dropdown.classList.remove('show');
-    return;
-  }
-  
-  dropdown.innerHTML = matches.map(p => `
-    <div class="suggest-item" onclick="selectSuggestion(${itemId}, '${escapeHtml(p.officialName)}', '${p.category}', ${p.defaultPrice || 0})">
-      <span class="suggest-item-price">${p.defaultPrice ? '¥' + p.defaultPrice.toLocaleString() : ''}</span>
-      <div class="suggest-item-name">${p.officialName}</div>
-      <div class="suggest-item-category">${getCategoryLabel(p.category)}</div>
-    </div>
-  `).join('');
-  
-  dropdown.classList.add('show');
-}
-
-function hideSuggestions(itemId) {
-  const dropdown = document.getElementById(`suggest-${itemId}`);
-  if (dropdown) {
-    dropdown.classList.remove('show');
-  }
-}
-
-function selectSuggestion(itemId, name, category, price) {
-  const item = receiptItems.find(i => i.id === itemId);
-  if (item) {
-    item.name = name;
-    item.category = category;
-    if (price > 0 && !item.price) {
-      item.price = price;
-    }
-    // カテゴリに応じてタイプを設定
-    item.type = categories.expense.find(c => c.value === category) ? 'expense' : 'material';
-    item.matched = true;
-    renderReceiptItems();
-    updateReceiptTotal();
-  }
-}
-
 function registerToMaster(itemId, name, category) {
   const item = receiptItems.find(i => i.id === itemId);
   if (!item) return;
   
-  const officialName = prompt('正式名称を入力してください:', name);
-  if (!officialName) return;
+  const newEntry = {
+    id: Date.now(),
+    keywords: [name.toLowerCase()],
+    productName: name,
+    category: category || 'material',
+    defaultPrice: item.price || 0
+  };
   
-  const aliases = [];
-  if (item.originalName && item.originalName !== officialName) {
-    aliases.push(item.originalName);
-  }
-  if (name !== officialName && !aliases.includes(name)) {
-    aliases.push(name);
-  }
+  productMaster.push(newEntry);
+  saveProductMaster();
   
-  addToProductMaster(officialName, category, aliases);
-  
-  // 品目を更新
-  item.name = officialName;
+  // マッチ済みフラグを立てる
   item.matched = true;
+  item.originalName = null;
   renderReceiptItems();
   
-  alert(`「${officialName}」を品名マスターに登録しました！`);
+  alert(`「${name}」を品名マスターに登録しました`);
+}
+
+function saveProductMaster() {
+  localStorage.setItem('reform_app_product_master', JSON.stringify(productMaster));
 }
 
 
 // ==========================================
-// 合計計算
-// ==========================================
-function updateReceiptTotal() {
-  const total = receiptItems
-    .filter(item => item.type !== 'exclude')
-    .reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  document.getElementById('receiptTotal').textContent = '¥' + total.toLocaleString();
-}
-
-
-// ==========================================
-// 保存・リセット
+// レシート保存
 // ==========================================
 function saveReceipt() {
-  const storeName = document.getElementById('receiptStoreName').value;
+  const storeName = document.getElementById('receiptStoreName').value.trim();
   const date = document.getElementById('receiptDate').value;
   const saveImage = document.getElementById('saveReceiptImage').checked;
   
@@ -664,276 +621,231 @@ function saveReceipt() {
     return;
   }
   
-  if (receiptItems.filter(i => i.type !== 'exclude' && i.name).length === 0) {
-    alert('品目を1つ以上入力してください');
+  // 材料と経費を分ける
+  const materials = receiptItems
+    .filter(item => item.type === 'material' && item.name)
+    .map(item => ({
+      name: item.name,
+      quantity: item.quantity,
+      price: item.price,
+      category: item.category,
+      projectName: item.projectName || ''
+    }));
+    
+  const expenses = receiptItems
+    .filter(item => item.type === 'expense' && item.name)
+    .map(item => ({
+      name: item.name,
+      quantity: item.quantity,
+      price: item.price,
+      category: item.category,
+      projectName: item.projectName || ''
+    }));
+  
+  if (materials.length === 0 && expenses.length === 0) {
+    alert('保存する品目がありません');
     return;
   }
   
-  // 材料と経費に分けて保存
-  const materials = receiptItems.filter(i => i.type === 'material' && i.name);
-  const expenses = receiptItems.filter(i => i.type === 'expense' && i.name);
-  
-  // 材料を保存
-  if (materials.length > 0) {
-    const savedMaterials = JSON.parse(localStorage.getItem('reform_app_materials') || '[]');
-    materials.forEach(m => {
-      savedMaterials.push({
-        id: Date.now() + Math.random(),
-        name: m.name,
-        price: m.price,
-        quantity: m.quantity,
-        category: m.category,
-        projectName: m.projectName || '',  // v0.92追加
-        storeName: storeName,
-        date: date,
-        createdAt: new Date().toISOString()
-      });
-    });
-    localStorage.setItem('reform_app_materials', JSON.stringify(savedMaterials));
-  }
-  
-  // 経費を保存
-  if (expenses.length > 0) {
-    const savedExpenses = JSON.parse(localStorage.getItem('reform_app_expenses') || '[]');
-    expenses.forEach(e => {
-      savedExpenses.push({
-        id: Date.now() + Math.random(),
-        name: e.name,
-        price: e.price * e.quantity,
-        category: e.category,
-        projectName: e.projectName || '',  // v0.92追加
-        storeName: storeName,
-        date: date,
-        image: saveImage ? receiptImageData : null,
-        createdAt: new Date().toISOString()
-      });
-    });
-    localStorage.setItem('reform_app_expenses', JSON.stringify(savedExpenses));
-  }
-  
-  // 完了メッセージ
-  const materialCount = materials.length;
-  const expenseCount = expenses.length;
-  let message = '保存しました！\n';
-  if (materialCount > 0) message += `材料: ${materialCount}件\n`;
-  if (expenseCount > 0) message += `経費: ${expenseCount}件`;
-  
-  // v0.94.1追加: レシート履歴に保存（画像＋入力内容をセットで保管）
-  // receipt-history.jsが読み込まれていない場合はスキップ
+  // v0.94.1追加: 履歴として保存
   if (typeof saveReceiptHistory === 'function') {
-    try {
-      saveReceiptHistory(storeName, date, materials, expenses, saveImage);
-    } catch (e) {
-      console.warn('レシート履歴の保存に失敗:', e);
-    }
+    saveReceiptHistory(storeName, date, materials, expenses, saveImage);
   }
   
-  alert(message);
-  
-  // ★ v0.93: 現場割り当て済みの材料があれば見積もり/請求書連携を提案
-  const assignedMaterials = materials.filter(m => m.projectName);
-  if (assignedMaterials.length > 0) {
-    showDocFlowStep1(assignedMaterials);
-  }
-  // v0.94.1: 保存後もレシート画面の内容を残す（リセットはリセットボタンで行う）
+  // 連携フローを開始
+  showDocFlowModal(storeName, date, materials, expenses);
 }
 
 
 // ==========================================
-// ★ v0.93: レシート→見積もり/請求書 連携フロー
+// 書類連携フロー（v0.93追加、v0.94修正）
 // ==========================================
+let _docFlowStoreName = '';
+let _docFlowDate = '';
 let _docFlowMaterials = [];
-let _docFlowTarget = ''; // 'estimate' or 'invoice'
+let _docFlowExpenses = [];
+let _docFlowTarget = '';
+let _docFlowCustomerName = '';
 let _docFlowProjectName = '';
-let _docFlowCustomerName = ''; // v0.94追加: お客様名
 
-function openDocFlowModal() {
-  const modal = document.getElementById('receiptDocFlowModal');
-  if (modal) modal.style.display = 'flex';
-}
-
-function closeDocFlowModal() {
-  const modal = document.getElementById('receiptDocFlowModal');
-  if (modal) modal.style.display = 'none';
-  // v0.94.1: リセットしない（レシート画面の内容を残す）
-  // resetReceiptForm();
-}
-
-// ── Step 1: 見積もり or 請求書？ ──
-function showDocFlowStep1(materials) {
+function showDocFlowModal(storeName, date, materials, expenses) {
+  _docFlowStoreName = storeName;
+  _docFlowDate = date;
   _docFlowMaterials = materials;
+  _docFlowExpenses = expenses;
   
-  // 現場名をまとめる
-  const projectNames = [...new Set(materials.map(m => m.projectName))];
-  _docFlowProjectName = projectNames[0] || '';
-  
-  // v0.94追加: お客様名を取得（レシート画面にフィールドがあれば）
+  // v0.94追加: お客様名を取得
   const custEl = document.getElementById('receiptCustomerName');
   _docFlowCustomerName = custEl ? custEl.value.trim() : '';
   
+  // 現場名を取得（最初の品目から）
+  const firstWithProject = [...materials, ...expenses].find(m => m.projectName);
+  _docFlowProjectName = firstWithProject ? firstWithProject.projectName : '';
+  
+  showDocFlowStep1();
+  document.getElementById('receiptDocFlowModal').style.display = 'flex';
+}
+
+function closeDocFlowModal() {
+  document.getElementById('receiptDocFlowModal').style.display = 'none';
+}
+
+// ── Step 1: どこに反映する？ ──
+function showDocFlowStep1() {
   const title = document.getElementById('docFlowTitle');
   const subtitle = document.getElementById('docFlowSubtitle');
   const content = document.getElementById('docFlowContent');
   const footer = document.getElementById('docFlowFooter');
   
+  const count = _docFlowMaterials.length;
+  const total = _docFlowMaterials.reduce((s, m) => s + m.price * m.quantity, 0);
+  
   title.textContent = '📋 書類に反映';
-  subtitle.textContent = `📍 ${projectNames.join(', ')} の材料 ${materials.length}件`;
+  subtitle.textContent = `材料 ${count}件 ／ 合計 ¥${total.toLocaleString()}`;
   
   content.innerHTML = `
-    <div style="text-align: center; margin-bottom: 16px;">
-      <div style="font-size: 15px; color: #374151; font-weight: 500;">
-        見積もり・請求書に反映しますか？
-      </div>
+    <div style="margin-bottom: 16px; padding: 12px; background: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd;">
+      <div style="font-size: 13px; color: #0369a1; font-weight: 600; margin-bottom: 4px;">📍 店名・日付</div>
+      <div style="font-size: 14px; color: #1f2937;">${escapeHtml(_docFlowStoreName)} ／ ${_docFlowDate}</div>
+      ${_docFlowCustomerName ? `<div style="font-size: 12px; color: #6b7280; margin-top: 4px;">👤 ${escapeHtml(_docFlowCustomerName)}</div>` : ''}
+      ${_docFlowProjectName ? `<div style="font-size: 12px; color: #6b7280; margin-top: 2px;">🏠 ${escapeHtml(_docFlowProjectName)}</div>` : ''}
     </div>
-    <div style="display: flex; flex-direction: column; gap: 10px;">
-      <button onclick="showDocFlowStep2('estimate')" 
-        style="padding: 16px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 12px;">
-        <span style="font-size: 24px;">📝</span>
-        <div style="text-align: left;">
-          <div>見積書に反映</div>
-          <div style="font-size: 12px; font-weight: 400; opacity: 0.9;">仕入単価として材料費を追加</div>
-        </div>
-      </button>
-      <button onclick="showDocFlowStep2('invoice')" 
-        style="padding: 16px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 12px;">
-        <span style="font-size: 24px;">📄</span>
-        <div style="text-align: left;">
-          <div>請求書に反映</div>
-          <div style="font-size: 12px; font-weight: 400; opacity: 0.9;">単価として材料費を追加</div>
-        </div>
-      </button>
+    <div style="font-size: 14px; color: #374151; font-weight: 500; margin-bottom: 12px;">
+      どの書類に反映しますか？
     </div>
   `;
   
   footer.innerHTML = `
+    <div style="display: flex; gap: 8px;">
+      <button onclick="selectDocTarget('estimate')" 
+        style="flex: 1; padding: 14px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;">
+        📝 見積書
+      </button>
+      <button onclick="selectDocTarget('invoice')" 
+        style="flex: 1; padding: 14px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;">
+        📄 請求書
+      </button>
+    </div>
     <button onclick="closeDocFlowModal()" 
-      style="width: 100%; padding: 12px; background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; cursor: pointer;">
-      今はしない
+      style="width: 100%; margin-top: 8px; padding: 12px; background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; cursor: pointer;">
+      キャンセル
     </button>
   `;
-  
-  openDocFlowModal();
 }
 
-// ── Step 2: 既存の下書きから選ぶ or 新規作成 ──
-function showDocFlowStep2(target) {
+function selectDocTarget(target) {
   _docFlowTarget = target;
-  
+  showDocFlowStep2();
+}
+
+// ── Step 2: 新規 or 既存？ ──
+function showDocFlowStep2() {
   const title = document.getElementById('docFlowTitle');
   const subtitle = document.getElementById('docFlowSubtitle');
   const content = document.getElementById('docFlowContent');
   const footer = document.getElementById('docFlowFooter');
   
-  const isEstimate = target === 'estimate';
-  const storageKey = isEstimate ? 'reform_app_estimates' : 'reform_app_invoices';
+  const isEstimate = _docFlowTarget === 'estimate';
   const docLabel = isEstimate ? '見積書' : '請求書';
-  const docs = JSON.parse(localStorage.getItem(storageKey) || '[]');
+  const storageKey = isEstimate ? 'reform_app_estimates' : 'reform_app_invoices';
   
-  // 下書きを取得（全下書き表示、プロジェクト名一致は上に）
+  // 下書きを取得
+  const docs = JSON.parse(localStorage.getItem(storageKey) || '[]');
   const drafts = docs.filter(d => d.status === 'draft');
   
   title.textContent = `${isEstimate ? '📝' : '📄'} ${docLabel}に反映`;
-  subtitle.textContent = `反映先の${docLabel}を選んでください`;
+  subtitle.textContent = '新規作成または既存の下書きを選択';
   
-  let listHtml = '';
-  
+  // 下書きリスト
+  let draftsHtml = '';
   if (drafts.length > 0) {
-    // プロジェクト名一致のものを上に
-    const sorted = [...drafts].sort((a, b) => {
-      const aMatch = (a.subject || '').includes(_docFlowProjectName) ? 0 : 1;
-      const bMatch = (b.subject || '').includes(_docFlowProjectName) ? 0 : 1;
-      return aMatch - bMatch;
-    });
-    
-    listHtml = sorted.map(doc => {
-      const matchBadge = (doc.subject || '').includes(_docFlowProjectName) 
-        ? '<span style="background: #dbeafe; color: #2563eb; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">一致</span>' 
-        : '';
-      return `
-        <button onclick="applyToExistingDoc('${doc.id}')" 
-          style="width: 100%; padding: 14px; background: white; border: 1px solid #e5e7eb; border-radius: 10px; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 4px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-weight: 600; color: #1f2937;">${escapeHtml(doc.number || '番号なし')}</span>
-            ${matchBadge}
+    draftsHtml = `
+      <div style="max-height: 200px; overflow-y: auto; margin-top: 12px;">
+        ${drafts.map(d => `
+          <div onclick="addToExistingDoc('${d.id}')" 
+            style="padding: 12px; background: white; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px; cursor: pointer;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 14px; font-weight: 600; color: #1f2937;">${d.number || '番号なし'}</div>
+                <div style="font-size: 12px; color: #6b7280;">${d.customerName || '顧客未設定'} ／ ${d.date}</div>
+              </div>
+              <div style="font-size: 14px; font-weight: 600; color: #3b82f6;">¥${(d.total || 0).toLocaleString()}</div>
+            </div>
           </div>
-          <div style="font-size: 13px; color: #6b7280;">${escapeHtml(doc.customerName || '顧客未設定')} — ${escapeHtml(doc.subject || '件名なし')}</div>
-          <div style="font-size: 12px; color: #9ca3af;">${doc.date || ''} / ¥${(doc.total || 0).toLocaleString()}</div>
-        </button>
-      `;
-    }).join('');
+        `).join('')}
+      </div>
+    `;
   } else {
-    listHtml = `<div style="text-align: center; padding: 20px; color: #9ca3af;">下書きの${docLabel}はまだありません</div>`;
+    draftsHtml = `
+      <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 13px;">
+        下書きの${docLabel}はありません
+      </div>
+    `;
   }
   
   content.innerHTML = `
-    <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
-      ${listHtml}
-    </div>
-    <button onclick="createNewDocWithMaterials()" 
-      style="width: 100%; padding: 14px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;">
-      ＋ 新規${docLabel}を作成
+    <button onclick="createNewDoc()" 
+      style="width: 100%; padding: 16px; background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 12px;">
+      ✨ 新規${docLabel}を作成
     </button>
+    <div style="font-size: 13px; color: #6b7280; margin-bottom: 8px;">または既存の下書きに追加:</div>
+    ${draftsHtml}
   `;
   
   footer.innerHTML = `
-    <button onclick="showDocFlowStep1(_docFlowMaterials)" 
+    <button onclick="showDocFlowStep1()" 
       style="width: 100%; padding: 12px; background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; cursor: pointer;">
       ← 戻る
     </button>
   `;
 }
 
-// ── 既存の下書きに反映 ──
-function applyToExistingDoc(docId) {
+// ── 既存書類に追加 ──
+function addToExistingDoc(docId) {
   const isEstimate = _docFlowTarget === 'estimate';
   const storageKey = isEstimate ? 'reform_app_estimates' : 'reform_app_invoices';
   const docLabel = isEstimate ? '見積書' : '請求書';
   
   const docs = JSON.parse(localStorage.getItem(storageKey) || '[]');
-  const docIndex = docs.findIndex(d => String(d.id) === String(docId));
+  const doc = docs.find(d => String(d.id) === String(docId));
   
-  if (docIndex === -1) {
+  if (!doc) {
     alert('書類が見つかりませんでした');
     return;
   }
   
-  const doc = docs[docIndex];
+  const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
+  const profitRate = parseFloat(settings.defaultProfitRate) || 20;
   
   // 材料を追加
   // v0.94修正: priceを確実に数値に変換
   _docFlowMaterials.forEach(m => {
     const price = parseInt(m.price) || 0;
-    const newMaterial = {
+    const mat = {
       id: Date.now() + Math.random(),
       name: m.name,
       quantity: parseInt(m.quantity) || 1
     };
-    
     if (isEstimate) {
-      const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
-      const profitRate = parseFloat(settings.defaultProfitRate) || 20;
-      newMaterial.costPrice = price;
-      newMaterial.profitRate = profitRate;
-      newMaterial.sellingPrice = Math.ceil(price * (1 + profitRate / 100));
+      mat.costPrice = price;
+      mat.profitRate = profitRate;
+      mat.sellingPrice = Math.ceil(price * (1 + profitRate / 100));
     } else {
-      newMaterial.price = price;
+      mat.price = price;
     }
-    
-    doc.materials.push(newMaterial);
+    doc.materials.push(mat);
   });
   
-  // 小計・合計を再計算
   recalcDocTotals(doc, isEstimate);
   
   // 保存
-  docs[docIndex] = doc;
   localStorage.setItem(storageKey, JSON.stringify(docs));
   
   showDocFlowStep3(docLabel, doc.number, false);
 }
 
-// ── 新規作成して反映 ──
-function createNewDocWithMaterials() {
+// ── 新規書類作成 ──
+function createNewDoc() {
   const isEstimate = _docFlowTarget === 'estimate';
   const storageKey = isEstimate ? 'reform_app_estimates' : 'reform_app_invoices';
   const docLabel = isEstimate ? '見積書' : '請求書';
@@ -1153,7 +1065,7 @@ function resetReceiptForm() {
   document.getElementById('imagePlaceholder').style.display = 'flex';
   const procPreview = document.getElementById('processedImagePreview');
   if (procPreview) procPreview.style.display = 'none';
-  document.getElementById('ocrBtn').disabled = true;
+  // v0.95: ocrBtn削除
   document.getElementById('aiBtn').disabled = true;
   receiptImageData = null;
   // v0.94.1追加: 複数画像もリセット

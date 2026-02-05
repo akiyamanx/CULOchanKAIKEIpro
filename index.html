@@ -20,8 +20,7 @@
   </style>
   <link rel="apple-touch-icon" href="icon-192.png">
   
-  <!-- Tesseract.js OCR -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <!-- v0.95: Tesseract.js OCR削除（AI解析に一本化） -->
   
   <!-- jsPDF for PDF出力 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -101,7 +100,7 @@
     <div class="splash-subtitle">COCOMI CORE</div>
     <div class="splash-subtitle" style="font-size: 12px; opacity: 0.8;">Powered by COCOMI OS</div>
     <div style="margin-top: 12px; padding: 6px 20px; background: rgba(255,255,255,0.2); border-radius: 20px; display: inline-block;">
-      <span style="color: white; font-size: 14px; font-weight: bold;">Version 0.90</span>
+      <span style="color: white; font-size: 14px; font-weight: bold;">Version 0.95</span>
     </div>
     <div class="splash-subtitle" style="font-size: 10px; opacity: 0.6; margin-top: 12px;">Since 2025</div>
     <div class="splash-loading"></div>
@@ -163,10 +162,10 @@
     </div>
   </div>
 
-  <!-- OCRローディング画面 -->
+  <!-- AI解析ローディング画面（v0.95: OCRからAIに名称変更） -->
   <div id="ocrLoading" class="ocr-loading hidden">
     <div class="ocr-spinner"></div>
-    <div style="font-size: 18px; font-weight: bold;">読み取り中...</div>
+    <div style="font-size: 18px; font-weight: bold;">AI解析中...</div>
     <div class="ocr-progress" id="ocrProgress">準備中...</div>
   </div>
 
@@ -193,7 +192,7 @@
   <script src="receipt-history.js"></script>
   <script src="receipt-core.js"></script>
   <script src="receipt-ai.js"></script>
-  <script src="receipt-ocr.js"></script>
+  <!-- v0.95: receipt-ocr.js削除（AI解析に一本化） -->
   <script src="estimate.js"></script>
   <script src="invoice.js"></script>
   <script src="expense.js"></script>
