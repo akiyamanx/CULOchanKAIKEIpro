@@ -97,8 +97,8 @@ async function analyzeReceiptWithGemini(imageData, apiKey) {
   const mimeMatch = imageData.match(/^data:(image\/[a-z]+);base64,/);
   const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
   
-  // Gemini API エンドポイント（gemini-1.5-flash推奨）
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  // Gemini API エンドポイント（gemini-2.0-flash）// v0.95修正 - 1.5-flash廃止対応
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
   
   // プロンプト（日本語レシート解析用）
   const prompt = `このレシート画像を解析して、以下の情報をJSON形式で抽出してください。
