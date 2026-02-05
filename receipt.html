@@ -21,16 +21,16 @@
           <!-- v0.95: 画像選択エリア（2分割レイアウト） -->
           <div style="display: flex; gap: 8px; margin-bottom: 8px;">
             <!-- 左: ギャラリーから選択 -->
-            <div id="imagePreviewArea" class="image-preview-area" onclick="document.getElementById('receiptGallery').click()" style="flex: 1; min-height: 80px;">
+            <div id="imagePreviewArea" class="image-preview-area" onclick="document.getElementById('receiptGallery').click()" style="flex: 1;">
               <div id="imagePlaceholder" class="image-placeholder">
                 <span class="placeholder-icon" style="font-size: 28px;">🖼️</span>
                 <span style="font-size: 13px;">画像を選択</span>
               </div>
               <img id="imagePreview" class="image-preview" style="display: none;">
             </div>
-            <!-- 右: カメラ撮影 -->
+            <!-- 右: カメラ撮影（左と同じサイズに合わせる） -->
             <div onclick="document.getElementById('receiptImage').click()" 
-              style="flex: 1; min-height: 80px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; gap: 4px;">
+              style="flex: 1; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; gap: 4px;">
               <span style="font-size: 28px;">📷</span>
               <span style="font-size: 13px; color: white; font-weight: 600;">カメラ</span>
             </div>
