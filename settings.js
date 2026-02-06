@@ -288,6 +288,14 @@ function saveSettings() {
     // companyLogo: 削除（reform_app_logoに保存済み）
     // companyStamp: 削除（reform_app_stampに保存済み）
     stampThreshold: document.getElementById('stampThreshold').value,
+    // v0.96: ロゴ調整
+    logoWidth: document.getElementById('logoWidth').value,
+    logoOffsetX: document.getElementById('logoOffsetX').value,
+    logoOffsetY: document.getElementById('logoOffsetY').value,
+    // v0.96: 印鑑調整
+    stampSize: document.getElementById('stampSize').value,
+    stampOffsetX: document.getElementById('stampOffsetX').value,
+    stampOffsetY: document.getElementById('stampOffsetY').value,
     companyName: document.getElementById('companyName').value,
     postalCode: document.getElementById('postalCode').value,
     address: document.getElementById('address').value,
@@ -366,6 +374,28 @@ function loadSettings() {
   
   // 透過感度
   document.getElementById('stampThreshold').value = settings.stampThreshold || 200;
+  
+  // v0.96: ロゴ調整値の復元
+  var logoW = settings.logoWidth || 35;
+  var logoOX = settings.logoOffsetX || 0;
+  var logoOY = settings.logoOffsetY || 0;
+  document.getElementById('logoWidth').value = logoW;
+  document.getElementById('logoOffsetX').value = logoOX;
+  document.getElementById('logoOffsetY').value = logoOY;
+  document.getElementById('logoWidthValue').textContent = logoW;
+  document.getElementById('logoOffsetXValue').textContent = logoOX;
+  document.getElementById('logoOffsetYValue').textContent = logoOY;
+  
+  // v0.96: 印鑑調整値の復元
+  var stSize = settings.stampSize || 22;
+  var stOX = settings.stampOffsetX || 0;
+  var stOY = settings.stampOffsetY || -5;
+  document.getElementById('stampSize').value = stSize;
+  document.getElementById('stampOffsetX').value = stOX;
+  document.getElementById('stampOffsetY').value = stOY;
+  document.getElementById('stampSizeValue').textContent = stSize;
+  document.getElementById('stampOffsetXValue').textContent = stOX;
+  document.getElementById('stampOffsetYValue').textContent = stOY;
   
   document.getElementById('geminiApiKey').value = settings.geminiApiKey || '';
   document.getElementById('useGeminiForVoice').checked = settings.useGeminiForVoice || false;

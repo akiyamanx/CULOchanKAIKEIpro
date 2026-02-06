@@ -221,14 +221,22 @@ function generateDocumentHTML(d) {
         <td class="right bold totals-gt-value-cell">¥${d.total.toLocaleString()}</td>
       </tr>`;
 
-  // ロゴHTML
+  // ロゴHTML（v0.96: サイズ・位置調整対応）
+  const logoWidth = parseInt(d.settings.logoWidth) || 35;
+  const logoOffsetX = parseInt(d.settings.logoOffsetX) || 0;
+  const logoOffsetY = parseInt(d.settings.logoOffsetY) || 0;
+  const logoStyle = `max-width: ${logoWidth}mm; max-height: ${Math.round(logoWidth * 0.5)}mm; display: block; margin-left: auto; margin-bottom: 2mm; position: relative; top: ${logoOffsetY}mm; right: ${-logoOffsetX}mm;`;
   const logoHtml = d.logoData 
-    ? `<img src="${d.logoData}" class="logo-img" alt="ロゴ">` 
+    ? `<img src="${d.logoData}" style="${logoStyle}" alt="ロゴ">` 
     : '';
 
-  // 印鑑HTML
+  // 印鑑HTML（v0.96: サイズ・位置調整対応）
+  const stampSize = parseInt(d.settings.stampSize) || 22;
+  const stampOffsetX = parseInt(d.settings.stampOffsetX) || 0;
+  const stampOffsetY = parseInt(d.settings.stampOffsetY) || -5;
+  const stampStyle = `position: absolute; bottom: ${-stampOffsetY}mm; right: ${-stampOffsetX}mm; width: ${stampSize}mm; height: ${stampSize}mm; opacity: 0.85;`;
   const stampHtml = d.stampData 
-    ? `<img src="${d.stampData}" class="stamp-img" alt="印鑑">` 
+    ? `<img src="${d.stampData}" style="${stampStyle}" alt="印鑑">` 
     : '';
 
   // 会社情報
@@ -321,6 +329,8 @@ function generateDocumentHTML(d) {
     margin-bottom: 1mm;
   }
 
+  /* v0.96: ロゴ・印鑑はインラインスタイルで動的に設定されるため、
+     以下はフォールバック用のデフォルト値 */
   .logo-img {
     max-width: 35mm;
     max-height: 15mm;

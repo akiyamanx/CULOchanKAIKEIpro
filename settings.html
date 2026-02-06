@@ -89,6 +89,30 @@
               <button class="master-btn delete" onclick="clearLogo()">削除</button>
             </div>
           </div>
+          <!-- v0.96: ロゴサイズ・位置調整 -->
+          <div id="logoAdjustPanel" style="margin-top: 10px; padding: 10px; background: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd;">
+            <div style="font-size: 12px; font-weight: bold; color: #0369a1; margin-bottom: 8px;">📐 ロゴ調整</div>
+            <div style="margin-bottom: 6px;">
+              <label style="font-size: 11px; color: #6b7280;">サイズ（幅）: <span id="logoWidthValue">35</span>mm</label>
+              <input type="range" id="logoWidth" min="10" max="70" value="35" style="width: 100%;" oninput="document.getElementById('logoWidthValue').textContent=this.value">
+            </div>
+            <div style="margin-bottom: 6px;">
+              <label style="font-size: 11px; color: #6b7280;">上下位置: <span id="logoOffsetYValue">0</span>mm</label>
+              <input type="range" id="logoOffsetY" min="-10" max="15" value="0" style="width: 100%;" oninput="document.getElementById('logoOffsetYValue').textContent=this.value">
+              <div style="display: flex; justify-content: space-between; font-size: 10px; color: #9ca3af;">
+                <span>↑ 上へ</span>
+                <span>↓ 下へ</span>
+              </div>
+            </div>
+            <div>
+              <label style="font-size: 11px; color: #6b7280;">左右位置: <span id="logoOffsetXValue">0</span>mm</label>
+              <input type="range" id="logoOffsetX" min="-20" max="20" value="0" style="width: 100%;" oninput="document.getElementById('logoOffsetXValue').textContent=this.value">
+              <div style="display: flex; justify-content: space-between; font-size: 10px; color: #9ca3af;">
+                <span>← 左へ</span>
+                <span>→ 右へ</span>
+              </div>
+            </div>
+          </div>
         </div>
         
         <!-- デジタル印鑑 -->
@@ -121,6 +145,34 @@
             <div style="display: flex; justify-content: space-between; font-size: 10px; color: #9ca3af;">
               <span>弱（背景を多く残す）</span>
               <span>強（背景を多く消す）</span>
+            </div>
+          </div>
+          <!-- v0.96: 印鑑サイズ・位置調整 -->
+          <div id="stampAdjustPanel" style="margin-top: 10px; padding: 10px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+            <div style="font-size: 12px; font-weight: bold; color: #166534; margin-bottom: 8px;">📐 印鑑調整</div>
+            <div style="margin-bottom: 6px;">
+              <label style="font-size: 11px; color: #6b7280;">サイズ: <span id="stampSizeValue">22</span>mm</label>
+              <input type="range" id="stampSize" min="10" max="40" value="22" style="width: 100%;" oninput="document.getElementById('stampSizeValue').textContent=this.value">
+              <div style="display: flex; justify-content: space-between; font-size: 10px; color: #9ca3af;">
+                <span>小さく</span>
+                <span>大きく</span>
+              </div>
+            </div>
+            <div style="margin-bottom: 6px;">
+              <label style="font-size: 11px; color: #6b7280;">上下位置: <span id="stampOffsetYValue">-5</span>mm</label>
+              <input type="range" id="stampOffsetY" min="-20" max="10" value="-5" style="width: 100%;" oninput="document.getElementById('stampOffsetYValue').textContent=this.value">
+              <div style="display: flex; justify-content: space-between; font-size: 10px; color: #9ca3af;">
+                <span>↑ 上へ</span>
+                <span>↓ 下へ</span>
+              </div>
+            </div>
+            <div>
+              <label style="font-size: 11px; color: #6b7280;">左右位置: <span id="stampOffsetXValue">0</span>mm</label>
+              <input type="range" id="stampOffsetX" min="-30" max="10" value="0" style="width: 100%;" oninput="document.getElementById('stampOffsetXValue').textContent=this.value">
+              <div style="display: flex; justify-content: space-between; font-size: 10px; color: #9ca3af;">
+                <span>← 左へ</span>
+                <span>→ 右へ</span>
+              </div>
             </div>
           </div>
         </div>
