@@ -48,7 +48,7 @@ function setWorkType(type) {
   // タイプが変わった場合、既存の作業データを新しいタイプ用にリセット
   if (prevType !== type) {
     const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
-    const dailyRate = settings.dailyRate || 18000;
+    const dailyRate = parseInt(settings.dailyRate) || 18000;
     estimateWorks = estimateWorks.map(w => ({
       id: w.id,
       name: w.name || '',
@@ -347,7 +347,7 @@ function addEstimateWork(name = '', value = 0, unit = '') {
   estimateWorks.push({
     id: Date.now(),
     name: name,
-    value: value || (workType === 'daily' ? (settings.dailyRate || 18000) : 0),
+    value: value || (workType === 'daily' ? (parseInt(settings.dailyRate) || 18000) : 0),
     unit: unit || (workType === 'daily' ? '日' : '式'),
     quantity: 1
   });
@@ -395,7 +395,7 @@ function renderEstimateWorks() {
   } else {
     // 日当計算
     const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
-    const dailyRate = settings.dailyRate || 18000;
+    const dailyRate = parseInt(settings.dailyRate) || 18000;
     
     container.innerHTML = estimateWorks.map((item, index) => {
       const amount = (item.quantity || 0) * (item.value || dailyRate);
