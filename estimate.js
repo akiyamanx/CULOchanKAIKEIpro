@@ -66,7 +66,7 @@ function addEstimateMaterial(name = '', quantity = 1, costPrice = 0, profitRate 
   const defaultRate = profitRate !== null ? profitRate : (parseFloat(settings.defaultProfitRate) || 20);
   
   estimateMaterials.push({
-    id: Date.now(),
+    id: Date.now() + Math.random(),
     name: name,
     quantity: quantity,
     costPrice: costPrice,  // 仕入単価
@@ -287,7 +287,11 @@ function applyBulkProfitRate() {
   
   estimateMaterials.forEach(item => {
     item.profitRate = rate;
-    item.sellingPrice = Math.ceil((item.costPrice || 0) * (1 + rate / 100));
+    if (item.costPrice > 0) {
+      item.sellingPrice = Math.ceil(item.costPrice * (1 + rate / 100));
+    } else if (item.sellingPrice > 0) {
+      item.costPrice = Math.floor(item.sellingPrice / (1 + rate / 100));
+    }
   });
   
   renderEstimateMaterials();
@@ -345,7 +349,7 @@ function selectEstimateMaterial(itemId, name, price) {
 function addEstimateWork(name = '', value = 0, unit = '') {
   const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
   estimateWorks.push({
-    id: Date.now(),
+    id: Date.now() + Math.random(),
     name: name,
     value: value || (workType === 'daily' ? (parseInt(settings.dailyRate) || 18000) : 0),
     unit: unit || (workType === 'daily' ? '日' : '式'),
