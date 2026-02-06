@@ -1,10 +1,35 @@
 // ==========================================
 // ストレージ管理（バックアップ・復元）
-// Reform App Pro v0.91
+// Reform App Pro v0.95.2
+// ==========================================
+// v0.95.2改善:
+//   - バックアップにアプリバージョン情報を追加
+//   - 復元時のバージョン互換チェック
+//   - LocalStorage容量オーバー時のエラーハンドリング強化
 // ==========================================
 
-function backupData() {
+// アプリバージョン定数
+const APP_VERSION = '0.95';
+
+async function backupData() {
+  try {
+  // v0.96: ロゴ・印鑑はIDBから取得（フォールバック付き）
+  let logoData = null;
+  let stampData = null;
+  let stampOriginalData = null;
+  try {
+    logoData = await getLogoFromIDB();
+    stampData = await getStampFromIDB();
+    stampOriginalData = await getStampOriginalFromIDB();
+  } catch(e) {
+    console.warn('[backup] IDB画像取得失敗、LSフォールバック');
+    logoData = localStorage.getItem('reform_app_logo');
+    stampData = localStorage.getItem('reform_app_stamp');
+    stampOriginalData = localStorage.getItem('reform_app_stamp_original');
+  }
+
   const allData = {
+    appVersion: APP_VERSION,
     settings: localStorage.getItem('reform_app_settings'),
     materials: localStorage.getItem('reform_app_materials'),
     estimates: localStorage.getItem('reform_app_estimates'),
@@ -12,9 +37,12 @@ function backupData() {
     expenses: localStorage.getItem('reform_app_expenses'),
     customers: localStorage.getItem('reform_app_customers'),
     productMaster: localStorage.getItem('reform_app_product_master'),
-    logo: localStorage.getItem('reform_app_logo'),
-    stamp: localStorage.getItem('reform_app_stamp'),
-    stampOriginal: localStorage.getItem('reform_app_stamp_original'),
+    categories: localStorage.getItem('reform_app_categories'),
+    logo: logoData,
+    stamp: stampData,
+    stampOriginal: stampOriginalData,
+    receiptHistory: localStorage.getItem('reform_app_receipt_history'),
+    apiUsage: localStorage.getItem('reform_app_api_usage'),
     backupDate: new Date().toISOString()
   };
   
@@ -26,7 +54,11 @@ function backupData() {
   a.click();
   URL.revokeObjectURL(url);
   
-  alert('バックアップファイルをダウンロードしました\n\n含まれるデータ:\n・設定情報\n・顧客データ\n・品名マスター\n・見積書/請求書\n・材料/経費\n・ロゴ/印鑑');
+  alert('バックアップファイルをダウンロードしました\n\nバージョン: v' + APP_VERSION + '\n\n含まれるデータ:\n・設定情報\n・顧客データ\n・品名マスター\n・見積書/請求書\n・材料/経費\n・レシート履歴\n・勘定科目\n・ロゴ/印鑑');
+  } catch (e) {
+    console.error('[backupData] エラー:', e);
+    alert('❌ バックアップに失敗しました\n\n' + e.message);
+  }
 }
 
 function restoreData() {
@@ -61,7 +93,8 @@ function showRestoreOptions(backupData) {
   const dateInfo = document.getElementById('backupDateInfo');
   if (backupData.backupDate) {
     const date = new Date(backupData.backupDate);
-    dateInfo.textContent = `バックアップ日時: ${date.toLocaleString('ja-JP')}`;
+    const versionInfo = backupData.appVersion ? ` (v${backupData.appVersion})` : ' (バージョン不明)';
+    dateInfo.textContent = `バックアップ日時: ${date.toLocaleString('ja-JP')}${versionInfo}`;
   } else {
     dateInfo.textContent = 'バックアップ日時: 不明';
   }
@@ -74,10 +107,11 @@ function closeRestoreOptions() {
   window.pendingRestoreData = null;
 }
 
-function executeRestore(mode) {
+async function executeRestore(mode) {
   const data = window.pendingRestoreData;
   if (!data) return;
   
+  try {
   if (mode === 'overwrite') {
     // 上書きモード（従来の動作）
     if (data.settings) localStorage.setItem('reform_app_settings', data.settings);
@@ -87,9 +121,19 @@ function executeRestore(mode) {
     if (data.expenses) localStorage.setItem('reform_app_expenses', data.expenses);
     if (data.customers) localStorage.setItem('reform_app_customers', data.customers);
     if (data.productMaster) localStorage.setItem('reform_app_product_master', data.productMaster);
-    if (data.logo) localStorage.setItem('reform_app_logo', data.logo);
-    if (data.stamp) localStorage.setItem('reform_app_stamp', data.stamp);
-    if (data.stampOriginal) localStorage.setItem('reform_app_stamp_original', data.stampOriginal);
+    if (data.categories) localStorage.setItem('reform_app_categories', data.categories);
+    // v0.96: ロゴ・印鑑はIDBに保存
+    if (data.logo) {
+      try { await saveLogoToIDB(data.logo); } catch(e) { localStorage.setItem('reform_app_logo', data.logo); }
+    }
+    if (data.stamp) {
+      try { await saveImageToIDB('app_stamp', data.stamp); } catch(e) { localStorage.setItem('reform_app_stamp', data.stamp); }
+    }
+    if (data.stampOriginal) {
+      try { await saveImageToIDB('app_stamp_original', data.stampOriginal); } catch(e) { localStorage.setItem('reform_app_stamp_original', data.stampOriginal); }
+    }
+    if (data.receiptHistory) localStorage.setItem('reform_app_receipt_history', data.receiptHistory);
+    if (data.apiUsage) localStorage.setItem('reform_app_api_usage', data.apiUsage);
     
     alert('✅ データを上書き復元しました！\n\n※ 今までのデータはバックアップのデータに置き換わりました');
     
@@ -190,6 +234,16 @@ function executeRestore(mode) {
     alert(`✅ データを追加しました！\n\n追加された件数:\n・顧客: ${addedCount.customers}件\n・見積書: ${addedCount.estimates}件\n・請求書: ${addedCount.invoices}件\n・材料: ${addedCount.materials}件\n・経費: ${addedCount.expenses}件\n・品名マスター: ${addedCount.productMaster}件\n\n※ 既存のデータは保持されています`);
   }
   
+  } catch (e) {
+    console.error('[executeRestore] エラー:', e);
+    if (e.name === 'QuotaExceededError' || e.code === 22) {
+      alert('❌ ストレージ容量が不足しています\n\n不要なデータを削除してから再度お試しください。\nレシート画像を多く保存している場合は、画像保存をオフにすると改善されることがあります。');
+    } else {
+      alert('❌ 復元中にエラーが発生しました\n\n' + e.message);
+    }
+    return;
+  }
+  
   closeRestoreOptions();
   loadSettings();
   loadCustomers();
@@ -228,10 +282,17 @@ function clearAllData() {
   localStorage.removeItem('reform_app_expenses');
   localStorage.removeItem('reform_app_customers');
   localStorage.removeItem('reform_app_product_master');
+  localStorage.removeItem('reform_app_categories');
   localStorage.removeItem('reform_app_logo');
   localStorage.removeItem('reform_app_stamp');
   localStorage.removeItem('reform_app_stamp_original');
   localStorage.removeItem('reform_app_password');
+  localStorage.removeItem('reform_app_recovery');
+  localStorage.removeItem('reform_app_receipt_history');
+  localStorage.removeItem('reform_app_api_usage');
+  localStorage.removeItem('reform_app_autosave_receipt');
+  localStorage.removeItem('reform_app_autosave_estimate');
+  localStorage.removeItem('reform_app_autosave_invoice');
   
   alert('✅ 全データを削除しました');
   location.reload();

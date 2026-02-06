@@ -15,12 +15,23 @@
 // ==========================================
 
 // v0.95: HTMLテンプレートから見積書PDFを生成
+// v0.96: ロゴ・印鑑をIndexedDBから取得
 async function exportEstimatePDF(mode = 'download') {
   const data = getEstimateData();
   const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
   const estimateNumber = generateEstimateNumber();
-  const logoData = localStorage.getItem('reform_app_logo');
-  const stampData = localStorage.getItem('reform_app_stamp');
+  
+  // v0.96: IDBからロゴ・印鑑を取得（フォールバック付き）
+  let logoData = null;
+  let stampData = null;
+  try {
+    logoData = await getLogoFromIDB();
+    stampData = await getStampFromIDB();
+  } catch(e) {
+    console.warn('[doc-template] IDB画像取得失敗、LSフォールバック:', e);
+    logoData = localStorage.getItem('reform_app_logo');
+    stampData = localStorage.getItem('reform_app_stamp');
+  }
 
   const html = generateDocumentHTML({
     docType: 'estimate',
@@ -53,12 +64,23 @@ async function exportEstimatePDF(mode = 'download') {
 }
 
 // v0.95: HTMLテンプレートから請求書PDFを生成
+// v0.96: ロゴ・印鑑をIndexedDBから取得
 async function exportInvoicePDF(mode = 'download') {
   const data = getInvoiceData();
   const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
   const invoiceNumber = generateInvoiceNumber();
-  const logoData = localStorage.getItem('reform_app_logo');
-  const stampData = localStorage.getItem('reform_app_stamp');
+  
+  // v0.96: IDBからロゴ・印鑑を取得（フォールバック付き）
+  let logoData = null;
+  let stampData = null;
+  try {
+    logoData = await getLogoFromIDB();
+    stampData = await getStampFromIDB();
+  } catch(e) {
+    console.warn('[doc-template] IDB画像取得失敗、LSフォールバック:', e);
+    logoData = localStorage.getItem('reform_app_logo');
+    stampData = localStorage.getItem('reform_app_stamp');
+  }
 
   const html = generateDocumentHTML({
     docType: 'invoice',

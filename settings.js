@@ -62,15 +62,23 @@ function updateTemplateSetting() {
 
 // ==========================================
 // ロゴアップロード
+// v0.96: IndexedDBに保存
 // ==========================================
 function handleLogoUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
   
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     const logoData = e.target.result;
-    localStorage.setItem('reform_app_logo', logoData);
+    
+    // v0.96: IDBに保存（フォールバック: LocalStorage）
+    try {
+      await saveLogoToIDB(logoData);
+    } catch (err) {
+      console.warn('[settings] IDBロゴ保存失敗、LSにフォールバック:', err);
+      localStorage.setItem('reform_app_logo', logoData);
+    }
     
     document.getElementById('logoPreview').src = logoData;
     document.getElementById('logoPreview').style.display = 'block';
@@ -79,7 +87,9 @@ function handleLogoUpload(event) {
   reader.readAsDataURL(file);
 }
 
-function clearLogo() {
+async function clearLogo() {
+  // v0.96: IDB + LS両方削除
+  try { await deleteLogoFromIDB(); } catch(e) {}
   localStorage.removeItem('reform_app_logo');
   document.getElementById('logoPreview').style.display = 'none';
   document.getElementById('logoPlaceholder').style.display = 'block';
@@ -88,15 +98,23 @@ function clearLogo() {
 
 // ==========================================
 // 印鑑アップロード・背景透過処理
+// v0.96: IndexedDBに保存
 // ==========================================
 function handleStampUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
   
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     const stampData = e.target.result;
-    localStorage.setItem('reform_app_stamp_original', stampData);
+    
+    // v0.96: オリジナルをIDBに保存
+    try {
+      await saveImageToIDB('app_stamp_original', stampData);
+    } catch (err) {
+      console.warn('[settings] IDB印鑑原本保存失敗、LSにフォールバック:', err);
+      localStorage.setItem('reform_app_stamp_original', stampData);
+    }
     
     document.getElementById('stampOriginal').src = stampData;
     document.getElementById('stampOriginal').style.display = 'block';
@@ -108,8 +126,15 @@ function handleStampUpload(event) {
   reader.readAsDataURL(file);
 }
 
-function reprocessStamp() {
-  const originalData = localStorage.getItem('reform_app_stamp_original');
+async function reprocessStamp() {
+  // v0.96: IDB優先で原本を取得
+  let originalData = null;
+  try {
+    originalData = await getStampOriginalFromIDB();
+  } catch(e) {}
+  if (!originalData) {
+    originalData = localStorage.getItem('reform_app_stamp_original');
+  }
   if (originalData) {
     processStampImage(originalData);
   }
@@ -117,7 +142,7 @@ function reprocessStamp() {
 
 function processStampImage(imageData) {
   const img = new Image();
-  img.onload = () => {
+  img.onload = async () => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
@@ -156,7 +181,14 @@ function processStampImage(imageData) {
     
     // 処理後の画像を保存
     const processedData = canvas.toDataURL('image/png');
-    localStorage.setItem('reform_app_stamp', processedData);
+    
+    // v0.96: IDBに保存
+    try {
+      await saveImageToIDB('app_stamp', processedData);
+    } catch (err) {
+      console.warn('[settings] IDB印鑑保存失敗、LSにフォールバック:', err);
+      localStorage.setItem('reform_app_stamp', processedData);
+    }
     
     document.getElementById('stampProcessed').src = processedData;
     document.getElementById('stampProcessed').style.display = 'block';
@@ -164,7 +196,9 @@ function processStampImage(imageData) {
   img.src = imageData;
 }
 
-function clearStamp() {
+async function clearStamp() {
+  // v0.96: IDB + LS両方削除
+  try { await deleteStampFromIDB(); } catch(e) {}
   localStorage.removeItem('reform_app_stamp');
   localStorage.removeItem('reform_app_stamp_original');
   document.getElementById('stampOriginal').style.display = 'none';
@@ -305,26 +339,30 @@ function loadSettings() {
   const templateRadio = document.querySelector(`input[name="template"][value="${settings.template || 'simple'}"]`);
   if (templateRadio) templateRadio.checked = true;
   
-  // ロゴ
-  const logoData = localStorage.getItem('reform_app_logo');
-  if (logoData) {
-    document.getElementById('logoPreview').src = logoData;
-    document.getElementById('logoPreview').style.display = 'block';
-    document.getElementById('logoPlaceholder').style.display = 'none';
-  }
+  // ロゴ（v0.96: IDB対応）
+  getLogoFromIDB().then(function(logoData) {
+    if (logoData) {
+      document.getElementById('logoPreview').src = logoData;
+      document.getElementById('logoPreview').style.display = 'block';
+      document.getElementById('logoPlaceholder').style.display = 'none';
+    }
+  }).catch(function() {});
   
-  // 印鑑
-  const stampData = localStorage.getItem('reform_app_stamp');
-  const stampOriginalData = localStorage.getItem('reform_app_stamp_original');
-  if (stampOriginalData) {
-    document.getElementById('stampOriginal').src = stampOriginalData;
-    document.getElementById('stampOriginal').style.display = 'block';
-    document.getElementById('stampPlaceholder').style.display = 'none';
-  }
-  if (stampData) {
-    document.getElementById('stampProcessed').src = stampData;
-    document.getElementById('stampProcessed').style.display = 'block';
-  }
+  // 印鑑（v0.96: IDB対応）
+  getStampFromIDB().then(function(stampData) {
+    if (stampData) {
+      document.getElementById('stampProcessed').src = stampData;
+      document.getElementById('stampProcessed').style.display = 'block';
+    }
+  }).catch(function() {});
+  
+  getStampOriginalFromIDB().then(function(stampOriginalData) {
+    if (stampOriginalData) {
+      document.getElementById('stampOriginal').src = stampOriginalData;
+      document.getElementById('stampOriginal').style.display = 'block';
+      document.getElementById('stampPlaceholder').style.display = 'none';
+    }
+  }).catch(function() {});
   
   // 透過感度
   document.getElementById('stampThreshold').value = settings.stampThreshold || 200;
@@ -351,6 +389,9 @@ function loadSettings() {
   document.getElementById('defaultProfitRate').value = settings.defaultProfitRate || '20';
   
   toggleInvoiceNumber();
+  
+  // v0.95.2: ストレージ使用量を表示
+  updateStorageUsageDisplay();
 }
 
 // ==========================================
@@ -581,3 +622,310 @@ function updateApiUsageDisplay() {
     </div>
   `;
 }
+
+
+// ==========================================
+// v0.95.2追加: ストレージ使用量の見える化
+// ==========================================
+
+/**
+ * LocalStorageの使用量を計算してカテゴリ別に表示
+ */
+function updateStorageUsageDisplay() {
+  var displayEl = document.getElementById('storageUsageDisplay');
+  if (!displayEl) return;
+  
+  // 全LocalStorageキーのサイズを計算
+  var totalBytes = 0;
+  var breakdown = {};
+  
+  // アプリ関連キーのカテゴリ分類
+  var keyCategories = {
+    'reform_app_receipt_history': 'レシート履歴',
+    'reform_app_logo': 'ロゴ画像',
+    'reform_app_stamp': '印鑑（透過後）',
+    'reform_app_stamp_original': '印鑑（元画像）',
+    'reform_app_product_master': '品名マスター',
+    'reform_app_estimates': '見積書',
+    'reform_app_invoices': '請求書',
+    'reform_app_materials': '材料データ',
+    'reform_app_expenses': '経費データ',
+    'reform_app_customers': '顧客データ',
+    'reform_app_settings': '設定',
+    'reform_app_categories': '勘定科目',
+    'reform_app_autosave_receipt': '自動保存（レシート）',
+    'reform_app_autosave_estimate': '自動保存（見積書）',
+    'reform_app_autosave_invoice': '自動保存（請求書）',
+    'reform_app_api_usage': 'API使用量',
+    'reform_app_password': 'パスワード',
+    'reform_app_recovery': '合言葉'
+  };
+  
+  // 各キーのサイズを計算
+  var items = [];
+  for (var key in keyCategories) {
+    var data = localStorage.getItem(key);
+    if (data) {
+      var bytes = new Blob([data]).size;
+      totalBytes += bytes;
+      items.push({
+        label: keyCategories[key],
+        bytes: bytes
+      });
+    }
+  }
+  
+  // その他のreform_appキー
+  var otherBytes = 0;
+  for (var i = 0; i < localStorage.length; i++) {
+    var k = localStorage.key(i);
+    if (k && k.startsWith('reform_app_') && !keyCategories[k]) {
+      var d = localStorage.getItem(k);
+      if (d) {
+        var b = new Blob([d]).size;
+        totalBytes += b;
+        otherBytes += b;
+      }
+    }
+  }
+  if (otherBytes > 0) {
+    items.push({ label: 'その他', bytes: otherBytes });
+  }
+  
+  // サイズの大きい順にソート
+  items.sort(function(a, b) { return b.bytes - a.bytes; });
+  
+  // 推定上限（通常5MB）
+  var estimatedLimit = 5 * 1024 * 1024;
+  var usagePercent = Math.round((totalBytes / estimatedLimit) * 100);
+  var usageMB = (totalBytes / (1024 * 1024)).toFixed(2);
+  var limitMB = (estimatedLimit / (1024 * 1024)).toFixed(0);
+  
+  // バーの色
+  var barColor = '#3b82f6';
+  if (usagePercent > 80) barColor = '#f59e0b';
+  if (usagePercent > 95) barColor = '#ef4444';
+  
+  // HTML生成
+  var html = '';
+  
+  // 全体バー
+  html += '<div style="margin-bottom: 12px;">';
+  html += '  <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 13px;">';
+  html += '    <span style="font-weight: bold; color: #1e3a5f;">使用量: ' + usageMB + ' MB / 約' + limitMB + ' MB</span>';
+  html += '    <span style="color: ' + barColor + '; font-weight: bold;">' + usagePercent + '%</span>';
+  html += '  </div>';
+  html += '  <div style="background: #e5e7eb; border-radius: 6px; height: 12px; overflow: hidden;">';
+  html += '    <div style="background: ' + barColor + '; height: 100%; width: ' + Math.min(usagePercent, 100) + '%; transition: width 0.3s; border-radius: 6px;"></div>';
+  html += '  </div>';
+  html += '</div>';
+  
+  // 警告メッセージ
+  if (usagePercent > 80) {
+    html += '<div style="background: #fef3c7; padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 12px; color: #92400e;">';
+    if (usagePercent > 95) {
+      html += '⚠️ <strong>容量が非常に少なくなっています！</strong><br>バックアップを取ってから不要なデータを削除してください。';
+    } else {
+      html += '💡 容量が少なくなってきています。定期的にバックアップをお取りください。';
+    }
+    html += '</div>';
+  }
+  
+  // 内訳（上位5件＋その他）
+  html += '<div style="font-size: 12px; font-weight: bold; color: #374151; margin-bottom: 6px;">📊 内訳</div>';
+  
+  var showCount = Math.min(items.length, 6);
+  for (var j = 0; j < showCount; j++) {
+    var item = items[j];
+    var sizeStr = formatStorageSize(item.bytes);
+    var itemPercent = totalBytes > 0 ? Math.round((item.bytes / totalBytes) * 100) : 0;
+    
+    html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px; color: #475569; border-bottom: 1px solid #f3f4f6;">';
+    html += '  <span>' + item.label + '</span>';
+    html += '  <span style="font-weight: 500;">' + sizeStr + ' (' + itemPercent + '%)</span>';
+    html += '</div>';
+  }
+  
+  if (items.length > showCount) {
+    html += '<div style="text-align: center; font-size: 11px; color: #9ca3af; padding: 4px 0;">他 ' + (items.length - showCount) + ' 項目</div>';
+  }
+  
+  displayEl.innerHTML = html;
+}
+
+/**
+ * バイト数を読みやすい単位に変換
+ */
+function formatStorageSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+
+// ==========================================
+// v0.95.2追加: ストレージ使用量の見える化
+// ==========================================
+
+/**
+ * LocalStorageの使用量を計算
+ * @returns {Object} { totalBytes, items: [{key, bytes, label}], maxBytes }
+ */
+function calculateStorageUsage() {
+  var items = [];
+  var totalBytes = 0;
+  
+  // LocalStorageの全キーを走査
+  var keyLabels = {
+    'reform_app_settings': '⚙️ 設定情報',
+    'reform_app_materials': '📦 材料データ',
+    'reform_app_estimates': '📝 見積書',
+    'reform_app_invoices': '📄 請求書',
+    'reform_app_expenses': '💰 経費データ',
+    'reform_app_customers': '👤 顧客データ',
+    'reform_app_product_master': '📦 品名マスター',
+    'reform_app_categories': '📋 勘定科目',
+    'reform_app_logo': '🖼️ 会社ロゴ',
+    'reform_app_stamp': '🔴 印鑑（処理済）',
+    'reform_app_stamp_original': '🔴 印鑑（原本）',
+    'reform_app_receipt_history': '📷 レシート履歴',
+    'reform_app_password': '🔒 パスワード',
+    'reform_app_recovery': '🔒 合言葉',
+    'reform_app_api_usage': '📊 API使用量',
+    'reform_app_autosave_receipt': '💾 自動保存（レシート）',
+    'reform_app_autosave_estimate': '💾 自動保存（見積書）',
+    'reform_app_autosave_invoice': '💾 自動保存（請求書）'
+  };
+  
+  for (var i = 0; i < localStorage.length; i++) {
+    var key = localStorage.key(i);
+    var value = localStorage.getItem(key);
+    // UTF-16の場合: 1文字 = 2bytes
+    var bytes = (key.length + value.length) * 2;
+    totalBytes += bytes;
+    
+    // reform_appのキーのみ詳細表示
+    if (key.startsWith('reform_app')) {
+      items.push({
+        key: key,
+        bytes: bytes,
+        label: keyLabels[key] || key
+      });
+    }
+  }
+  
+  // サイズ順にソート（大きいものから）
+  items.sort(function(a, b) { return b.bytes - a.bytes; });
+  
+  return {
+    totalBytes: totalBytes,
+    items: items,
+    // LocalStorageの一般的な上限（ブラウザにより5〜10MB）
+    maxBytes: 5 * 1024 * 1024  // 5MB を基準に表示
+  };
+}
+
+/**
+ * バイト数を見やすい文字列に変換
+ */
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+/**
+ * ストレージ使用量の表示を更新
+ * v0.96: IndexedDB使用量も表示
+ */
+async function updateStorageUsageDisplay() {
+  var displayEl = document.getElementById('storageUsageDisplay');
+  if (!displayEl) return;
+  
+  var usage = calculateStorageUsage();
+  var usedMB = (usage.totalBytes / (1024 * 1024)).toFixed(2);
+  var maxMB = (usage.maxBytes / (1024 * 1024)).toFixed(0);
+  var percent = Math.min(100, Math.round(usage.totalBytes / usage.maxBytes * 100));
+  
+  var barColor = percent > 80 ? '#ef4444' : percent > 60 ? '#f59e0b' : '#22c55e';
+  var statusText = percent > 80 ? '⚠️ 容量が逼迫しています' : percent > 60 ? '💡 余裕はありますが注意' : '✅ 余裕あり';
+  
+  // メインバー（LocalStorage）
+  var html = '';
+  html += '<div style="margin-bottom: 8px;">';
+  html += '  <div style="font-size: 12px; font-weight: bold; color: #0369a1; margin-bottom: 6px;">📦 LocalStorage</div>';
+  html += '  <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">';
+  html += '    <span>使用量: ' + usedMB + ' MB / 約' + maxMB + ' MB</span>';
+  html += '    <span>' + percent + '%</span>';
+  html += '  </div>';
+  html += '  <div style="background: #e0f2fe; border-radius: 4px; height: 10px; overflow: hidden;">';
+  html += '    <div style="background: ' + barColor + '; height: 100%; width: ' + percent + '%; transition: width 0.3s; border-radius: 4px;"></div>';
+  html += '  </div>';
+  html += '  <div style="font-size: 11px; color: #64748b; margin-top: 4px;">' + statusText + '</div>';
+  html += '</div>';
+  
+  // v0.96: IndexedDB使用量
+  try {
+    var idbEst = await getIDBStorageEstimate();
+    if (idbEst) {
+      html += '<div style="margin-top: 12px; padding: 10px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">';
+      html += '  <div style="font-size: 12px; font-weight: bold; color: #166534; margin-bottom: 4px;">🗄️ IndexedDB（画像データ）</div>';
+      html += '  <div style="font-size: 11px; color: #374151;">使用量: ' + idbEst.usageMB + ' MB / ' + idbEst.quotaMB + ' MB</div>';
+      html += '  <div style="font-size: 10px; color: #6b7280; margin-top: 2px;">💡 レシート画像・ロゴ・印鑑はここに保存されます（容量たっぷり！）</div>';
+      html += '</div>';
+    }
+  } catch(e) {}
+  
+  // 内訳（上位5件＋画像系のみ表示）
+  html += '<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #bae6fd;">';
+  html += '  <div style="font-size: 11px; font-weight: bold; color: #0369a1; margin-bottom: 6px;">内訳（上位）</div>';
+  
+  var showCount = Math.min(usage.items.length, 7);
+  for (var i = 0; i < showCount; i++) {
+    var item = usage.items[i];
+    var itemPercent = Math.round(item.bytes / usage.totalBytes * 100);
+    var itemBarColor = item.key.includes('receipt_history') || item.key.includes('logo') || item.key.includes('stamp') ? '#f59e0b' : '#3b82f6';
+    
+    html += '<div style="margin-bottom: 6px;">';
+    html += '  <div style="display: flex; justify-content: space-between; font-size: 11px;">';
+    html += '    <span>' + item.label + '</span>';
+    html += '    <span style="color: #64748b;">' + formatBytes(item.bytes) + '</span>';
+    html += '  </div>';
+    html += '  <div style="background: #f1f5f9; border-radius: 2px; height: 4px; overflow: hidden; margin-top: 2px;">';
+    html += '    <div style="background: ' + itemBarColor + '; height: 100%; width: ' + itemPercent + '%;"></div>';
+    html += '  </div>';
+    html += '</div>';
+  }
+  
+  html += '</div>';
+  
+  // 容量が逼迫時の対策ヒント
+  if (percent > 60) {
+    html += '<div style="margin-top: 10px; padding: 10px; background: #fef3c7; border-radius: 8px; font-size: 11px; color: #92400e; line-height: 1.6;">';
+    html += '💡 容量を節約するには:<br>';
+    html += '・レシート保存時に「画像を保存」のチェックを外す<br>';
+    html += '・古い見積書やレシート履歴を削除する<br>';
+    html += '・定期的にバックアップを取ってデータを整理する';
+    html += '</div>';
+  }
+  
+  displayEl.innerHTML = html;
+}
+
+// 設定画面表示時に自動更新
+(function autoHookStorageDisplay() {
+  if (typeof window.showScreen === 'function' && !window._storageDisplayHooked) {
+    var _origShowScreen2 = window.showScreen;
+    window.showScreen = function(screenName) {
+      _origShowScreen2(screenName);
+      if (screenName === 'settings') {
+        // 少し遅延して描画後に計算
+        setTimeout(updateStorageUsageDisplay, 100);
+      }
+    };
+    window._storageDisplayHooked = true;
+    console.log('✓ ストレージ使用量: showScreenフック完了');
+  } else {
+    setTimeout(autoHookStorageDisplay, 300);
+  }
+})();

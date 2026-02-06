@@ -73,7 +73,7 @@ function checkReceiptDuplicate(storeName, date, totalAmount, itemCount, receiptN
  * v0.95: 重複チェック追加、品名マスター変換適用
  * @returns {boolean} 保存成功ならtrue、重複で中止ならfalse
  */
-function saveReceiptHistory(storeName, date, materials, expenses, saveImage) {
+async function saveReceiptHistory(storeName, date, materials, expenses, saveImage) {
   // お客様名を取得
   const custEl = document.getElementById('receiptCustomerName');
   const customerName = custEl ? custEl.value.trim() : '';
@@ -119,19 +119,35 @@ function saveReceiptHistory(storeName, date, materials, expenses, saveImage) {
 
   // 履歴レコードを作成
   const histories = JSON.parse(localStorage.getItem('reform_app_receipt_history') || '[]');
+  const recordId = Date.now() + Math.random();
   const record = {
-    id: Date.now() + Math.random(),
+    id: recordId,
     storeName: storeName,
     customerName: customerName,
     receiptNumber: receiptNumber,  // v0.95追加
     date: date,
     items: allItems,
-    imageData: saveImage ? receiptImageData : null,
+    imageData: null,     // v0.96: LocalStorageには画像を入れない
+    imageRef: null,      // v0.96: IDBへの参照キー
     totalAmount: totalAmount,
     materialCount: materials.length,
     expenseCount: expenses.length,
     createdAt: new Date().toISOString()
   };
+
+  // v0.96: 画像をIndexedDBに保存
+  if (saveImage && receiptImageData) {
+    try {
+      var imgKey = makeReceiptImageKey(recordId);
+      await saveReceiptImageToIDB(recordId, receiptImageData);
+      record.imageRef = imgKey;
+      console.log('[receipt-history] 画像をIDBに保存:', imgKey);
+    } catch (idbErr) {
+      console.warn('[receipt-history] IDB画像保存失敗、LSフォールバック:', idbErr);
+      // フォールバック: 旧方式でimageDataに入れる
+      record.imageData = receiptImageData;
+    }
+  }
 
   histories.push(record);
 
@@ -140,14 +156,15 @@ function saveReceiptHistory(storeName, date, materials, expenses, saveImage) {
     histories.shift();
   }
 
-  // v0.95修正: LocalStorage容量オーバー対策
+  // v0.96修正: IDB保存成功時は容量問題なし。LS保存のみチェック
   if (!trySaveHistories(histories)) {
-    // 保存失敗 → 今回のレシート画像を除外して再試行
-    console.warn('[receipt-history] 容量オーバー: 今回の画像を除外して再試行');
+    // 保存失敗 → 今回のレシート画像参照も除外して再試行
+    console.warn('[receipt-history] 容量オーバー: 画像参照/データを除外して再試行');
     record.imageData = null;
+    record.imageRef = null;
     if (!trySaveHistories(histories)) {
-      // それでもダメ → 古い履歴の画像を順番に削除
-      console.warn('[receipt-history] まだ容量オーバー: 古い画像を削除中...');
+      // それでもダメ → 古い履歴の旧imageDataを順番に削除
+      console.warn('[receipt-history] まだ容量オーバー: 古い画像データを削除中...');
       let freed = false;
       for (let i = 0; i < histories.length - 1; i++) {
         if (histories[i].imageData) {
@@ -172,9 +189,7 @@ function saveReceiptHistory(storeName, date, materials, expenses, saveImage) {
         alert('⚠️ ストレージ容量が不足しています。\n設定画面からデータを整理してください。');
         return false;
       }
-      alert('💡 ストレージ容量を確保するため、古いレシート画像を自動削除しました。\n品目データはそのまま残っています。');
-    } else {
-      alert('💡 ストレージ容量の都合で、今回のレシート画像は保存されませんでした。\n品目データは正常に保存されました。');
+      alert('💡 ストレージ容量を確保するため、古いデータを整理しました。');
     }
   }
 
@@ -251,7 +266,7 @@ function renderReceiptHistoryList(searchText) {
   }
 
   container.innerHTML = histories.map(h => {
-    const hasImage = h.imageData ? '📷' : '📝';
+    const hasImage = (h.imageData || h.imageRef) ? '📷' : '📝';
     const itemCount = (h.items || []).length;
     const projectNames = [...new Set((h.items || []).map(i => i.projectName).filter(Boolean))];
     const projectBadge = projectNames.length > 0
@@ -299,7 +314,8 @@ function filterReceiptHistory() {
 // レシート履歴の詳細表示
 // ==========================================
 
-function showReceiptHistoryDetail(historyId) {
+// v0.96: async化してIDBから画像取得
+async function showReceiptHistoryDetail(historyId) {
   const histories = JSON.parse(localStorage.getItem('reform_app_receipt_history') || '[]');
   const h = histories.find(r => String(r.id) === String(historyId));
   if (!h) {
@@ -313,10 +329,20 @@ function showReceiptHistoryDetail(historyId) {
   const content = document.getElementById('receiptHistoryDetailContent');
   if (!content) return;
 
+  // v0.96: 画像をIDBから取得（imageRef優先、imageDataフォールバック）
+  let displayImageData = h.imageData || null;
+  if (!displayImageData && h.imageRef) {
+    try {
+      displayImageData = await getReceiptImageFromIDB(h.id);
+    } catch(e) {
+      console.warn('[receipt-history] IDB画像取得失敗:', e);
+    }
+  }
+
   // 画像セクション
-  const imageHtml = h.imageData
+  const imageHtml = displayImageData
     ? `<div style="margin-bottom: 16px;">
-        <img src="${h.imageData}" style="width: 100%; border-radius: 8px; border: 1px solid #e5e7eb;"
+        <img src="${displayImageData}" style="width: 100%; border-radius: 8px; border: 1px solid #e5e7eb;"
              onclick="showReceiptImageFull('${historyId}')">
         <div style="text-align: center; font-size: 11px; color: #9ca3af; margin-top: 4px;">タップで拡大</div>
        </div>`
@@ -384,16 +410,26 @@ function closeReceiptHistoryDetail() {
 // 画像フルスクリーン表示
 // ==========================================
 
-function showReceiptImageFull(historyId) {
+// v0.96: async化してIDBから画像取得
+async function showReceiptImageFull(historyId) {
   const histories = JSON.parse(localStorage.getItem('reform_app_receipt_history') || '[]');
   const h = histories.find(r => String(r.id) === String(historyId));
-  if (!h || !h.imageData) return;
+  if (!h) return;
+
+  // v0.96: IDB優先で画像取得
+  let imgData = h.imageData || null;
+  if (!imgData && h.imageRef) {
+    try {
+      imgData = await getReceiptImageFromIDB(h.id);
+    } catch(e) {}
+  }
+  if (!imgData) return;
 
   const viewer = document.getElementById('receiptImageViewer');
   const img = document.getElementById('receiptImageFullView');
   if (!viewer || !img) return;
 
-  img.src = h.imageData;
+  img.src = imgData;
   viewer.style.display = 'flex';
 }
 
@@ -407,7 +443,8 @@ function closeReceiptImageViewer() {
 // レシート履歴の呼び戻し（再読み込み）
 // ==========================================
 
-function reloadFromHistory() {
+// v0.96: async化してIDBから画像取得
+async function reloadFromHistory() {
   const historyId = window._currentHistoryId;
   if (!historyId) return;
 
@@ -430,14 +467,20 @@ function reloadFromHistory() {
   // 日付を復元
   document.getElementById('receiptDate').value = h.date || new Date().toISOString().split('T')[0];
 
-  // 画像を復元
-  if (h.imageData) {
-    receiptImageData = h.imageData;
-    document.getElementById('imagePreview').src = h.imageData;
+  // 画像を復元（v0.96: IDB優先）
+  let imgData = h.imageData || null;
+  if (!imgData && h.imageRef) {
+    try {
+      imgData = await getReceiptImageFromIDB(h.id);
+    } catch(e) {}
+  }
+  
+  if (imgData) {
+    receiptImageData = imgData;
+    document.getElementById('imagePreview').src = imgData;
     document.getElementById('imagePreview').style.display = 'block';
     document.getElementById('imagePlaceholder').style.display = 'none';
     document.getElementById('imagePreviewArea').style.display = 'block';
-    document.getElementById('ocrBtn').disabled = false;
     const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
     document.getElementById('aiBtn').disabled = !settings.geminiApiKey;
   }
@@ -473,10 +516,22 @@ function reloadFromHistory() {
 // レシート履歴の削除
 // ==========================================
 
-function deleteReceiptHistory(historyId) {
+// v0.96: async化してIDB画像も削除
+async function deleteReceiptHistory(historyId) {
   if (!confirm('このレシート履歴を削除しますか？')) return;
 
   let histories = JSON.parse(localStorage.getItem('reform_app_receipt_history') || '[]');
+  
+  // v0.96: IDBの画像も削除
+  const target = histories.find(h => String(h.id) === String(historyId));
+  if (target && target.imageRef) {
+    try {
+      await deleteReceiptImageFromIDB(target.id);
+    } catch(e) {
+      console.warn('[receipt-history] IDB画像削除失敗:', e);
+    }
+  }
+  
   histories = histories.filter(h => String(h.id) !== String(historyId));
   localStorage.setItem('reform_app_receipt_history', JSON.stringify(histories));
 

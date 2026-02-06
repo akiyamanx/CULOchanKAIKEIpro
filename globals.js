@@ -381,7 +381,9 @@ let invoiceMaterials = [];
 let invoiceWorks = [];
 let invWorkType = 'construction';
 
-// 価格検索サイト
+// v0.95: 以下は price-search.js の getSiteSearchUrl() に移行済み
+// expense.js内の旧searchOnSite()からの参照が残っているため、一旦保持
+// 将来的にexpense.jsから旧コードを削除した後、この定数も削除可能
 const searchSites = {
   monotaro: {
     name: 'モノタロウ',

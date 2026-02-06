@@ -201,6 +201,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error('画面読み込みエラー:', e);
   }
   
+  // v0.96: IndexedDB移行（初回のみ実行）
+  try {
+    if (typeof migrateImagesToIDB === 'function') {
+      const migResult = await migrateImagesToIDB();
+      if (!migResult.skipped) {
+        console.log('✓ IndexedDB移行結果:', migResult);
+      }
+    }
+  } catch(e) { console.error('IDB migration error:', e); }
+  
   // ★ 画面読み込み完了後に各モジュールの初期化
   try {
     if (typeof loadSettings === 'function') loadSettings();
@@ -227,7 +237,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (typeof initAutoSave === 'function') initAutoSave();
   } catch(e) { console.error('initAutoSave error:', e); }
   
-  console.log('✓ アプリ初期化完了 v0.95');
+  console.log('✓ アプリ初期化完了 v0.96');
 });
 
 // ==========================================

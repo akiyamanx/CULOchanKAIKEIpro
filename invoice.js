@@ -417,6 +417,7 @@ function pickInvMaterial(name, price) {
 
 // 下書き保存
 function saveInvoiceDraft() {
+  try {
   const invoice = getInvoiceData();
   invoice.status = 'draft';
   invoice.id = Date.now();
@@ -427,6 +428,14 @@ function saveInvoiceDraft() {
   localStorage.setItem('reform_app_invoices', JSON.stringify(invoices));
   
   alert('下書きを保存しました！\n請求番号: ' + invoice.number);
+  } catch (e) {
+    console.error('[saveInvoiceDraft] エラー:', e);
+    if (e.name === 'QuotaExceededError' || e.code === 22) {
+      alert('❌ ストレージ容量が不足しています\n\n設定画面から不要なデータを削除するか、バックアップ後にデータを整理してください。');
+    } else {
+      alert('❌ 保存に失敗しました\n\n' + e.message);
+    }
+  }
 }
 
 function getInvoiceData() {

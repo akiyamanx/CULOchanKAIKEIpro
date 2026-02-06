@@ -1,10 +1,10 @@
 // ==========================================
 // Service Worker - リフォーム見積・会計 Pro
-// Version: 1.8.0
-// ★ v1.8.0: HTML画面ファイルをキャッシュリストに追加
+// Version: 2.0.0
+// ★ v2.0.0: idb-storage.js追加（IndexedDB画像ストレージ）
 // ==========================================
 
-const CACHE_NAME = 'reform-app-v1.8.0';
+const CACHE_NAME = 'reform-app-v2.0.0';
 const OFFLINE_URL = 'index.html';
 
 // キャッシュするファイル（相対パス）
@@ -15,6 +15,7 @@ const FILES_TO_CACHE = [
   'receipt-styles-add.css',
   'manifest.json',
   // JS モジュール
+  'idb-storage.js',
   'globals.js',
   'storage.js',
   'settings.js',
@@ -24,12 +25,18 @@ const FILES_TO_CACHE = [
   'products.js',
   'receipt-core.js',
   'receipt-ai.js',
-  'receipt-ocr.js',
+  'receipt-history.js',
+  'receipt-list.js',
   'estimate.js',
   'invoice.js',
   'expense.js',
   'voice.js',
+  'price-search.js',
   'data.js',
+  'help.js',
+  'auto-save.js',
+  'doc-template.js',
+  'excel-template.js',
   'screen-loader.js',
   'app.js',
   // ★ 画面HTMLファイル（ルート直下）
@@ -39,6 +46,7 @@ const FILES_TO_CACHE = [
   'tax.html',
   'settings.html',
   'receipt.html',
+  'receipt-list.html',
   'estimate.html',
   'invoice.html',
   'customers.html',
@@ -49,7 +57,7 @@ const FILES_TO_CACHE = [
 
 // インストール時
 self.addEventListener('install', event => {
-  console.log('[SW] インストール開始 v1.8.0');
+  console.log('[SW] インストール開始 v2.0.0');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -135,4 +143,4 @@ self.addEventListener('sync', event => {
   }
 });
 
-console.log('[SW] Service Worker ロード完了 v1.8.0');
+console.log('[SW] Service Worker ロード完了 v2.0.0');

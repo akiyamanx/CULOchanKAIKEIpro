@@ -1116,6 +1116,7 @@ function addNetProductToEstimate() {
 
 // 下書き保存
 function saveEstimateDraft() {
+  try {
   const estimate = getEstimateData();
   estimate.status = 'draft';
   estimate.id = Date.now();
@@ -1126,6 +1127,14 @@ function saveEstimateDraft() {
   localStorage.setItem('reform_app_estimates', JSON.stringify(estimates));
   
   alert('下書きを保存しました！\n見積番号: ' + estimate.number);
+  } catch (e) {
+    console.error('[saveEstimateDraft] エラー:', e);
+    if (e.name === 'QuotaExceededError' || e.code === 22) {
+      alert('❌ ストレージ容量が不足しています\n\n設定画面から不要なデータを削除するか、バックアップ後にデータを整理してください。');
+    } else {
+      alert('❌ 保存に失敗しました\n\n' + e.message);
+    }
+  }
 }
 
 function getEstimateData() {

@@ -15,11 +15,70 @@
 // + v0.95修正:
 //   - OCR機能削除（AI解析に一本化）
 //   - 複数枚一括選択機能追加（handleMultiImageSelect）
+// + v0.95.2追加:
+//   - レシート画像の自動圧縮（compressImage）
+//   - 最大幅1200px、JPEG品質0.7でLocalStorage容量を大幅節約
 // 
 // 依存ファイル:
 //   - globals.js (receiptItems, receiptImageData, multiImageDataUrls, categories, productMaster, projects)
 //   - receipt-ai.js (runAiOcr)
 //   - receipt-history.js (saveReceiptHistory, v0.94.1追加)
+// ==========================================
+
+
+// ==========================================
+// v0.95.2追加: 画像圧縮ユーティリティ
+// ==========================================
+/**
+ * Base64画像をCanvasで圧縮する
+ * @param {string} dataUrl - 元のBase64画像データ
+ * @param {number} maxWidth - 最大幅（デフォルト1200px）
+ * @param {number} quality - JPEG品質 0.0〜1.0（デフォルト0.7）
+ * @returns {Promise<string>} 圧縮後のBase64画像データ
+ */
+function compressImage(dataUrl, maxWidth, quality) {
+  maxWidth = maxWidth || 1200;
+  quality = quality || 0.7;
+  
+  return new Promise(function(resolve) {
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      var ctx = canvas.getContext('2d');
+      
+      // 元のサイズが最大幅以下ならリサイズ不要
+      var width = img.width;
+      var height = img.height;
+      
+      if (width > maxWidth) {
+        height = Math.round(height * (maxWidth / width));
+        width = maxWidth;
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      // JPEG形式で圧縮（PNG透過は不要なので）
+      var compressed = canvas.toDataURL('image/jpeg', quality);
+      
+      // 圧縮後のほうが大きくなる場合は元のを返す（稀だが安全策）
+      if (compressed.length >= dataUrl.length) {
+        resolve(dataUrl);
+      } else {
+        var savedKB = Math.round((dataUrl.length - compressed.length) / 1024);
+        console.log('[compressImage] ' + width + 'x' + height + ' 圧縮: ' + savedKB + 'KB削減');
+        resolve(compressed);
+      }
+    };
+    img.onerror = function() {
+      // エラー時は元のデータをそのまま返す
+      console.warn('[compressImage] 画像の読み込みに失敗、元データを使用');
+      resolve(dataUrl);
+    };
+    img.src = dataUrl;
+  });
+}
 // ==========================================
 
 
@@ -137,18 +196,21 @@ function handleImageSelect(event) {
   
   const reader = new FileReader();
   reader.onload = (e) => {
-    receiptImageData = e.target.result;
-    document.getElementById('imagePreview').src = receiptImageData;
-    document.getElementById('imagePreview').style.display = 'block';
-    document.getElementById('imagePlaceholder').style.display = 'none';
-    document.getElementById('imagePreviewArea').style.display = 'block';
-    // v0.95: OCRボタン削除のため、ocrBtn操作を削除
-    // AIボタンを有効化（APIキーがあれば）
-    const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
-    document.getElementById('aiBtn').disabled = !settings.geminiApiKey;
-    if (!settings.geminiApiKey) {
-      document.getElementById('aiBtn').title = '設定画面でGemini APIキーを入力してください';
-    }
+    // v0.95.2: 画像を圧縮してから保存
+    compressImage(e.target.result).then(function(compressed) {
+      receiptImageData = compressed;
+      document.getElementById('imagePreview').src = receiptImageData;
+      document.getElementById('imagePreview').style.display = 'block';
+      document.getElementById('imagePlaceholder').style.display = 'none';
+      document.getElementById('imagePreviewArea').style.display = 'block';
+      // v0.95: OCRボタン削除のため、ocrBtn操作を削除
+      // AIボタンを有効化（APIキーがあれば）
+      const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
+      document.getElementById('aiBtn').disabled = !settings.geminiApiKey;
+      if (!settings.geminiApiKey) {
+        document.getElementById('aiBtn').title = '設定画面でGemini APIキーを入力してください';
+      }
+    });
   };
   reader.readAsDataURL(file);
   // inputをリセット（同じファイルを再選択できるように）
@@ -175,17 +237,20 @@ function handleAddImageSelect(event) {
   
   const reader = new FileReader();
   reader.onload = (e) => {
-    multiImageDataUrls.push(e.target.result);
-    
-    // 単一画像プレビューを非表示
-    document.getElementById('imagePreviewArea').style.display = 'none';
-    document.getElementById('multiImageArea').style.display = 'block';
-    
-    renderMultiImageThumbnails();
-    
-    // v0.95: OCRボタン削除
-    const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
-    document.getElementById('aiBtn').disabled = !settings.geminiApiKey;
+    // v0.95.2: 画像を圧縮してから保存
+    compressImage(e.target.result).then(function(compressed) {
+      multiImageDataUrls.push(compressed);
+      
+      // 単一画像プレビューを非表示
+      document.getElementById('imagePreviewArea').style.display = 'none';
+      document.getElementById('multiImageArea').style.display = 'block';
+      
+      renderMultiImageThumbnails();
+      
+      // v0.95: OCRボタン削除
+      const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
+      document.getElementById('aiBtn').disabled = !settings.geminiApiKey;
+    });
   };
   reader.readAsDataURL(file);
   // inputをリセット
@@ -215,28 +280,31 @@ function handleMultiImageSelect(event) {
   filesToProcess.forEach((file, index) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      multiImageDataUrls[index] = e.target.result;
-      loadedCount++;
-      
-      // 全部読み込み完了したら表示更新
-      if (loadedCount === filesToProcess.length) {
-        // null/undefinedを除去
-        multiImageDataUrls = multiImageDataUrls.filter(Boolean);
+      // v0.95.2: 画像を圧縮してから保存
+      compressImage(e.target.result).then(function(compressed) {
+        multiImageDataUrls[index] = compressed;
+        loadedCount++;
         
-        // 単一画像プレビューを非表示
-        document.getElementById('imagePreviewArea').style.display = 'none';
-        document.getElementById('multiImageArea').style.display = 'block';
-        
-        renderMultiImageThumbnails();
-        
-        // AIボタン有効化
-        const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
-        document.getElementById('aiBtn').disabled = !settings.geminiApiKey;
-        
-        if (!settings.geminiApiKey) {
-          alert('Gemini APIキーが設定されていません。\n設定画面からAPIキーを入力してください。');
+        // 全部読み込み完了したら表示更新
+        if (loadedCount === filesToProcess.length) {
+          // null/undefinedを除去
+          multiImageDataUrls = multiImageDataUrls.filter(Boolean);
+          
+          // 単一画像プレビューを非表示
+          document.getElementById('imagePreviewArea').style.display = 'none';
+          document.getElementById('multiImageArea').style.display = 'block';
+          
+          renderMultiImageThumbnails();
+          
+          // AIボタン有効化
+          const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
+          document.getElementById('aiBtn').disabled = !settings.geminiApiKey;
+          
+          if (!settings.geminiApiKey) {
+            alert('Gemini APIキーが設定されていません。\n設定画面からAPIキーを入力してください。');
+          }
         }
-      }
+      });
     };
     reader.readAsDataURL(file);
   });
