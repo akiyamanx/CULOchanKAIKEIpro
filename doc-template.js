@@ -15,23 +15,12 @@
 // ==========================================
 
 // v0.95: HTMLテンプレートから見積書PDFを生成
-// v0.96: ロゴ・印鑑をIndexedDBから取得
 async function exportEstimatePDF(mode = 'download') {
   const data = getEstimateData();
   const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
   const estimateNumber = generateEstimateNumber();
-  
-  // v0.96: IDBからロゴ・印鑑を取得（フォールバック付き）
-  let logoData = null;
-  let stampData = null;
-  try {
-    logoData = await getLogoFromIDB();
-    stampData = await getStampFromIDB();
-  } catch(e) {
-    console.warn('[doc-template] IDB画像取得失敗、LSフォールバック:', e);
-    logoData = localStorage.getItem('reform_app_logo');
-    stampData = localStorage.getItem('reform_app_stamp');
-  }
+  const logoData = localStorage.getItem('reform_app_logo');
+  const stampData = localStorage.getItem('reform_app_stamp');
 
   const html = generateDocumentHTML({
     docType: 'estimate',
@@ -64,23 +53,12 @@ async function exportEstimatePDF(mode = 'download') {
 }
 
 // v0.95: HTMLテンプレートから請求書PDFを生成
-// v0.96: ロゴ・印鑑をIndexedDBから取得
 async function exportInvoicePDF(mode = 'download') {
   const data = getInvoiceData();
   const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
   const invoiceNumber = generateInvoiceNumber();
-  
-  // v0.96: IDBからロゴ・印鑑を取得（フォールバック付き）
-  let logoData = null;
-  let stampData = null;
-  try {
-    logoData = await getLogoFromIDB();
-    stampData = await getStampFromIDB();
-  } catch(e) {
-    console.warn('[doc-template] IDB画像取得失敗、LSフォールバック:', e);
-    logoData = localStorage.getItem('reform_app_logo');
-    stampData = localStorage.getItem('reform_app_stamp');
-  }
+  const logoData = localStorage.getItem('reform_app_logo');
+  const stampData = localStorage.getItem('reform_app_stamp');
 
   const html = generateDocumentHTML({
     docType: 'invoice',
@@ -221,22 +199,14 @@ function generateDocumentHTML(d) {
         <td class="right bold totals-gt-value-cell">¥${d.total.toLocaleString()}</td>
       </tr>`;
 
-  // ロゴHTML（v0.96: サイズ・位置調整対応）
-  const logoWidth = parseInt(d.settings.logoWidth) || 35;
-  const logoOffsetX = parseInt(d.settings.logoOffsetX) || 0;
-  const logoOffsetY = parseInt(d.settings.logoOffsetY) || 0;
-  const logoStyle = `max-width: ${logoWidth}mm; max-height: ${Math.round(logoWidth * 0.5)}mm; display: block; margin-left: auto; margin-bottom: 2mm; position: relative; top: ${logoOffsetY}mm; right: ${-logoOffsetX}mm;`;
+  // ロゴHTML
   const logoHtml = d.logoData 
-    ? `<img src="${d.logoData}" style="${logoStyle}" alt="ロゴ">` 
+    ? `<img src="${d.logoData}" class="logo-img" alt="ロゴ">` 
     : '';
 
-  // 印鑑HTML（v0.96: サイズ・位置調整対応）
-  const stampSize = parseInt(d.settings.stampSize) || 22;
-  const stampOffsetX = parseInt(d.settings.stampOffsetX) || 0;
-  const stampOffsetY = parseInt(d.settings.stampOffsetY) || -5;
-  const stampStyle = `position: absolute; bottom: ${-stampOffsetY}mm; right: ${-stampOffsetX}mm; width: ${stampSize}mm; height: ${stampSize}mm; opacity: 0.85;`;
+  // 印鑑HTML
   const stampHtml = d.stampData 
-    ? `<img src="${d.stampData}" style="${stampStyle}" alt="印鑑">` 
+    ? `<img src="${d.stampData}" class="stamp-img" alt="印鑑">` 
     : '';
 
   // 会社情報
@@ -329,8 +299,6 @@ function generateDocumentHTML(d) {
     margin-bottom: 1mm;
   }
 
-  /* v0.96: ロゴ・印鑑はインラインスタイルで動的に設定されるため、
-     以下はフォールバック用のデフォルト値 */
   .logo-img {
     max-width: 35mm;
     max-height: 15mm;
@@ -495,6 +463,11 @@ function generateDocumentHTML(d) {
   }
 
   /* === 合計行（テーブル内統合） === */
+  .totals-row td {
+    border: none !important;
+    background: transparent !important;
+  }
+
   .totals-row .totals-spacer-cell {
     border: none !important;
     background: transparent !important;
