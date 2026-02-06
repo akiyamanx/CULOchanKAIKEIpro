@@ -204,19 +204,20 @@ function generateDocumentHTML(d) {
   }
 
   // v0.95追加: 合計行をテーブル内に統合（ページ分割しても自然な見た目）
+  // v0.96修正: inline styleで薄青背景を確実に消す
   itemRows += `
-      <tr class="totals-row">
-        <td colspan="3" class="totals-spacer-cell"></td>
+      <tr class="totals-row" style="background:transparent !important;">
+        <td colspan="3" class="totals-spacer-cell" style="border:none !important;background:transparent !important;"></td>
         <td class="right bold totals-label-cell">小計</td>
         <td class="right bold totals-value-cell">¥${d.subtotal.toLocaleString()}</td>
       </tr>
-      <tr class="totals-row">
-        <td colspan="3" class="totals-spacer-cell"></td>
+      <tr class="totals-row" style="background:transparent !important;">
+        <td colspan="3" class="totals-spacer-cell" style="border:none !important;background:transparent !important;"></td>
         <td class="right bold totals-label-cell">消費税（${d.taxRate}%）</td>
         <td class="right bold totals-value-cell">¥${d.tax.toLocaleString()}</td>
       </tr>
-      <tr class="totals-row grand-total-row">
-        <td colspan="3" class="totals-spacer-cell"></td>
+      <tr class="totals-row grand-total-row" style="background:transparent !important;">
+        <td colspan="3" class="totals-spacer-cell" style="border:none !important;background:transparent !important;"></td>
         <td class="right bold totals-gt-label-cell">合計</td>
         <td class="right bold totals-gt-value-cell">¥${d.total.toLocaleString()}</td>
       </tr>`;
