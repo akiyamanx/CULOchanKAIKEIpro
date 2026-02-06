@@ -62,15 +62,23 @@ function updateTemplateSetting() {
 
 // ==========================================
 // ロゴアップロード
+// v0.96: IndexedDBに保存
 // ==========================================
 function handleLogoUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
   
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     const logoData = e.target.result;
-    localStorage.setItem('reform_app_logo', logoData);
+    
+    // v0.96: IDBに保存（フォールバック: LocalStorage）
+    try {
+      await saveLogoToIDB(logoData);
+    } catch (err) {
+      console.warn('[settings] IDBロゴ保存失敗、LSにフォールバック:', err);
+      localStorage.setItem('reform_app_logo', logoData);
+    }
     
     document.getElementById('logoPreview').src = logoData;
     document.getElementById('logoPreview').style.display = 'block';
@@ -79,7 +87,9 @@ function handleLogoUpload(event) {
   reader.readAsDataURL(file);
 }
 
-function clearLogo() {
+async function clearLogo() {
+  // v0.96: IDB + LS両方削除
+  try { await deleteLogoFromIDB(); } catch(e) {}
   localStorage.removeItem('reform_app_logo');
   document.getElementById('logoPreview').style.display = 'none';
   document.getElementById('logoPlaceholder').style.display = 'block';
@@ -88,15 +98,23 @@ function clearLogo() {
 
 // ==========================================
 // 印鑑アップロード・背景透過処理
+// v0.96: IndexedDBに保存
 // ==========================================
 function handleStampUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
   
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     const stampData = e.target.result;
-    localStorage.setItem('reform_app_stamp_original', stampData);
+    
+    // v0.96: オリジナルをIDBに保存
+    try {
+      await saveImageToIDB('app_stamp_original', stampData);
+    } catch (err) {
+      console.warn('[settings] IDB印鑑原本保存失敗、LSにフォールバック:', err);
+      localStorage.setItem('reform_app_stamp_original', stampData);
+    }
     
     document.getElementById('stampOriginal').src = stampData;
     document.getElementById('stampOriginal').style.display = 'block';
@@ -108,8 +126,15 @@ function handleStampUpload(event) {
   reader.readAsDataURL(file);
 }
 
-function reprocessStamp() {
-  const originalData = localStorage.getItem('reform_app_stamp_original');
+async function reprocessStamp() {
+  // v0.96: IDB優先で原本を取得
+  let originalData = null;
+  try {
+    originalData = await getStampOriginalFromIDB();
+  } catch(e) {}
+  if (!originalData) {
+    originalData = localStorage.getItem('reform_app_stamp_original');
+  }
   if (originalData) {
     processStampImage(originalData);
   }
@@ -117,7 +142,7 @@ function reprocessStamp() {
 
 function processStampImage(imageData) {
   const img = new Image();
-  img.onload = () => {
+  img.onload = async () => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
@@ -156,7 +181,14 @@ function processStampImage(imageData) {
     
     // 処理後の画像を保存
     const processedData = canvas.toDataURL('image/png');
-    localStorage.setItem('reform_app_stamp', processedData);
+    
+    // v0.96: IDBに保存
+    try {
+      await saveImageToIDB('app_stamp', processedData);
+    } catch (err) {
+      console.warn('[settings] IDB印鑑保存失敗、LSにフォールバック:', err);
+      localStorage.setItem('reform_app_stamp', processedData);
+    }
     
     document.getElementById('stampProcessed').src = processedData;
     document.getElementById('stampProcessed').style.display = 'block';
@@ -164,7 +196,9 @@ function processStampImage(imageData) {
   img.src = imageData;
 }
 
-function clearStamp() {
+async function clearStamp() {
+  // v0.96: IDB + LS両方削除
+  try { await deleteStampFromIDB(); } catch(e) {}
   localStorage.removeItem('reform_app_stamp');
   localStorage.removeItem('reform_app_stamp_original');
   document.getElementById('stampOriginal').style.display = 'none';
@@ -254,6 +288,14 @@ function saveSettings() {
     // companyLogo: 削除（reform_app_logoに保存済み）
     // companyStamp: 削除（reform_app_stampに保存済み）
     stampThreshold: document.getElementById('stampThreshold').value,
+    // v0.96: ロゴ調整
+    logoWidth: document.getElementById('logoWidth').value,
+    logoOffsetX: document.getElementById('logoOffsetX').value,
+    logoOffsetY: document.getElementById('logoOffsetY').value,
+    // v0.96: 印鑑調整
+    stampSize: document.getElementById('stampSize').value,
+    stampOffsetX: document.getElementById('stampOffsetX').value,
+    stampOffsetY: document.getElementById('stampOffsetY').value,
     companyName: document.getElementById('companyName').value,
     postalCode: document.getElementById('postalCode').value,
     address: document.getElementById('address').value,
@@ -305,29 +347,55 @@ function loadSettings() {
   const templateRadio = document.querySelector(`input[name="template"][value="${settings.template || 'simple'}"]`);
   if (templateRadio) templateRadio.checked = true;
   
-  // ロゴ
-  const logoData = localStorage.getItem('reform_app_logo');
-  if (logoData) {
-    document.getElementById('logoPreview').src = logoData;
-    document.getElementById('logoPreview').style.display = 'block';
-    document.getElementById('logoPlaceholder').style.display = 'none';
-  }
+  // ロゴ（v0.96: IDB対応）
+  getLogoFromIDB().then(function(logoData) {
+    if (logoData) {
+      document.getElementById('logoPreview').src = logoData;
+      document.getElementById('logoPreview').style.display = 'block';
+      document.getElementById('logoPlaceholder').style.display = 'none';
+    }
+  }).catch(function() {});
   
-  // 印鑑
-  const stampData = localStorage.getItem('reform_app_stamp');
-  const stampOriginalData = localStorage.getItem('reform_app_stamp_original');
-  if (stampOriginalData) {
-    document.getElementById('stampOriginal').src = stampOriginalData;
-    document.getElementById('stampOriginal').style.display = 'block';
-    document.getElementById('stampPlaceholder').style.display = 'none';
-  }
-  if (stampData) {
-    document.getElementById('stampProcessed').src = stampData;
-    document.getElementById('stampProcessed').style.display = 'block';
-  }
+  // 印鑑（v0.96: IDB対応）
+  getStampFromIDB().then(function(stampData) {
+    if (stampData) {
+      document.getElementById('stampProcessed').src = stampData;
+      document.getElementById('stampProcessed').style.display = 'block';
+    }
+  }).catch(function() {});
+  
+  getStampOriginalFromIDB().then(function(stampOriginalData) {
+    if (stampOriginalData) {
+      document.getElementById('stampOriginal').src = stampOriginalData;
+      document.getElementById('stampOriginal').style.display = 'block';
+      document.getElementById('stampPlaceholder').style.display = 'none';
+    }
+  }).catch(function() {});
   
   // 透過感度
   document.getElementById('stampThreshold').value = settings.stampThreshold || 200;
+  
+  // v0.96: ロゴ調整値の復元
+  var logoW = settings.logoWidth || 35;
+  var logoOX = settings.logoOffsetX || 0;
+  var logoOY = settings.logoOffsetY || 0;
+  document.getElementById('logoWidth').value = logoW;
+  document.getElementById('logoOffsetX').value = logoOX;
+  document.getElementById('logoOffsetY').value = logoOY;
+  document.getElementById('logoWidthValue').textContent = logoW;
+  document.getElementById('logoOffsetXValue').textContent = logoOX;
+  document.getElementById('logoOffsetYValue').textContent = logoOY;
+  
+  // v0.96: 印鑑調整値の復元
+  var stSize = settings.stampSize || 22;
+  var stOX = settings.stampOffsetX || 0;
+  var stOY = settings.stampOffsetY || -5;
+  document.getElementById('stampSize').value = stSize;
+  document.getElementById('stampOffsetX').value = stOX;
+  document.getElementById('stampOffsetY').value = stOY;
+  document.getElementById('stampSizeValue').textContent = stSize;
+  document.getElementById('stampOffsetXValue').textContent = stOX;
+  document.getElementById('stampOffsetYValue').textContent = stOY;
   
   document.getElementById('geminiApiKey').value = settings.geminiApiKey || '';
   document.getElementById('useGeminiForVoice').checked = settings.useGeminiForVoice || false;
@@ -359,7 +427,7 @@ function loadSettings() {
 // ==========================================
 // パスワード管理
 // ==========================================
-function checkPasswordOnLoad() { return; // ★ パスワード無効化中（将来有効化を検討）
+function checkPasswordOnLoad() { return; // パスワード無効化
   const savedPassword = localStorage.getItem('reform_app_password');
   if (savedPassword) {
     document.getElementById('lock-screen').classList.remove('hidden');
@@ -798,8 +866,9 @@ function formatBytes(bytes) {
 
 /**
  * ストレージ使用量の表示を更新
+ * v0.96: IndexedDB使用量も表示
  */
-function updateStorageUsageDisplay() {
+async function updateStorageUsageDisplay() {
   var displayEl = document.getElementById('storageUsageDisplay');
   if (!displayEl) return;
   
@@ -811,9 +880,10 @@ function updateStorageUsageDisplay() {
   var barColor = percent > 80 ? '#ef4444' : percent > 60 ? '#f59e0b' : '#22c55e';
   var statusText = percent > 80 ? '⚠️ 容量が逼迫しています' : percent > 60 ? '💡 余裕はありますが注意' : '✅ 余裕あり';
   
-  // メインバー
+  // メインバー（LocalStorage）
   var html = '';
   html += '<div style="margin-bottom: 8px;">';
+  html += '  <div style="font-size: 12px; font-weight: bold; color: #0369a1; margin-bottom: 6px;">📦 LocalStorage</div>';
   html += '  <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">';
   html += '    <span>使用量: ' + usedMB + ' MB / 約' + maxMB + ' MB</span>';
   html += '    <span>' + percent + '%</span>';
@@ -823,6 +893,18 @@ function updateStorageUsageDisplay() {
   html += '  </div>';
   html += '  <div style="font-size: 11px; color: #64748b; margin-top: 4px;">' + statusText + '</div>';
   html += '</div>';
+  
+  // v0.96: IndexedDB使用量
+  try {
+    var idbEst = await getIDBStorageEstimate();
+    if (idbEst) {
+      html += '<div style="margin-top: 12px; padding: 10px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">';
+      html += '  <div style="font-size: 12px; font-weight: bold; color: #166534; margin-bottom: 4px;">🗄️ IndexedDB（画像データ）</div>';
+      html += '  <div style="font-size: 11px; color: #374151;">使用量: ' + idbEst.usageMB + ' MB / ' + idbEst.quotaMB + ' MB</div>';
+      html += '  <div style="font-size: 10px; color: #6b7280; margin-top: 2px;">💡 レシート画像・ロゴ・印鑑はここに保存されます（容量たっぷり！）</div>';
+      html += '</div>';
+    }
+  } catch(e) {}
   
   // 内訳（上位5件＋画像系のみ表示）
   html += '<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #bae6fd;">';
@@ -877,3 +959,314 @@ function updateStorageUsageDisplay() {
     setTimeout(autoHookStorageDisplay, 300);
   }
 })();
+
+
+// ==========================================
+// IndexedDB診断ツール（v0.96追加）
+// ==========================================
+
+/**
+ * IDBの中身を確認して結果を表示する診断関数
+ */
+async function runIDBDiagnostic() {
+  var resultEl = document.getElementById('idbDiagnosticResult');
+  if (!resultEl) return;
+  
+  resultEl.innerHTML = '<div style="font-size: 12px; color: #6b7280; padding: 8px;">🔍 診断中...</div>';
+  
+  try {
+    var html = '';
+    
+    // 1. IDB接続チェック
+    var db = await getDB();
+    html += '<div style="padding: 2px 0; font-size: 12px;">✅ IndexedDB接続: OK</div>';
+    
+    // 2. 保存済み画像キー一覧
+    var keys = await getAllImageKeys();
+    html += '<div style="padding: 2px 0; font-size: 12px;">📦 IDB保存画像: <strong>' + keys.length + '件</strong></div>';
+    
+    if (keys.length > 0) {
+      // キーを分類表示
+      var logoKeys = keys.filter(function(k) { return k === 'app_logo'; });
+      var stampKeys = keys.filter(function(k) { return k.startsWith('app_stamp'); });
+      var receiptKeys = keys.filter(function(k) { return k.startsWith('receipt_img_'); });
+      var otherKeys = keys.filter(function(k) { return !k.startsWith('app_') && !k.startsWith('receipt_img_'); });
+      
+      html += '<div style="margin: 6px 0; padding: 8px; background: #f0fdf4; border-radius: 6px; font-size: 11px; line-height: 1.8;">';
+      html += '  🖼️ ロゴ: ' + (logoKeys.length > 0 ? '<span style="color:#166534;">IDBに保存済み ✓</span>' : '<span style="color:#9ca3af;">なし</span>') + '<br>';
+      html += '  🔏 印鑑: ' + (stampKeys.length > 0 ? '<span style="color:#166534;">IDBに保存済み ✓ (' + stampKeys.length + '件)</span>' : '<span style="color:#9ca3af;">なし</span>') + '<br>';
+      html += '  📷 レシート画像: <span style="color:#166534;">' + receiptKeys.length + '件</span>';
+      if (otherKeys.length > 0) {
+        html += '<br>  📋 その他: ' + otherKeys.length + '件';
+      }
+      html += '</div>';
+    }
+    
+    // 3. LocalStorageの旧画像データ残存チェック
+    var lsLogo = localStorage.getItem('reform_app_logo');
+    var lsStamp = localStorage.getItem('reform_app_stamp');
+    var lsStampOrig = localStorage.getItem('reform_app_stamp_original');
+    
+    // レシート履歴のimageData残存チェック
+    var lsHistRaw = localStorage.getItem('reform_app_receipt_history');
+    var oldImageCount = 0;
+    var newRefCount = 0;
+    if (lsHistRaw) {
+      var histories = JSON.parse(lsHistRaw);
+      for (var i = 0; i < histories.length; i++) {
+        if (histories[i].imageData) oldImageCount++;
+        if (histories[i].imageRef) newRefCount++;
+      }
+    }
+    
+    var hasLegacy = lsLogo || lsStamp || lsStampOrig || oldImageCount > 0;
+    
+    if (hasLegacy) {
+      html += '<div style="margin: 6px 0; padding: 8px; background: #fef3c7; border-radius: 6px; font-size: 11px; line-height: 1.8; color: #92400e;">';
+      html += '  ⚠️ LocalStorageに残っている旧画像データ:<br>';
+      if (lsLogo) html += '  ・ロゴ (' + Math.round(lsLogo.length / 1024) + 'KB)<br>';
+      if (lsStamp) html += '  ・印鑑 (' + Math.round(lsStamp.length / 1024) + 'KB)<br>';
+      if (lsStampOrig) html += '  ・印鑑原本 (' + Math.round(lsStampOrig.length / 1024) + 'KB)<br>';
+      if (oldImageCount > 0) html += '  ・レシート画像(旧形式): ' + oldImageCount + '件<br>';
+      html += '</div>';
+    } else {
+      html += '<div style="margin: 6px 0; padding: 8px; background: #f0fdf4; border-radius: 6px; font-size: 11px; color: #166534;">';
+      html += '  ✅ LocalStorageに旧画像データなし（移行完了！）';
+      html += '</div>';
+    }
+    
+    // 4. レシート履歴のimageRef対応状況
+    if (lsHistRaw) {
+      var totalHist = JSON.parse(lsHistRaw).length;
+      html += '<div style="padding: 2px 0; font-size: 11px; color: #6b7280;">';
+      html += '📋 レシート履歴: ' + totalHist + '件（うちIDB参照: ' + newRefCount + '件、旧形式: ' + oldImageCount + '件）';
+      html += '</div>';
+    }
+    
+    // 5. 移行フラグ
+    var migFlag = localStorage.getItem('reform_app_idb_migration_v1');
+    html += '<div style="padding: 2px 0; font-size: 11px; color: #6b7280;">🏷️ 移行フラグ: ' + (migFlag === 'done' ? '✅ 完了' : '⏳ 未完了') + '</div>';
+    
+    resultEl.innerHTML = '<div style="padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">' +
+      '<div style="font-size: 13px; font-weight: bold; color: #0369a1; margin-bottom: 6px;">🔍 IndexedDB 診断結果</div>' +
+      html + '</div>';
+    
+  } catch (e) {
+    resultEl.innerHTML = '<div style="padding: 10px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; font-size: 12px; color: #dc2626;">❌ 診断エラー: ' + e.message + '</div>';
+  }
+}
+
+
+// ==========================================
+// レイアウト調整モーダル（v0.96）
+// プレビュー付きでロゴ・印鑑のサイズ＆位置を調整
+// ==========================================
+
+/**
+ * プレビュー付きレイアウト調整モーダルを開く
+ */
+async function openLayoutAdjuster() {
+  // 既存モーダルがあれば削除
+  var existing = document.getElementById('layoutAdjusterModal');
+  if (existing) existing.remove();
+
+  // 現在の設定値を取得
+  var logoW = parseInt(document.getElementById('logoWidth').value) || 35;
+  var logoOX = parseInt(document.getElementById('logoOffsetX').value) || 0;
+  var logoOY = parseInt(document.getElementById('logoOffsetY').value) || 0;
+  var stSize = parseInt(document.getElementById('stampSize').value) || 22;
+  var stOX = parseInt(document.getElementById('stampOffsetX').value) || 0;
+  var stOY = parseInt(document.getElementById('stampOffsetY').value) || -5;
+
+  // IDBからロゴ・印鑑を取得
+  var logoData = null;
+  var stampData = null;
+  try {
+    logoData = await getLogoFromIDB();
+    stampData = await getStampFromIDB();
+  } catch(e) {}
+
+  // 設定から会社情報を取得
+  var settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
+  var companyName = settings.companyName || '株式会社サンプル';
+  var postalCode = settings.postalCode || '000-0000';
+  var address = settings.address || '東京都千代田区1-1-1';
+  var phone = settings.phone || '03-0000-0000';
+
+  // モーダルHTMLを構築
+  var modal = document.createElement('div');
+  modal.id = 'layoutAdjusterModal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;display:flex;flex-direction:column;';
+
+  modal.innerHTML = `
+    <div style="background:white;flex:1;display:flex;flex-direction:column;overflow:hidden;">
+      <!-- ヘッダー -->
+      <div style="padding:10px 16px;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);color:white;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+        <span style="font-size:15px;font-weight:bold;">📐 レイアウト調整</span>
+        <button onclick="closeLayoutAdjuster()" style="background:rgba(255,255,255,0.2);border:none;color:white;font-size:18px;width:36px;height:36px;border-radius:50%;cursor:pointer;">✕</button>
+      </div>
+      
+      <!-- プレビューエリア（上半分） -->
+      <div style="flex:1;overflow:auto;background:#e2e8f0;padding:8px;min-height:0;">
+        <div id="layoutPreview" style="background:white;margin:0 auto;padding:5mm 6mm;box-shadow:0 2px 8px rgba(0,0,0,0.15);border-radius:2px;width:100%;max-width:380px;font-family:'Hiragino Kaku Gothic Pro',sans-serif;font-size:8px;line-height:1.4;position:relative;">
+          <!-- ヘッダー部（タイトル＋会社情報） -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3mm;padding-bottom:2mm;border-bottom:2px solid #2c5282;">
+            <div style="flex:1;">
+              <div style="font-size:16px;font-weight:bold;letter-spacing:4px;color:#1a365d;margin-bottom:1mm;">御 見 積 書</div>
+              <div style="width:100%;height:2px;background:linear-gradient(to right,#2c5282,#4299e1,transparent);"></div>
+            </div>
+            <div id="previewCompanyBlock" style="text-align:right;font-size:7px;line-height:1.6;position:relative;min-width:45%;">
+              ${logoData ? '<img id="previewLogo" src="' + logoData + '" style="max-width:' + logoW*0.5 + 'mm;display:block;margin-left:auto;margin-bottom:1mm;position:relative;">' : '<div id="previewLogo" style="display:none;"></div>'}
+              <div style="font-size:9px;font-weight:bold;margin-bottom:0.5mm;">${escapeHtml(companyName)}</div>
+              <div>〒${escapeHtml(postalCode)} ${escapeHtml(address)}</div>
+              <div>TEL: ${escapeHtml(phone)}</div>
+              ${stampData ? '<img id="previewStamp" src="' + stampData + '" style="position:absolute;bottom:' + (-stOY*0.5) + 'mm;right:' + (-stOX*0.5) + 'mm;width:' + stSize*0.5 + 'mm;height:' + stSize*0.5 + 'mm;opacity:0.85;">' : '<div id="previewStamp" style="display:none;"></div>'}
+            </div>
+          </div>
+          <!-- 宛先 -->
+          <div style="display:flex;justify-content:space-between;margin-bottom:2mm;">
+            <div>
+              <div style="font-size:11px;font-weight:bold;padding-bottom:1mm;border-bottom:1px solid #1a1a1a;display:inline-block;margin-bottom:1mm;">サンプル工務店 様</div>
+              <div style="font-size:8px;margin-top:1mm;">件名: 設備改修工事</div>
+            </div>
+            <div style="text-align:right;font-size:7px;line-height:1.8;">
+              <div>見積番号: EST-20260206-001</div>
+              <div>見積日: 2026年02月06日</div>
+            </div>
+          </div>
+          <!-- 合計金額枠 -->
+          <div style="border:2px solid #2c5282;padding:1.5mm 3mm;margin-bottom:2mm;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:9px;font-weight:bold;color:#2c5282;">合計金額（税込）</span>
+            <span style="font-size:14px;font-weight:bold;color:#2c5282;">¥1,234,567</span>
+          </div>
+          <!-- 明細テーブル（簡易） -->
+          <table style="width:100%;border-collapse:collapse;font-size:7px;margin-bottom:2mm;">
+            <thead><tr style="background:#2c5282;color:white;">
+              <th style="padding:1mm;width:6mm;border:0.5px solid #ccc;">No</th>
+              <th style="padding:1mm;border:0.5px solid #ccc;">品名</th>
+              <th style="padding:1mm;width:8mm;border:0.5px solid #ccc;">数量</th>
+              <th style="padding:1mm;width:14mm;border:0.5px solid #ccc;">単価</th>
+              <th style="padding:1mm;width:14mm;border:0.5px solid #ccc;">金額</th>
+            </tr></thead>
+            <tbody>
+              <tr><td style="text-align:center;padding:1mm;border:0.5px solid #e2e8f0;">1</td><td style="padding:1mm;border:0.5px solid #e2e8f0;">配管部材 一式</td><td style="text-align:center;padding:1mm;border:0.5px solid #e2e8f0;">1</td><td style="text-align:right;padding:1mm;border:0.5px solid #e2e8f0;">¥500,000</td><td style="text-align:right;padding:1mm;border:0.5px solid #e2e8f0;">¥500,000</td></tr>
+              <tr style="background:#f7fafc;"><td style="text-align:center;padding:1mm;border:0.5px solid #e2e8f0;">2</td><td style="padding:1mm;border:0.5px solid #e2e8f0;">施工費</td><td style="text-align:center;padding:1mm;border:0.5px solid #e2e8f0;">3日</td><td style="text-align:right;padding:1mm;border:0.5px solid #e2e8f0;">¥200,000</td><td style="text-align:right;padding:1mm;border:0.5px solid #e2e8f0;">¥600,000</td></tr>
+              <tr><td style="text-align:center;padding:1mm;border:0.5px solid #e2e8f0;">3</td><td style="padding:1mm;border:0.5px solid #e2e8f0;">諸経費</td><td style="text-align:center;padding:1mm;border:0.5px solid #e2e8f0;">1</td><td style="text-align:right;padding:1mm;border:0.5px solid #e2e8f0;">¥22,300</td><td style="text-align:right;padding:1mm;border:0.5px solid #e2e8f0;">¥22,300</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- 調整コントロール（下半分・スクロール可能） -->
+      <div style="flex-shrink:0;max-height:50%;overflow-y:auto;padding:12px 16px;background:#f8fafc;border-top:2px solid #e2e8f0;">
+        
+        <!-- ロゴ調整 -->
+        <div style="margin-bottom:12px;padding:10px;background:#f0f9ff;border-radius:8px;border:1px solid #bae6fd;">
+          <div style="font-size:12px;font-weight:bold;color:#0369a1;margin-bottom:8px;">🖼️ ロゴ調整</div>
+          <div style="margin-bottom:6px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#6b7280;"><span>サイズ（幅）</span><span id="adjLogoWidthValue">${logoW}mm</span></div>
+            <input type="range" id="adjLogoWidth" min="10" max="70" value="${logoW}" style="width:100%;" oninput="updateLayoutPreview()">
+          </div>
+          <div style="margin-bottom:6px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#6b7280;"><span>上下 ↕</span><span id="adjLogoOffsetYValue">${logoOY}mm</span></div>
+            <input type="range" id="adjLogoOffsetY" min="-10" max="15" value="${logoOY}" style="width:100%;" oninput="updateLayoutPreview()">
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#6b7280;"><span>左右 ↔</span><span id="adjLogoOffsetXValue">${logoOX}mm</span></div>
+            <input type="range" id="adjLogoOffsetX" min="-20" max="20" value="${logoOX}" style="width:100%;" oninput="updateLayoutPreview()">
+          </div>
+        </div>
+        
+        <!-- 印鑑調整 -->
+        <div style="margin-bottom:12px;padding:10px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;">
+          <div style="font-size:12px;font-weight:bold;color:#166534;margin-bottom:8px;">🔏 印鑑調整</div>
+          <div style="margin-bottom:6px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#6b7280;"><span>サイズ</span><span id="adjStampSizeValue">${stSize}mm</span></div>
+            <input type="range" id="adjStampSize" min="8" max="40" value="${stSize}" style="width:100%;" oninput="updateLayoutPreview()">
+          </div>
+          <div style="margin-bottom:6px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#6b7280;"><span>上下 ↕</span><span id="adjStampOffsetYValue">${stOY}mm</span></div>
+            <input type="range" id="adjStampOffsetY" min="-20" max="10" value="${stOY}" style="width:100%;" oninput="updateLayoutPreview()">
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#6b7280;"><span>左右 ↔</span><span id="adjStampOffsetXValue">${stOX}mm</span></div>
+            <input type="range" id="adjStampOffsetX" min="-30" max="10" value="${stOX}" style="width:100%;" oninput="updateLayoutPreview()">
+          </div>
+        </div>
+        
+        <!-- 保存ボタン -->
+        <div style="display:flex;gap:8px;">
+          <button onclick="saveLayoutAdjustment()" style="flex:1;padding:12px;background:#3b82f6;color:white;border:none;border-radius:8px;font-size:14px;font-weight:bold;cursor:pointer;">✅ この設定で保存</button>
+          <button onclick="closeLayoutAdjuster()" style="padding:12px 16px;background:#e5e7eb;color:#374151;border:none;border-radius:8px;font-size:14px;cursor:pointer;">キャンセル</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+}
+
+/**
+ * プレビューをリアルタイム更新
+ */
+function updateLayoutPreview() {
+  // スライダー値を読み取り
+  var logoW = parseInt(document.getElementById('adjLogoWidth').value);
+  var logoOX = parseInt(document.getElementById('adjLogoOffsetX').value);
+  var logoOY = parseInt(document.getElementById('adjLogoOffsetY').value);
+  var stSize = parseInt(document.getElementById('adjStampSize').value);
+  var stOX = parseInt(document.getElementById('adjStampOffsetX').value);
+  var stOY = parseInt(document.getElementById('adjStampOffsetY').value);
+
+  // 値表示を更新
+  document.getElementById('adjLogoWidthValue').textContent = logoW + 'mm';
+  document.getElementById('adjLogoOffsetXValue').textContent = logoOX + 'mm';
+  document.getElementById('adjLogoOffsetYValue').textContent = logoOY + 'mm';
+  document.getElementById('adjStampSizeValue').textContent = stSize + 'mm';
+  document.getElementById('adjStampOffsetXValue').textContent = stOX + 'mm';
+  document.getElementById('adjStampOffsetYValue').textContent = stOY + 'mm';
+
+  // プレビューのロゴを更新（縮小率0.5）
+  var logoEl = document.getElementById('previewLogo');
+  if (logoEl && logoEl.tagName === 'IMG') {
+    logoEl.style.maxWidth = (logoW * 0.5) + 'mm';
+    logoEl.style.top = (logoOY * 0.5) + 'mm';
+    logoEl.style.right = (-logoOX * 0.5) + 'mm';
+  }
+
+  // プレビューの印鑑を更新（縮小率0.5）
+  var stampEl = document.getElementById('previewStamp');
+  if (stampEl && stampEl.tagName === 'IMG') {
+    stampEl.style.width = (stSize * 0.5) + 'mm';
+    stampEl.style.height = (stSize * 0.5) + 'mm';
+    stampEl.style.bottom = (-stOY * 0.5) + 'mm';
+    stampEl.style.right = (-stOX * 0.5) + 'mm';
+  }
+}
+
+/**
+ * 調整値を保存してモーダルを閉じる
+ */
+function saveLayoutAdjustment() {
+  // モーダル内のスライダー値を設定画面のhidden inputに転送
+  document.getElementById('logoWidth').value = document.getElementById('adjLogoWidth').value;
+  document.getElementById('logoOffsetX').value = document.getElementById('adjLogoOffsetX').value;
+  document.getElementById('logoOffsetY').value = document.getElementById('adjLogoOffsetY').value;
+  document.getElementById('stampSize').value = document.getElementById('adjStampSize').value;
+  document.getElementById('stampOffsetX').value = document.getElementById('adjStampOffsetX').value;
+  document.getElementById('stampOffsetY').value = document.getElementById('adjStampOffsetY').value;
+
+  // 設定を保存
+  saveSettings();
+  closeLayoutAdjuster();
+  
+  alert('✅ ロゴ＆印鑑の配置を保存しました！\n見積書・請求書に反映されます。');
+}
+
+/**
+ * レイアウト調整モーダルを閉じる
+ */
+function closeLayoutAdjuster() {
+  var modal = document.getElementById('layoutAdjusterModal');
+  if (modal) modal.remove();
+}

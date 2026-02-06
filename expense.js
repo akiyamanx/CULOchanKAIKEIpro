@@ -20,8 +20,72 @@ function initExpensesScreen() {
 
 
 // ===== 価格比較検索機能 =====
-// ★ v0.96: searchOnSite, clearPriceSearch, startVoiceSearch は
-//    price-search.js に移行済み。このファイルからは削除。
+// searchSites は globals.js で定義
+
+function searchOnSite(siteName) {
+  const keyword = document.getElementById('priceSearchKeyword').value.trim();
+  
+  if (!keyword) {
+    alert('検索する商品名を入力してください');
+    document.getElementById('priceSearchKeyword').focus();
+    return;
+  }
+  
+  const site = searchSites[siteName];
+  if (site) {
+    const searchUrl = site.url + encodeURIComponent(keyword);
+    window.open(searchUrl, '_blank');
+  }
+}
+
+function clearPriceSearch() {
+  document.getElementById('priceSearchKeyword').value = '';
+  document.getElementById('priceSearchKeyword').focus();
+}
+
+function startVoiceSearch() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    alert('このブラウザは音声認識に対応していません。\nChromeブラウザをお使いください。');
+    return;
+  }
+  
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'ja-JP';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  
+  // 音声認識中の表示
+  const input = document.getElementById('priceSearchKeyword');
+  const originalPlaceholder = input.placeholder;
+  input.placeholder = '🎤 聞いています...';
+  input.style.background = '#fef3c7';
+  
+  recognition.onresult = function(event) {
+    const transcript = event.results[0][0].transcript;
+    input.value = transcript;
+    input.placeholder = originalPlaceholder;
+    input.style.background = '';
+    alert('「' + transcript + '」で検索できます！\n\nサイトをタップして検索してください。');
+  };
+  
+  recognition.onerror = function(event) {
+    input.placeholder = originalPlaceholder;
+    input.style.background = '';
+    if (event.error === 'not-allowed') {
+      alert('マイクへのアクセスが許可されていません。');
+    } else {
+      alert('音声認識に失敗しました。');
+    }
+  };
+  
+  recognition.onend = function() {
+    input.placeholder = originalPlaceholder;
+    input.style.background = '';
+  };
+  
+  recognition.start();
+}
 
 // ===== 音声コマンド機能 =====
 
