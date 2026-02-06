@@ -322,6 +322,17 @@
         </div>
       </div>
       
+      <!-- ストレージ使用量（v0.95.2追加、v0.96 IDB対応） -->
+      <div class="form-section">
+        <h2>■ ストレージ使用量</h2>
+        <div id="storageUsageDisplay" style="margin-bottom: 12px;">
+          <div style="font-size: 13px; color: #475569; margin-bottom: 8px;">読み込み中...</div>
+        </div>
+        <button class="data-btn backup" onclick="updateStorageUsageDisplay()" style="font-size: 13px;">🔄 使用量を更新</button>
+        <button class="data-btn backup" onclick="runIDBDiagnostic()" style="font-size: 13px; margin-top: 8px;">🔍 IndexedDB診断</button>
+        <div id="idbDiagnosticResult" style="margin-top: 8px;"></div>
+      </div>
+
       <!-- データ管理 -->
       <div class="form-section">
         <h2>■ データ管理</h2>

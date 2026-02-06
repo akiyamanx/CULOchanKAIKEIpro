@@ -929,3 +929,99 @@ async function updateStorageUsageDisplay() {
     setTimeout(autoHookStorageDisplay, 300);
   }
 })();
+
+
+// ==========================================
+// IndexedDB診断ツール（v0.96追加）
+// ==========================================
+
+/**
+ * IDBの中身を確認して結果を表示する診断関数
+ */
+async function runIDBDiagnostic() {
+  var resultEl = document.getElementById('idbDiagnosticResult');
+  if (!resultEl) return;
+  
+  resultEl.innerHTML = '<div style="font-size: 12px; color: #6b7280; padding: 8px;">🔍 診断中...</div>';
+  
+  try {
+    var html = '';
+    
+    // 1. IDB接続チェック
+    var db = await getDB();
+    html += '<div style="padding: 2px 0; font-size: 12px;">✅ IndexedDB接続: OK</div>';
+    
+    // 2. 保存済み画像キー一覧
+    var keys = await getAllImageKeys();
+    html += '<div style="padding: 2px 0; font-size: 12px;">📦 IDB保存画像: <strong>' + keys.length + '件</strong></div>';
+    
+    if (keys.length > 0) {
+      // キーを分類表示
+      var logoKeys = keys.filter(function(k) { return k === 'app_logo'; });
+      var stampKeys = keys.filter(function(k) { return k.startsWith('app_stamp'); });
+      var receiptKeys = keys.filter(function(k) { return k.startsWith('receipt_img_'); });
+      var otherKeys = keys.filter(function(k) { return !k.startsWith('app_') && !k.startsWith('receipt_img_'); });
+      
+      html += '<div style="margin: 6px 0; padding: 8px; background: #f0fdf4; border-radius: 6px; font-size: 11px; line-height: 1.8;">';
+      html += '  🖼️ ロゴ: ' + (logoKeys.length > 0 ? '<span style="color:#166534;">IDBに保存済み ✓</span>' : '<span style="color:#9ca3af;">なし</span>') + '<br>';
+      html += '  🔏 印鑑: ' + (stampKeys.length > 0 ? '<span style="color:#166534;">IDBに保存済み ✓ (' + stampKeys.length + '件)</span>' : '<span style="color:#9ca3af;">なし</span>') + '<br>';
+      html += '  📷 レシート画像: <span style="color:#166534;">' + receiptKeys.length + '件</span>';
+      if (otherKeys.length > 0) {
+        html += '<br>  📋 その他: ' + otherKeys.length + '件';
+      }
+      html += '</div>';
+    }
+    
+    // 3. LocalStorageの旧画像データ残存チェック
+    var lsLogo = localStorage.getItem('reform_app_logo');
+    var lsStamp = localStorage.getItem('reform_app_stamp');
+    var lsStampOrig = localStorage.getItem('reform_app_stamp_original');
+    
+    // レシート履歴のimageData残存チェック
+    var lsHistRaw = localStorage.getItem('reform_app_receipt_history');
+    var oldImageCount = 0;
+    var newRefCount = 0;
+    if (lsHistRaw) {
+      var histories = JSON.parse(lsHistRaw);
+      for (var i = 0; i < histories.length; i++) {
+        if (histories[i].imageData) oldImageCount++;
+        if (histories[i].imageRef) newRefCount++;
+      }
+    }
+    
+    var hasLegacy = lsLogo || lsStamp || lsStampOrig || oldImageCount > 0;
+    
+    if (hasLegacy) {
+      html += '<div style="margin: 6px 0; padding: 8px; background: #fef3c7; border-radius: 6px; font-size: 11px; line-height: 1.8; color: #92400e;">';
+      html += '  ⚠️ LocalStorageに残っている旧画像データ:<br>';
+      if (lsLogo) html += '  ・ロゴ (' + Math.round(lsLogo.length / 1024) + 'KB)<br>';
+      if (lsStamp) html += '  ・印鑑 (' + Math.round(lsStamp.length / 1024) + 'KB)<br>';
+      if (lsStampOrig) html += '  ・印鑑原本 (' + Math.round(lsStampOrig.length / 1024) + 'KB)<br>';
+      if (oldImageCount > 0) html += '  ・レシート画像(旧形式): ' + oldImageCount + '件<br>';
+      html += '</div>';
+    } else {
+      html += '<div style="margin: 6px 0; padding: 8px; background: #f0fdf4; border-radius: 6px; font-size: 11px; color: #166534;">';
+      html += '  ✅ LocalStorageに旧画像データなし（移行完了！）';
+      html += '</div>';
+    }
+    
+    // 4. レシート履歴のimageRef対応状況
+    if (lsHistRaw) {
+      var totalHist = JSON.parse(lsHistRaw).length;
+      html += '<div style="padding: 2px 0; font-size: 11px; color: #6b7280;">';
+      html += '📋 レシート履歴: ' + totalHist + '件（うちIDB参照: ' + newRefCount + '件、旧形式: ' + oldImageCount + '件）';
+      html += '</div>';
+    }
+    
+    // 5. 移行フラグ
+    var migFlag = localStorage.getItem('reform_app_idb_migration_v1');
+    html += '<div style="padding: 2px 0; font-size: 11px; color: #6b7280;">🏷️ 移行フラグ: ' + (migFlag === 'done' ? '✅ 完了' : '⏳ 未完了') + '</div>';
+    
+    resultEl.innerHTML = '<div style="padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">' +
+      '<div style="font-size: 13px; font-weight: bold; color: #0369a1; margin-bottom: 6px;">🔍 IndexedDB 診断結果</div>' +
+      html + '</div>';
+    
+  } catch (e) {
+    resultEl.innerHTML = '<div style="padding: 10px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; font-size: 12px; color: #dc2626;">❌ 診断エラー: ' + e.message + '</div>';
+  }
+}
