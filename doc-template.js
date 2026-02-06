@@ -495,6 +495,11 @@ function generateDocumentHTML(d) {
   }
 
   /* === 合計行（テーブル内統合） === */
+  /* ★ v0.96修正: tr:nth-child(even)の薄青背景を打ち消し */
+  .totals-row {
+    background: transparent !important;
+  }
+
   .totals-row .totals-spacer-cell {
     border: none !important;
     background: transparent !important;
