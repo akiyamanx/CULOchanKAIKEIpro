@@ -1,4 +1,5 @@
   <!-- ========== ヘルプ画面 ========== -->
+  <!-- v0.95 完全版ヘルプ - タブ切替式 -->
   <div id="help-screen" class="screen">
     <div class="header">
       <button class="back-btn" onclick="showScreen('home')" title="ホームに戻る">🏠</button>
@@ -7,115 +8,960 @@
     </div>
     
     <div class="form-container">
-      <!-- 基本的な使い方 -->
-      <div class="form-section">
-        <h2>📱 基本的な使い方</h2>
-        <div style="background: #f0f9ff; padding: 16px; border-radius: 12px; margin-bottom: 12px;">
-          <h3 style="font-size: 14px; color: #1e40af; margin-bottom: 8px;">📷 レシート読込</h3>
-          <p style="font-size: 13px; color: #64748b; line-height: 1.6;">
-            レシートを撮影すると、OCR技術で文字を読み取り、自動的に品名・金額を入力します。<br>
-            読み取った内容は「経費一覧」に保存されます。
-          </p>
-        </div>
-        <div style="background: #f0fdf4; padding: 16px; border-radius: 12px; margin-bottom: 12px;">
-          <h3 style="font-size: 14px; color: #166534; margin-bottom: 8px;">📝 見積書作成</h3>
-          <p style="font-size: 13px; color: #64748b; line-height: 1.6;">
-            品名マスターから材料を選んで見積書を作成できます。<br>
-            利益率を設定すると自動で売価を計算します。<br>
-            完成した見積書はPDFで出力できます。
-          </p>
-        </div>
-        <div style="background: #faf5ff; padding: 16px; border-radius: 12px; margin-bottom: 12px;">
-          <h3 style="font-size: 14px; color: #7c3aed; margin-bottom: 8px;">📄 請求書作成</h3>
-          <p style="font-size: 13px; color: #64748b; line-height: 1.6;">
-            見積書をベースに請求書を作成できます。<br>
-            顧客情報は「顧客管理」から呼び出せます。
-          </p>
-        </div>
-        <div style="background: #fef3c7; padding: 16px; border-radius: 12px;">
-          <h3 style="font-size: 14px; color: #b45309; margin-bottom: 8px;">📊 確定申告サポート</h3>
-          <p style="font-size: 13px; color: #64748b; line-height: 1.6;">
-            経費と売上を自動集計し、確定申告をサポートします。<br>
-            青色申告・白色申告どちらにも対応しています。
-          </p>
-        </div>
+
+      <!-- ==================== -->
+      <!-- タブ切替ナビゲーション -->
+      <!-- ==================== -->
+      <div id="helpTabs" style="display: flex; gap: 4px; margin-bottom: 16px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px;">
+        <button class="help-tab active" data-tab="quickstart" onclick="switchHelpTab('quickstart')" style="flex: 0 0 auto; padding: 10px 16px; border: 2px solid #3b82f6; background: #3b82f6; color: white; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;">🚀 クイックスタート</button>
+        <button class="help-tab" data-tab="features" onclick="switchHelpTab('features')" style="flex: 0 0 auto; padding: 10px 16px; border: 2px solid #d1d5db; background: white; color: #374151; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;">📱 機能説明</button>
+        <button class="help-tab" data-tab="faq" onclick="switchHelpTab('faq')" style="flex: 0 0 auto; padding: 10px 16px; border: 2px solid #d1d5db; background: white; color: #374151; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;">❓ FAQ</button>
+        <button class="help-tab" data-tab="api" onclick="switchHelpTab('api')" style="flex: 0 0 auto; padding: 10px 16px; border: 2px solid #d1d5db; background: white; color: #374151; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;">🔗 API設定</button>
       </div>
-      
-      <!-- API連携について -->
-      <div class="form-section">
-        <h2>🔗 API連携について</h2>
-        <div style="background: linear-gradient(135deg, #e0f2fe, #dbeafe); padding: 16px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #93c5fd;">
-          <h3 style="font-size: 15px; color: #1e40af; margin-bottom: 12px;">🤖 AI機能（Gemini API）</h3>
+
+      <!-- ====================================== -->
+      <!-- タブ1: クイックスタート -->
+      <!-- ====================================== -->
+      <div id="helpTab-quickstart" class="help-tab-content">
+
+        <div class="form-section" style="background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #93c5fd;">
+          <h2 style="color: #1e40af;">🚀 はじめての方へ</h2>
           <p style="font-size: 13px; color: #475569; line-height: 1.8; margin-bottom: 12px;">
-            GoogleのGemini AIを使って、レシートの読み取り精度を大幅に向上させることができます。
+            このアプリは、リフォーム・設備工事の<strong>見積書作成・請求書発行・経費管理・確定申告サポート</strong>をスマホ1台で行える業務アプリです。
           </p>
-          <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
-            <p style="font-size: 12px; color: #1e40af; font-weight: bold; margin-bottom: 8px;">✅ API連携のメリット</p>
-            <ul style="font-size: 12px; color: #64748b; line-height: 1.8; margin-left: 16px;">
-              <li>レシートの読み取り精度が大幅向上（手書き文字も読める！）</li>
-              <li>品名・金額を自動で分類</li>
-              <li>合計金額を自動計算</li>
-              <li>勘定科目を自動判定（確定申告で便利！）</li>
-            </ul>
-          </div>
-          <div style="background: white; padding: 12px; border-radius: 8px;">
-            <p style="font-size: 12px; color: #1e40af; font-weight: bold; margin-bottom: 8px;">📝 APIキーの取得方法</p>
-            <ol style="font-size: 12px; color: #64748b; line-height: 2; margin-left: 16px;">
-              <li><a href="https://ai.google.dev/" target="_blank" style="color: #2563eb;">Google AI Studio</a>にアクセス</li>
-              <li>Googleアカウントでログイン</li>
-              <li>「Get API key」をクリック</li>
-              <li>生成されたAPIキーをコピー</li>
-              <li>⚙️設定画面の「Gemini API Key」に貼り付け</li>
-            </ol>
+          <div style="background: white; padding: 14px; border-radius: 10px; border: 1px solid #bfdbfe;">
+            <p style="font-size: 12px; color: #1e40af; font-weight: bold; margin-bottom: 8px;">✨ 主な特徴</p>
+            <p style="font-size: 12px; color: #475569; line-height: 1.8;">
+              ・すべてのデータは端末内に保存（クラウド不要）<br>
+              ・オフラインでも動作（PWA対応）<br>
+              ・AIでレシートを自動読取（Gemini API）<br>
+              ・PDF/Excel出力・印刷対応<br>
+              ・音声入力で素早くデータ入力<br>
+              ・確定申告の帳簿を自動生成
+            </p>
           </div>
         </div>
-        <div style="background: #fef2f2; padding: 12px; border-radius: 8px; border: 1px solid #fecaca;">
-          <p style="font-size: 11px; color: #991b1b; line-height: 1.6;">
-            ⚠️ APIキーは大切に管理してください。他の人に共有しないでください。<br>
-            💡 APIなしでも基本的なOCR機能は使えます（Tesseract.js）
+
+        <!-- STEP1 -->
+        <div class="form-section">
+          <h2>📌 STEP 1：まず設定しよう</h2>
+          <p style="font-size: 13px; color: #475569; line-height: 1.8;">
+            ホーム画面右上の <strong>⚙️</strong> をタップして設定画面を開きます。最低限、以下を入力しておくと見積書・請求書がすぐ使えます。
+          </p>
+          <div style="background: #f0fdf4; padding: 12px; border-radius: 8px; margin-top: 8px;">
+            <p style="font-size: 12px; color: #166534; line-height: 1.8;">
+              ✅ <strong>会社名</strong>（屋号）<br>
+              ✅ <strong>住所・電話番号</strong><br>
+              ✅ <strong>振込先情報</strong>（請求書に記載）<br>
+              ✅ <strong>消費税率</strong>（デフォルト10%）<br>
+              💡 <strong>ロゴ・印鑑</strong>を登録すると見積書・請求書に反映されます
+            </p>
+          </div>
+        </div>
+
+        <!-- STEP2 -->
+        <div class="form-section">
+          <h2>📌 STEP 2：レシートを読み取ろう</h2>
+          <p style="font-size: 13px; color: #475569; line-height: 1.8;">
+            ホーム画面の「📷 レシート読込」から、現場で買った材料のレシートをカメラ撮影またはギャラリーから選択します。AIボタンを押すと品名・金額が自動入力されます。
+          </p>
+          <div style="background: #fef3c7; padding: 12px; border-radius: 8px; margin-top: 8px;">
+            <p style="font-size: 12px; color: #92400e; line-height: 1.8;">
+              💡 AI読取には <strong>Gemini APIキー</strong>（無料）が必要です。<br>
+              設定方法は「🔗 API設定」タブをご覧ください。
+            </p>
+          </div>
+        </div>
+
+        <!-- STEP3 -->
+        <div class="form-section">
+          <h2>📌 STEP 3：見積書を作ろう</h2>
+          <p style="font-size: 13px; color: #475569; line-height: 1.8;">
+            「📝 見積書作成」で材料と作業費を入力し、PDFまたはExcelで出力します。品名マスターから材料を選べるので入力が楽です。利益率を設定すると売価を自動計算してくれます。
+          </p>
+        </div>
+
+        <!-- STEP4 -->
+        <div class="form-section">
+          <h2>📌 STEP 4：請求書を発行しよう</h2>
+          <p style="font-size: 13px; color: #475569; line-height: 1.8;">
+            工事完了後は「📄 請求書作成」へ。保存済みの見積書から1タップで請求書に変換できます。振込先情報は設定画面の内容が自動反映されます。
+          </p>
+        </div>
+
+        <!-- STEP5 -->
+        <div class="form-section">
+          <h2>📌 STEP 5：確定申告に備えよう</h2>
+          <p style="font-size: 13px; color: #475569; line-height: 1.8;">
+            日々のレシート読取と経費帳入力を続けていくと、「📊 確定申告サポート」画面で年間の売上・経費・所得が自動集計されます。帳簿はCSV/JSONで出力可能です。
+          </p>
+        </div>
+
+        <div class="form-section" style="background: #faf5ff; border: 1px solid #e9d5ff;">
+          <p style="font-size: 13px; color: #7c3aed; text-align: center; line-height: 1.8;">
+            💜 このアプリは <strong>COCOMI CORE</strong> で動いています<br>
+            <span style="font-size: 11px; color: #9ca3af;">Powered by COCOMI OS | Since 2025</span>
           </p>
         </div>
       </div>
-      
-      <!-- よくある質問 -->
-      <div class="form-section">
-        <h2>❓ よくある質問</h2>
-        <div style="margin-bottom: 12px;">
-          <p style="font-size: 13px; font-weight: bold; color: #1e3a5f; margin-bottom: 4px;">Q. データはどこに保存されますか？</p>
-          <p style="font-size: 12px; color: #64748b; line-height: 1.6; padding-left: 12px;">
-            A. すべてのデータはお使いの端末（スマートフォン/PC）に保存されます。クラウドには送信されないので安心です。
-          </p>
+
+
+      <!-- ====================================== -->
+      <!-- タブ2: 全機能説明 -->
+      <!-- ====================================== -->
+      <div id="helpTab-features" class="help-tab-content" style="display: none;">
+
+        <!-- ======= 1. レシート読込 ======= -->
+        <div class="form-section">
+          <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="toggleHelpSection(this)">
+            <span style="font-size: 20px;">📷</span>
+            <h2 style="flex: 1; margin: 0;">レシート読込</h2>
+            <span class="help-toggle-icon" style="font-size: 18px; color: #9ca3af; transition: transform 0.2s;">▼</span>
+          </div>
+          <div class="help-section-body" style="margin-top: 12px;">
+            <p style="font-size: 13px; color: #475569; line-height: 1.8;">
+              ホームセンターなどで購入した材料のレシートを撮影し、AIで品名・金額を自動読取する機能です。読み取ったデータは「仕訳保存」で経費・材料データとして蓄積されます。
+            </p>
+            <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-top: 10px;">
+              <p style="font-size: 12px; font-weight: bold; color: #1e40af; margin-bottom: 6px;">できること</p>
+              <p style="font-size: 12px; color: #475569; line-height: 1.8;">
+                ・カメラ撮影 または ギャラリーから画像を選択<br>
+                ・<strong>複数枚のレシート</strong>をまとめて選択・結合してAI解析<br>
+                ・追加ボタンで画像を1枚ずつ追加も可能<br>
+                ・<strong>🤖 AIで読み取る（Gemini）</strong>で店名・日付・品目を自動入力<br>
+                ・品名マスターとの自動マッチング（登録済みの品名に変換）<br>
+                ・🎤 音声で品目の修正・追加ができる<br>
+                ・<strong>現場割り当て</strong>：品目ごとに「どの現場で使ったか」を設定可能<br>
+                ・新しい現場名の追加、全選択/個別選択で一括割当<br>
+                ・<strong>お客様名（工務店名）</strong>の入力に対応<br>
+                ・レシート画像も一緒に保存可能<br>
+                ・📋 履歴ボタンで過去のレシートを一覧・検索・再読み込み<br>
+                ・保存したレシートは見積書や請求書に反映可能
+              </p>
+            </div>
+            <div style="background: #fef3c7; padding: 10px; border-radius: 8px; margin-top: 8px;">
+              <p style="font-size: 11px; color: #92400e; line-height: 1.6;">
+                💡 AI読取には Gemini APIキー（無料取得可能）が必要です。設定は「🔗 API設定」タブを参照してください。
+              </p>
+            </div>
+          </div>
         </div>
-        <div style="margin-bottom: 12px;">
-          <p style="font-size: 13px; font-weight: bold; color: #1e3a5f; margin-bottom: 4px;">Q. 機種変更する場合は？</p>
-          <p style="font-size: 12px; color: #64748b; line-height: 1.6; padding-left: 12px;">
-            A. ⚙️設定画面の「データのバックアップ」でJSONファイルを保存し、新しい端末で「データの復元」を行ってください。
-          </p>
+
+        <!-- ======= 2. 見積書作成 ======= -->
+        <div class="form-section">
+          <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="toggleHelpSection(this)">
+            <span style="font-size: 20px;">📝</span>
+            <h2 style="flex: 1; margin: 0;">見積書作成</h2>
+            <span class="help-toggle-icon" style="font-size: 18px; color: #9ca3af; transition: transform 0.2s;">▼</span>
+          </div>
+          <div class="help-section-body" style="margin-top: 12px;">
+            <p style="font-size: 13px; color: #475569; line-height: 1.8;">
+              お客様向けの見積書を作成し、PDF/Excelで出力する機能です。材料費と作業費を分けて入力し、利益率を加味した売価を自動計算します。
+            </p>
+            <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-top: 10px;">
+              <p style="font-size: 12px; font-weight: bold; color: #1e40af; margin-bottom: 6px;">できること</p>
+              <p style="font-size: 12px; color: #475569; line-height: 1.8;">
+                ・<strong>お客様名</strong>：手入力 または 顧客マスターから選択<br>
+                ・<strong>件名・日付・有効期限</strong>の設定（有効期限は設定画面の日数から自動計算）<br>
+                ・<strong>材料費</strong>：品名・数量・原価・利益率を入力 → 売価を自動計算<br>
+                ・<strong>品名マスターから選択</strong>：カテゴリ → サブカテゴリ → 商品の3ステップで素早く選択<br>
+                ・<strong>保存済み材料を読込</strong>：レシートで保存した材料データを一括取込み<br>
+                ・<strong>ネット商品画像読込</strong>：商品画像からAIで品名・価格を読取<br>
+                ・<strong>作業費</strong>：「施工費」モード（1式いくら）と「日当」モード（日数×単価）を切替可能<br>
+                ・<strong>利益率の一括設定</strong>：全材料の利益率をまとめて変更<br>
+                ・消費税の自動計算（設定画面の税率を使用）<br>
+                ・<strong>備考欄</strong>で補足説明を追加<br>
+                ・<strong>下書き保存</strong>：途中の見積書を保存して後で編集<br>
+                ・<strong>自動保存</strong>：入力中のデータを自動バックアップ（アプリ終了時も安心）<br>
+                ・🎤 各入力欄で音声入力が可能
+              </p>
+            </div>
+            <div style="background: #f0fdf4; padding: 12px; border-radius: 8px; margin-top: 10px;">
+              <p style="font-size: 12px; font-weight: bold; color: #166534; margin-bottom: 6px;">出力形式</p>
+              <p style="font-size: 12px; color: #475569; line-height: 1.8;">
+                ・<strong>PDF</strong>：保存（ダウンロード）/ 印刷 / 共有（他アプリへ送信）<br>
+                ・<strong>Excel</strong>：グリッド付きのxlsxファイルで保存<br>
+                ・テンプレートは設定画面で「シンプル」「詳細」「モダン」から選択可能<br>
+                ・設定済みのロゴ・印鑑が自動挿入されます<br>
+                ・インボイス番号にも対応
+              </p>
+            </div>
+          </div>
         </div>
-        <div>
-          <p style="font-size: 13px; font-weight: bold; color: #1e3a5f; margin-bottom: 4px;">Q. オフラインで使えますか？</p>
-          <p style="font-size: 12px; color: #64748b; line-height: 1.6; padding-left: 12px;">
-            A. はい！一度読み込んだ後はオフラインでも使えます（AI機能を除く）。
-          </p>
+
+        <!-- ======= 3. 請求書作成 ======= -->
+        <div class="form-section">
+          <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="toggleHelpSection(this)">
+            <span style="font-size: 20px;">📄</span>
+            <h2 style="flex: 1; margin: 0;">請求書作成</h2>
+            <span class="help-toggle-icon" style="font-size: 18px; color: #9ca3af; transition: transform 0.2s;">▼</span>
+          </div>
+          <div class="help-section-body" style="margin-top: 12px;">
+            <p style="font-size: 13px; color: #475569; line-height: 1.8;">
+              工事完了後にお客様へ送付する請求書を作成します。保存済みの見積書から1タップで変換できるのが特徴です。
+            </p>
+            <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-top: 10px;">
+              <p style="font-size: 12px; font-weight: bold; color: #1e40af; margin-bottom: 6px;">できること</p>
+              <p style="font-size: 12px; color: #475569; line-height: 1.8;">
+                ・<strong>📝 見積書から作成する</strong>：保存済みの見積書を選んで自動入力<br>
+                ・お客様名を顧客マスターから選択可能<br>
+                ・請求日・お支払期限の設定<br>
+                ・材料費・作業費の入力（見積書と同じ操作）<br>
+                ・品名マスターからの材料選択<br>
+                ・<strong>振込先情報</strong>：設定画面の内容が自動表示<br>
+                ・備考欄の編集<br>
+                ・消費税の自動計算<br>
+                ・下書き保存・自動保存対応<br>
+                ・<strong>出力</strong>：PDF（保存/印刷/共有）、Excel
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ======= 4. 顧客管理 ======= -->
+        <div class="form-section">
+          <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="toggleHelpSection(this)">
+            <span style="font-size: 20px;">👤</span>
+            <h2 style="flex: 1; margin: 0;">顧客管理</h2>
+            <span class="help-toggle-icon" style="font-size: 18px; color: #9ca3af; transition: transform 0.2s;">▼</span>
+          </div>
+          <div class="help-section-body" style="margin-top: 12px;">
+            <p style="font-size: 13px; color: #475569; line-height: 1.8;">
+              お客様の連絡先情報を登録・管理する機能です。見積書や請求書の作成時に、登録済みの顧客から選択できます。
+            </p>
+            <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-top: 10px;">
+              <p style="font-size: 12px; font-weight: bold; color: #1e40af; margin-bottom: 6px;">できること</p>
+              <p style="font-size: 12px; color: #475569; line-height: 1.8;">
+                ・お客様名・郵便番号・住所・電話番号・メール・メモを登録<br>
+                ・名前・住所・電話で検索<br>
+                ・見積書・請求書作成時に「👤 選択」ボタンからワンタップ呼出し<br>
+                ・住所を自動で見積書/請求書に反映<br>
+                ・🎤 音声入力でお客様名・住所を入力可能<br>
+                ・編集・削除
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ======= 5. 品名マスター ======= -->
+        <div class="form-section">
+          <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="toggleHelpSection(this)">
+            <span style="font-size: 20px;">📦</span>
+            <h2 style="flex: 1; margin: 0;">品名マスター</h2>
+            <span class="help-toggle-icon" style="font-size: 18px; color: #9ca3af; transition: transform 0.2s;">▼</span>
+          </div>
+          <div class="help-section-body" style="margin-top: 12px;">
+            <p style="font-size: 13px; color: #475569; line-height: 1.8;">
+              配管材・継手・電材など、業務でよく使う商品のデータベースです。初期状態で<strong>250種類以上</strong>の商品が登録されています。レシートAI読取時の自動マッチングにも使われます。
+            </p>
+            <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-top: 10px;">
+              <p style="font-size: 12px; font-weight: bold; color: #1e40af; margin-bottom: 6px;">できること</p>
+              <p style="font-size: 12px; color: #475569; line-height: 1.8;">
+                ・品名の検索（テキスト入力で絞り込み）<br>
+                ・<strong>カテゴリフィルター</strong>：塩ビ管/塩ビ継手/架橋ポリ/エアコン配管/電気部材/支持金具/保温材/消耗品/水栓金具<br>
+                ・各商品に<strong>正式名称・カテゴリ・参考単価・別名（エイリアス）</strong>を設定<br>
+                ・別名を登録しておくと、レシートに印刷された略称でも自動マッチング<br>
+                ・新しい商品の追加<br>
+                ・「➕ 新商品を追加」：アプリ更新で追加された商品だけを追加（既存データ保持）<br>
+                ・「🔄 完全リセット」：初期状態に戻す（2段階確認あり）
+              </p>
+            </div>
+            <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-top: 10px;">
+              <p style="font-size: 12px; font-weight: bold; color: #1e40af; margin-bottom: 6px;">登録済みカテゴリ（初期状態）</p>
+              <p style="font-size: 12px; color: #475569; line-height: 1.8;">
+                🔧 塩ビ管（VP/VU/HI）、塩ビ継手（エルボ/チーズ/ソケット/ユニオン/バルブソケット/キャップ/異径）<br>
+                🔧 架橋ポリエチレン管・ポリブデン管・架橋ポリ継手<br>
+                ❄️ エアコン配管（ペアコイル/銅管/ドレンホース）<br>
+                ⚡ 電気部材（VVFケーブル/同軸ケーブル）<br>
+                🔩 支持金具（T足/サドルバンド/吊りバンド）<br>
+                🧴 保温材（保温チューブ/キャンバステープ）<br>
+                🧹 消耗品（コーキング/マスキングテープ/シールテープ/接着剤）
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ======= 6. 経費帳 ======= -->
+        <div class="form-section">
+          <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="toggleHelpSection(this)">
+            <span style="font-size: 20px;">💰</span>
+            <h2 style="flex: 1; margin: 0;">経費帳</h2>
+            <span class="help-toggle-icon" style="font-size: 18px; color: #9ca3af; transition: transform 0.2s;">▼</span>
+          </div>
+          <div class="help-section-body" style="margin-top: 12px;">
+            <p style="font-size: 13px; color: #475569; line-height: 1.8;">
+              収入と支出を記録し、期間ごとの収支を管理する機能です。カテゴリ別の集計も自動で行います。
+            </p>
+            <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-top: 10px;">
+              <p style="font-size: 12px; font-weight: bold; color: #1e40af; margin-bottom: 6px;">できること</p>
+              <p style="font-size: 12px; color: #475569; line-height: 1.8;">
+                ・<strong>収入を追加</strong>（売上：工事代金/追加工事 など、雑収入：材料売却/紹介料 など）<br>
+                ・<strong>支出を追加</strong>（交通費/車両費/通信費/光熱費/消耗品費/接待交際費/会議費/外注費/材料費/雑費）<br>
+                ・大分類 → 小分類の2段階カテゴリ<br>
+                ・日付・内容メモ・金額を入力<br>
+                ・🎤 音声入力で経費を登録可能<br>
+                ・<strong>期間フィルター</strong>：開始日〜終了日で絞り込み<br>
+                ・<strong>自動集計</strong>：収入合計/支出合計/収支差額を表示<br>
+                ・<strong>カテゴリ別集計</strong>：支出の内訳を一覧表示<br>
+                ・編集・削除<br>
+                ・<strong>📊 Excelでエクスポート</strong>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ======= 7. 保存データ ======= -->
+        <div class="form-section">
+          <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="toggleHelpSection(this)">
+            <span style="font-size: 20px;">🗂️</span>
+            <h2 style="flex: 1; margin: 0;">保存データ</h2>
+            <span class="help-toggle-icon" style="font-size: 18px; color: #9ca3af; transition: transform 0.2s;">▼</span>
+          </div>
+          <div class="help-section-body" style="margin-top: 12px;">
+            <p style="font-size: 13px; color: #475569; line-height: 1.8;">
+              これまでに保存した見積書・請求書・材料データを一覧表示し、検索・再編集できる画面です。
+            </p>
+            <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-top: 10px;">
+              <p style="font-size: 12px; font-weight: bold; color: #1e40af; margin-bottom: 6px;">できること</p>
+              <p style="font-size: 12px; color: #475569; line-height: 1.8;">
+                ・<strong>見積書</strong>タブ：保存した見積書の一覧。タップで再編集・再出力<br>
+                ・<strong>請求書</strong>タブ：保存した請求書の一覧。タップで再編集・再出力<br>
+                ・<strong>材料</strong>タブ：レシートから保存した材料データの一覧<br>
+                ・テキスト検索（顧客名・件名・番号で絞り込み）<br>
+                ・保存日時の表示<br>
+                ・ステータス表示（下書き / 出力済）
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ======= 8. 確定申告サポート ======= -->
+        <div class="form-section">
+          <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="toggleHelpSection(this)">
+            <span style="font-size: 20px;">📊</span>
+            <h2 style="flex: 1; margin: 0;">確定申告サポート</h2>
+            <span class="help-toggle-icon" style="font-size: 18px; color: #9ca3af; transition: transform 0.2s;">▼</span>
+          </div>
+          <div class="help-section-body" style="margin-top: 12px;">
+            <p style="font-size: 13px; color: #475569; line-height: 1.8;">
+              年間の売上・経費を自動集計し、確定申告をサポートする機能です。青色申告/白色申告の選択に応じたアドバイスも表示されます。
+            </p>
+            <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-top: 10px;">
+              <p style="font-size: 12px; font-weight: bold; color: #1e40af; margin-bottom: 6px;">できること</p>
+              <p style="font-size: 12px; color: #475569; line-height: 1.8;">
+                ・<strong>申告方法の選択</strong>：🔵 青色申告（最大65万円控除）/ ⚪ 白色申告（シンプル）<br>
+                ・<strong>年間収支サマリー</strong>：売上（請求書合計）・経費（レシート合計）・所得を自動計算<br>
+                ・<strong>経費の内訳</strong>：勘定科目別にグラフィカルに表示<br>
+                ・<strong>💡 節税アドバイザー</strong>：申告方法や経費率に応じた節税ヒントを自動生成<br>
+                ・<strong>帳簿出力</strong>：収入帳（CSV）/ 経費帳（CSV）/ 確定申告用データ一括出力（JSON）<br>
+                ・年度の切り替え（2024年/2025年）
+              </p>
+            </div>
+            <div style="background: #fef2f2; padding: 10px; border-radius: 8px; margin-top: 8px;">
+              <p style="font-size: 11px; color: #991b1b; line-height: 1.6;">
+                ⚠️ このアプリは確定申告のサポートツールです。最終的な申告内容は税理士や税務署にご確認ください。確定申告期間：2月16日〜3月15日
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ======= 9. レシートリスト ======= -->
+        <div class="form-section">
+          <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="toggleHelpSection(this)">
+            <span style="font-size: 20px;">📋</span>
+            <h2 style="flex: 1; margin: 0;">レシートリスト</h2>
+            <span class="help-toggle-icon" style="font-size: 18px; color: #9ca3af; transition: transform 0.2s;">▼</span>
+          </div>
+          <div class="help-section-body" style="margin-top: 12px;">
+            <p style="font-size: 13px; color: #475569; line-height: 1.8;">
+              過去に保存したすべてのレシートを横断的に検索・閲覧・集計できる画面です。保存したレシートの品目データを様々な角度から確認できます。
+            </p>
+            <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-top: 10px;">
+              <p style="font-size: 12px; font-weight: bold; color: #1e40af; margin-bottom: 6px;">できること</p>
+              <p style="font-size: 12px; color: #475569; line-height: 1.8;">
+                ・<strong>統計バー</strong>：件数・品目数・合計金額を一目で確認<br>
+                ・<strong>フリーテキスト検索</strong>：店名・商品名・現場名で絞り込み<br>
+                ・<strong>ソート切替</strong>：📅 新しい順 / 📅 古い順 / 📦 商品別 / 🏪 店舗別<br>
+                ・<strong>🔄 品名マスターで一括変換</strong>：品名マスターのキーワードに基づいて全履歴の商品名を統一
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ======= 10. 価格比較検索 ======= -->
+        <div class="form-section">
+          <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="toggleHelpSection(this)">
+            <span style="font-size: 20px;">🔍</span>
+            <h2 style="flex: 1; margin: 0;">価格比較検索</h2>
+            <span class="help-toggle-icon" style="font-size: 18px; color: #9ca3af; transition: transform 0.2s;">▼</span>
+          </div>
+          <div class="help-section-body" style="margin-top: 12px;">
+            <p style="font-size: 13px; color: #475569; line-height: 1.8;">
+              材料の価格を複数のサイトで一括比較できる機能です。商品名を入力し、各サイトボタンをタップするだけで検索結果が新しいタブで開きます。
+            </p>
+            <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-top: 10px;">
+              <p style="font-size: 12px; font-weight: bold; color: #1e40af; margin-bottom: 6px;">対応サイト（全10サイト）</p>
+              <p style="font-size: 12px; color: #475569; line-height: 1.8;">
+                <strong>プロ向け資材</strong>：モノタロウ / アウンワークス / ビルディ / 施主の味方 総本山<br>
+                <strong>ホームセンター</strong>：電材ネット / カインズ / ビバホーム<br>
+                <strong>総合通販</strong>：Amazon / 楽天市場 / Yahoo!ショッピング
+              </p>
+            </div>
+            <div style="background: #f0fdf4; padding: 10px; border-radius: 8px; margin-top: 8px;">
+              <p style="font-size: 11px; color: #166534; line-height: 1.6;">
+                💡 🎤 音声入力で商品名を入力することもできます
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ======= 共通機能 ======= -->
+        <div class="form-section" style="background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border: 1px solid #bae6fd;">
+          <h2 style="color: #0369a1;">🔧 共通機能・便利機能</h2>
+          <div style="margin-top: 10px;">
+
+            <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+              <p style="font-size: 13px; font-weight: bold; color: #1e40af; margin-bottom: 4px;">🎤 音声入力</p>
+              <p style="font-size: 12px; color: #475569; line-height: 1.6;">
+                各画面の入力欄にある🎤ボタンで音声入力が可能です。お客様名・住所・品名・金額など、キーボードを使わずに入力できます。Chrome推奨。
+              </p>
+            </div>
+
+            <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+              <p style="font-size: 13px; font-weight: bold; color: #1e40af; margin-bottom: 4px;">💾 自動保存</p>
+              <p style="font-size: 12px; color: #475569; line-height: 1.6;">
+                レシート画面・見積書・請求書では、入力中のデータが自動的にバックアップされます。アプリを閉じても、次回起動時に「下書きを復元しますか？」と表示され、続きから作業できます。
+              </p>
+            </div>
+
+            <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+              <p style="font-size: 13px; font-weight: bold; color: #1e40af; margin-bottom: 4px;">🔒 パスワードロック</p>
+              <p style="font-size: 12px; color: #475569; line-height: 1.6;">
+                設定画面でパスワード（4文字以上）と合言葉を設定すると、アプリ起動時にパスワード入力が必要になります。パスワードを忘れた場合は合言葉でリセットできます。
+              </p>
+            </div>
+
+            <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+              <p style="font-size: 13px; font-weight: bold; color: #1e40af; margin-bottom: 4px;">📦 バックアップ・復元</p>
+              <p style="font-size: 12px; color: #475569; line-height: 1.6;">
+                設定画面の「データのバックアップ」でJSONファイルに全データを保存できます。復元時は「追加（マージ）」と「上書き」の2モードから選べます。マージモードなら既存データを残したまま追加できます。
+              </p>
+            </div>
+
+            <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+              <p style="font-size: 13px; font-weight: bold; color: #1e40af; margin-bottom: 4px;">⚙️ 設定画面でできること</p>
+              <p style="font-size: 12px; color: #475569; line-height: 1.6;">
+                会社情報（屋号・住所・電話・FAX・メール）/ インボイス番号 / 消費税率 / 振込先情報 /
+                見積有効期間 / 支払条件 / 日当単価 / デフォルト利益率 / テンプレート選択（シンプル/詳細/モダン）/
+                会社ロゴ登録 / 印鑑登録（背景透過処理付き）/ Gemini APIキー設定 / 勘定科目カスタマイズ /
+                API使用量確認 / バックアップ・復元 / データ全削除
+              </p>
+            </div>
+
+            <div style="background: white; padding: 12px; border-radius: 8px;">
+              <p style="font-size: 13px; font-weight: bold; color: #1e40af; margin-bottom: 4px;">📱 PWA（ホーム画面に追加）</p>
+              <p style="font-size: 12px; color: #475569; line-height: 1.6;">
+                スマホのブラウザで「ホーム画面に追加」すると、アプリのように起動できます。一度読み込めばオフラインでも動作します（AI機能を除く）。
+              </p>
+            </div>
+
+          </div>
         </div>
       </div>
-      
-      <!-- お問い合わせ -->
+
+
+      <!-- ====================================== -->
+      <!-- タブ3: よくある質問（FAQ） -->
+      <!-- ====================================== -->
+      <div id="helpTab-faq" class="help-tab-content" style="display: none;">
+
+        <div class="form-section">
+          <h2>📱 基本操作</h2>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. データはどこに保存されますか？</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              すべてのデータはお使いの端末（スマートフォン/PC）のブラウザ内（LocalStorage）に保存されます。クラウドやサーバーにデータが送信されることはないので安心してお使いいただけます。ただし、ブラウザのデータ消去やアプリのアンインストールでデータが消えるため、定期的なバックアップをおすすめします。
+            </div>
+          </div>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. オフラインで使えますか？</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              はい！一度アプリを読み込んだ後は、インターネット接続なしでも使えます（PWA対応）。ただし、AIレシート読取（Gemini API）と価格比較検索はインターネット接続が必要です。
+            </div>
+          </div>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. 機種変更する場合はどうすればいい？</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              ① 旧端末の設定画面で「データのバックアップ」→ JSONファイルをダウンロード<br>
+              ② 新端末でアプリを開き、設定画面の「データの復元」→ バックアップファイルを選択<br>
+              ③ 「追加する（おすすめ）」を選べば、データが復元されます。<br><br>
+              バックアップファイルには設定情報・顧客・品名マスター・見積書・請求書・材料・経費・ロゴ・印鑑がすべて含まれます。
+            </div>
+          </div>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. パスワードを忘れてしまいました</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              ロック画面の下部にある「パスワードを忘れた場合」をタップし、設定時に登録した<strong>合言葉</strong>を入力してください。合言葉が正しければ、新しいパスワードを設定できます。<br><br>
+              合言葉も忘れた場合は、全データ削除によるリセットのみとなります（データは消えてしまうので、日頃からバックアップを取っておくことをおすすめします）。
+            </div>
+          </div>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. ホーム画面にアプリとして追加するには？</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              <strong>Android（Chrome）</strong>：ブラウザのメニュー（︙）→「ホーム画面に追加」または「アプリをインストール」<br>
+              <strong>iPhone（Safari）</strong>：共有ボタン（□↑）→「ホーム画面に追加」<br><br>
+              追加後はアプリのように全画面で起動できます。
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h2>📷 レシート・AI読取</h2>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. レシートの読取精度を上げるコツは？</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              ・レシートをなるべく平らにして撮影する<br>
+              ・明るい場所で影が入らないようにする<br>
+              ・レシート全体がフレームに収まるようにする<br>
+              ・折り目やシワが少ない状態で撮影する<br>
+              ・長いレシートは複数枚に分けて撮影し「複数枚まとめて選択」機能を使う<br><br>
+              💡 読取後に品名・金額が間違っていたら、各項目をタップして手動修正できます。🎤音声で修正することもできます。
+            </div>
+          </div>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. 複数枚のレシートをまとめて読み取れますか？</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              はい！2つの方法があります：<br>
+              ① <strong>「📁 複数枚まとめて選択」</strong>ボタンで一度に複数画像を選択<br>
+              ② <strong>「＋ 追加」</strong>ボタンで1枚ずつ追加<br><br>
+              複数枚の場合、画像は自動で縦に結合されてAIに送信されます。すべてのレシートの品目が一括で読み取られます。
+            </div>
+          </div>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. 現場ごとに材料を分けて管理できますか？</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              はい！レシート読込画面の品目リストにある<strong>「現場割り当て」</strong>機能を使います。<br><br>
+              ① 新しい現場名を入力して「＋追加」<br>
+              ② 割り当てたい品目にチェックを入れる（「全選択」も可能）<br>
+              ③ 現場を選んで「✔割当」をタップ<br><br>
+              割り当てた情報はレシートリスト画面で検索・集計に使えます。
+            </div>
+          </div>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. APIなしでもレシートを入力できますか？</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              はい！AI読取は便利な補助機能です。APIがなくても：<br>
+              ・「＋品目を追加」ボタンで手動入力できます<br>
+              ・🎤 音声入力で品名や金額を入力できます<br>
+              ・品名マスターからの選択も利用可能です
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h2>📝 見積書・請求書</h2>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. 見積書から請求書を作成できますか？</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              はい！請求書作成画面の上部にある「📝 見積書から作成する」をタップすると、保存済みの見積書一覧が表示されます。見積書を選ぶと、顧客名・材料・作業費がそのまま請求書に反映されます。必要に応じて内容を調整してから出力してください。
+            </div>
+          </div>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. 利益率とは何ですか？</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              材料の仕入れ原価に対して、何%の利益を上乗せするかの設定です。<br><br>
+              例：原価1,000円、利益率20%の場合 → 売価は1,200円<br><br>
+              デフォルトの利益率は設定画面で変更できます。見積書作成時に「一括設定」ボタンで全材料の利益率をまとめて変更することも可能です。
+            </div>
+          </div>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. PDFにロゴや印鑑を入れるには？</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              設定画面の「会社ロゴ」と「会社印鑑」セクションから画像をアップロードしてください。<br><br>
+              <strong>ロゴ</strong>：PNG/JPEG画像を選択するだけでOK<br>
+              <strong>印鑑</strong>：アップロード後、自動で背景を透過処理します。透過の感度はスライダーで調整可能。「再処理」ボタンで何度でもやり直せます。<br><br>
+              登録後、見積書・請求書のPDF/Excel出力に自動挿入されます。
+            </div>
+          </div>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. 作業費の「施工費」と「日当」の違いは？</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              <strong>施工費モード</strong>：各作業に対して金額を「1式」で設定します（例：水栓交換 ¥15,000）<br>
+              <strong>日当モード</strong>：作業日数 × 日当単価で計算します（例：2日 × ¥18,000 = ¥36,000）<br><br>
+              日当の単価は設定画面の「日当単価」で変更できます。切り替えると既存データがリセットされるのでご注意ください。
+            </div>
+          </div>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. テンプレートの種類は？</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              設定画面で3種類のテンプレートから選べます：<br><br>
+              <strong>シンプル</strong>：基本的なレイアウト。初めての方におすすめ<br>
+              <strong>詳細</strong>：材料の原価・利益率の欄が追加される詳細版<br>
+              <strong>モダン</strong>：デザインにこだわったスタイリッシュなレイアウト<br><br>
+              どのテンプレートでもロゴ・印鑑・インボイス番号は反映されます。
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h2>📊 経費・確定申告</h2>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. 勘定科目をカスタマイズできますか？</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              はい！設定画面の「勘定科目カスタマイズ」セクションで、材料分類と経費分類の両方をカスタマイズできます。<br><br>
+              ・科目の追加・削除・名前変更<br>
+              ・並び順の変更（↑↓ボタン）<br>
+              ・「デフォルトに戻す」で初期状態にリセット<br><br>
+              独自の勘定科目（例：「特殊工具費」「現場管理費」など）を追加できます。
+            </div>
+          </div>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. 青色申告と白色申告、どちらを選べばいい？</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              事業規模にもよりますが、一般的に<strong>青色申告がおすすめ</strong>です。<br><br>
+              <strong>青色申告のメリット</strong>：最大65万円の特別控除、赤字の3年繰越し、家族への給与を経費にできる<br>
+              <strong>白色申告</strong>：記帳がシンプル。事業規模が小さい初年度などに<br><br>
+              このアプリで日々レシートを記録していれば、青色申告に必要な帳簿の元データが自動で揃います。
+            </div>
+          </div>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. インボイス制度に対応していますか？</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              はい！設定画面で「適格請求書発行事業者」にチェックを入れ、登録番号（T+数字13桁）を入力すると、見積書・請求書にインボイス番号が記載されます。
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h2>⚠️ トラブルシューティング</h2>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. アプリが真っ白になって動かない</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              まれにキャッシュの問題で画面が表示されないことがあります。以下をお試しください：<br><br>
+              ① ブラウザの更新ボタン（またはプルダウンリフレッシュ）<br>
+              ② ブラウザのキャッシュをクリア<br>
+              ③ PWA版の場合：一度アプリを削除→再追加<br><br>
+              ※データはLocalStorageに保存されているため、キャッシュクリアでもデータは消えません。
+            </div>
+          </div>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. 「保存に失敗しました」と表示される</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              端末のストレージ容量が不足している可能性があります。LocalStorageの上限（通常5〜10MB）に達することがあります。<br><br>
+              対処法：<br>
+              ① まずデータをバックアップ（設定→バックアップ）<br>
+              ② 不要な見積書・レシート履歴を削除<br>
+              ③ レシート画像の保存をオフにする（「レシート画像を保存する」のチェックを外す）<br><br>
+              画像データが容量を圧迫している場合が多いです。
+            </div>
+          </div>
+
+          <div class="help-faq-item">
+            <div class="help-faq-q" onclick="toggleFaq(this)">
+              <span>Q. 音声入力が使えません</span>
+              <span class="help-faq-toggle">＋</span>
+            </div>
+            <div class="help-faq-a">
+              音声入力にはWeb Speech APIを使用しています。以下を確認してください：<br><br>
+              ・<strong>Chrome</strong>ブラウザを使用しているか（Safari/Firefoxでは制限あり）<br>
+              ・マイクへのアクセスが許可されているか<br>
+              ・インターネットに接続しているか（音声認識はオンライン処理）<br><br>
+              スマートフォンの場合、ブラウザの設定→サイトの設定→マイクで許可を確認してください。
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ====================================== -->
+      <!-- タブ4: API設定ガイド -->
+      <!-- ====================================== -->
+      <div id="helpTab-api" class="help-tab-content" style="display: none;">
+
+        <div class="form-section" style="background: linear-gradient(135deg, #e0f2fe, #dbeafe); border: 1px solid #93c5fd;">
+          <h2 style="color: #1e40af;">🤖 Gemini API 設定ガイド</h2>
+          <p style="font-size: 13px; color: #475569; line-height: 1.8;">
+            GoogleのGemini AIを使うことで、レシートの読取精度が大幅に向上します。手書き文字の認識、品名の分類、合計金額の計算まで自動で行えます。
+          </p>
+        </div>
+
+        <div class="form-section">
+          <h2>✅ APIでできること</h2>
+          <div style="background: #f0fdf4; padding: 14px; border-radius: 10px;">
+            <p style="font-size: 12px; color: #166534; line-height: 1.8;">
+              ・レシート画像から<strong>店名・日付・品目・金額</strong>を自動読取<br>
+              ・手書き文字やかすれた印字の認識<br>
+              ・品名マスターとの自動マッチング<br>
+              ・複数枚のレシートを結合して一括解析<br>
+              ・勘定科目の自動判定（確定申告で便利！）
+            </p>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h2>📝 APIキーの取得手順</h2>
+          <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden;">
+
+            <div style="padding: 14px 16px; border-bottom: 1px solid #e5e7eb;">
+              <p style="font-size: 14px; margin-bottom: 4px;"><strong>Step 1.</strong> Google AI Studioにアクセス</p>
+              <p style="font-size: 12px; color: #475569;">
+                <a href="https://ai.google.dev/" target="_blank" style="color: #2563eb; text-decoration: underline;">https://ai.google.dev/</a> にアクセスしてください。
+              </p>
+            </div>
+
+            <div style="padding: 14px 16px; border-bottom: 1px solid #e5e7eb;">
+              <p style="font-size: 14px; margin-bottom: 4px;"><strong>Step 2.</strong> Googleアカウントでログイン</p>
+              <p style="font-size: 12px; color: #475569;">
+                お持ちのGoogleアカウント（Gmailなど）でログインしてください。
+              </p>
+            </div>
+
+            <div style="padding: 14px 16px; border-bottom: 1px solid #e5e7eb;">
+              <p style="font-size: 14px; margin-bottom: 4px;"><strong>Step 3.</strong> APIキーを作成</p>
+              <p style="font-size: 12px; color: #475569;">
+                「Get API key」→「Create API key」をクリック。プロジェクトを選択してAPIキーを生成します。
+              </p>
+            </div>
+
+            <div style="padding: 14px 16px; border-bottom: 1px solid #e5e7eb;">
+              <p style="font-size: 14px; margin-bottom: 4px;"><strong>Step 4.</strong> キーをコピー</p>
+              <p style="font-size: 12px; color: #475569;">
+                表示されたAPIキー（AIza...で始まる文字列）をコピーしてください。
+              </p>
+            </div>
+
+            <div style="padding: 14px 16px;">
+              <p style="font-size: 14px; margin-bottom: 4px;"><strong>Step 5.</strong> アプリに設定</p>
+              <p style="font-size: 12px; color: #475569;">
+                本アプリの ⚙️設定画面 →「Gemini API Key」欄にペーストして保存。<br>
+                「🔍 接続テスト」ボタンで動作確認できます。
+              </p>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h2>💰 料金について</h2>
+          <div style="background: #eff6ff; padding: 14px; border-radius: 10px; border: 1px solid #bfdbfe;">
+            <p style="font-size: 13px; color: #1e40af; line-height: 1.8;">
+              Gemini APIの無料枠（gemini-2.0-flash）で十分に利用可能です。<br><br>
+              <strong>無料枠の目安</strong>：1日あたり数十回の読取が可能<br><br>
+              本アプリ内でもAPI使用量の上限を設けています：<br>
+              ・1日最大 <strong>50回</strong><br>
+              ・1ヶ月最大 <strong>1,000回</strong><br><br>
+              使用状況は設定画面の「API使用量」で確認できます。
+            </p>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h2>⚠️ 注意事項</h2>
+          <div style="background: #fef2f2; padding: 14px; border-radius: 10px; border: 1px solid #fecaca;">
+            <p style="font-size: 12px; color: #991b1b; line-height: 1.8;">
+              ・APIキーは大切に管理してください。他の人と共有しないでください。<br>
+              ・AIによる読取は100%正確ではありません。金額は必ず確認してください。<br>
+              ・レシート画像はAI処理のためにGoogleのサーバーに一時的に送信されます。<br>
+              ・APIキーがなくても手動入力や音声入力でレシートの登録は可能です。
+            </p>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ==================== -->
+      <!-- お問い合わせ（共通） -->
+      <!-- ==================== -->
       <div class="form-section">
         <h2>📧 サポート</h2>
         <div style="text-align: center; padding: 16px;">
           <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">
             不具合や要望がありましたら、<br>アプリ画面のスクリーンショットと一緒にご連絡ください。
           </p>
-          <a href="/cdn-cgi/l/email-protection#f0919b93de849f84919cdec0c0c1b0979d91999cde939f9d" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: bold;">
-            📧 <span class="__cf_email__" data-cfemail="6908020a471d061d080547595958290e04080005470a0604">[email&#160;protected]</span>
-          </a>
-          <p style="font-size: 11px; color: #94a3b8;">
+          <p style="font-size: 11px; color: #94a3b8; margin-top: 12px;">
             Powered by COCOMI OS<br>
+            Version 0.95<br>
             © 2026 aki & COCOMI Sisters
           </p>
         </div>
       </div>
+
     </div>
   </div>
 
+  <!-- ==================== -->
+  <!-- ヘルプ用JavaScript -->
+  <!-- ==================== -->
+  <script>
+  // タブ切替
+  function switchHelpTab(tabName) {
+    // 全タブコンテンツを非表示
+    document.querySelectorAll('.help-tab-content').forEach(el => {
+      el.style.display = 'none';
+    });
+    // 全タブボタンを非アクティブ
+    document.querySelectorAll('.help-tab').forEach(btn => {
+      btn.style.background = 'white';
+      btn.style.color = '#374151';
+      btn.style.borderColor = '#d1d5db';
+      btn.classList.remove('active');
+    });
+    // 選択されたタブを表示
+    const content = document.getElementById('helpTab-' + tabName);
+    if (content) content.style.display = 'block';
+    // 選択されたボタンをアクティブ
+    const btn = document.querySelector('.help-tab[data-tab="' + tabName + '"]');
+    if (btn) {
+      btn.style.background = '#3b82f6';
+      btn.style.color = 'white';
+      btn.style.borderColor = '#3b82f6';
+      btn.classList.add('active');
+    }
+    // スクロールをトップに
+    window.scrollTo(0, 0);
+  }
+
+  // 機能説明のアコーディオン開閉
+  function toggleHelpSection(header) {
+    const body = header.nextElementSibling;
+    const icon = header.querySelector('.help-toggle-icon');
+    if (body.style.display === 'none') {
+      body.style.display = 'block';
+      if (icon) icon.textContent = '▲';
+    } else {
+      body.style.display = 'none';
+      if (icon) icon.textContent = '▼';
+    }
+  }
+
+  // FAQのアコーディオン開閉
+  function toggleFaq(questionEl) {
+    const answer = questionEl.nextElementSibling;
+    const toggle = questionEl.querySelector('.help-faq-toggle');
+    if (answer.style.display === 'block') {
+      answer.style.display = 'none';
+      if (toggle) toggle.textContent = '＋';
+    } else {
+      answer.style.display = 'block';
+      if (toggle) toggle.textContent = '−';
+    }
+  }
+  </script>
+
+  <!-- ヘルプ用追加スタイル -->
+  <style>
+  .help-faq-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .help-faq-q {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    cursor: pointer;
+    background: #fafafa;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e3a5f;
+    line-height: 1.5;
+    gap: 8px;
+  }
+  .help-faq-q:active {
+    background: #f0f0f0;
+  }
+  .help-faq-toggle {
+    font-size: 18px;
+    color: #9ca3af;
+    flex-shrink: 0;
+    width: 24px;
+    text-align: center;
+  }
+  .help-faq-a {
+    display: none;
+    padding: 14px 16px;
+    font-size: 12px;
+    color: #475569;
+    line-height: 1.8;
+    border-top: 1px solid #e5e7eb;
+    background: white;
+  }
+  </style>
