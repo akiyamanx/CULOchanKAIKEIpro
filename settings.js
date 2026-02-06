@@ -1,7 +1,48 @@
 // ==========================================
 // 設定管理（ロゴ・印鑑・パスワード含む）
-// Reform App Pro v0.91
+// Reform App Pro v0.95.1
 // ==========================================
+// v0.95.1修正:
+//   - saveSettings()からcompanyLogo/companyStampを削除
+//     （別キーに保存済みなのに2重保存していた問題を修正）
+//   - LocalStorage容量オーバー対策
+//   - 起動時に古いsettingsデータをクリーンアップ
+// ==========================================
+
+// v0.95.1追加: 起動時に古いsettingsの肥大化データを削除
+function cleanupOldSettings() {
+  try {
+    const data = localStorage.getItem('reform_app_settings');
+    if (!data) return;
+    
+    const settings = JSON.parse(data);
+    let needsSave = false;
+    
+    // companyLogo/companyStampが含まれていたら削除
+    if (settings.companyLogo) {
+      delete settings.companyLogo;
+      needsSave = true;
+      console.log('[cleanupOldSettings] companyLogoを削除');
+    }
+    if (settings.companyStamp) {
+      delete settings.companyStamp;
+      needsSave = true;
+      console.log('[cleanupOldSettings] companyStampを削除');
+    }
+    
+    if (needsSave) {
+      localStorage.setItem('reform_app_settings', JSON.stringify(settings));
+      console.log('[cleanupOldSettings] settingsをクリーンアップしました');
+    }
+  } catch (e) {
+    console.warn('[cleanupOldSettings] エラー:', e);
+  }
+}
+
+// ページ読み込み時にクリーンアップを実行
+if (typeof window !== 'undefined') {
+  cleanupOldSettings();
+}
 
 // ==========================================
 // インボイス番号表示切り替え
@@ -200,15 +241,18 @@ async function testGeminiApi() {
 // 設定の保存・読み込み
 // ==========================================
 function saveSettings() {
-  // v0.95.1: デバッグ用 - 問題特定後に削除
+  // v0.95.1: デバッグ用
   console.log('[saveSettings] 開始');
   try {
+  // v0.95.1修正: companyLogoとcompanyStampを削除
+  // → これらは reform_app_logo, reform_app_stamp に別途保存済み
+  // → settingsに含めると2重保存で容量を圧迫する原因になる
   const settings = {
     geminiApiKey: document.getElementById('geminiApiKey').value,
     useGeminiForVoice: document.getElementById('useGeminiForVoice').checked,
     template: document.querySelector('input[name="template"]:checked')?.value || 'simple',
-    companyLogo: localStorage.getItem('reform_app_logo') || '',
-    companyStamp: localStorage.getItem('reform_app_stamp') || '',
+    // companyLogo: 削除（reform_app_logoに保存済み）
+    // companyStamp: 削除（reform_app_stampに保存済み）
     stampThreshold: document.getElementById('stampThreshold').value,
     companyName: document.getElementById('companyName').value,
     postalCode: document.getElementById('postalCode').value,
