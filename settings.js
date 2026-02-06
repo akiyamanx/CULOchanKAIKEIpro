@@ -1055,3 +1055,218 @@ async function runIDBDiagnostic() {
     resultEl.innerHTML = '<div style="padding: 10px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; font-size: 12px; color: #dc2626;">❌ 診断エラー: ' + e.message + '</div>';
   }
 }
+
+
+// ==========================================
+// レイアウト調整モーダル（v0.96）
+// プレビュー付きでロゴ・印鑑のサイズ＆位置を調整
+// ==========================================
+
+/**
+ * プレビュー付きレイアウト調整モーダルを開く
+ */
+async function openLayoutAdjuster() {
+  // 既存モーダルがあれば削除
+  var existing = document.getElementById('layoutAdjusterModal');
+  if (existing) existing.remove();
+
+  // 現在の設定値を取得
+  var logoW = parseInt(document.getElementById('logoWidth').value) || 35;
+  var logoOX = parseInt(document.getElementById('logoOffsetX').value) || 0;
+  var logoOY = parseInt(document.getElementById('logoOffsetY').value) || 0;
+  var stSize = parseInt(document.getElementById('stampSize').value) || 22;
+  var stOX = parseInt(document.getElementById('stampOffsetX').value) || 0;
+  var stOY = parseInt(document.getElementById('stampOffsetY').value) || -5;
+
+  // IDBからロゴ・印鑑を取得
+  var logoData = null;
+  var stampData = null;
+  try {
+    logoData = await getLogoFromIDB();
+    stampData = await getStampFromIDB();
+  } catch(e) {}
+
+  // 設定から会社情報を取得
+  var settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
+  var companyName = settings.companyName || '株式会社サンプル';
+  var postalCode = settings.postalCode || '000-0000';
+  var address = settings.address || '東京都千代田区1-1-1';
+  var phone = settings.phone || '03-0000-0000';
+
+  // モーダルHTMLを構築
+  var modal = document.createElement('div');
+  modal.id = 'layoutAdjusterModal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;display:flex;flex-direction:column;';
+
+  modal.innerHTML = `
+    <div style="background:white;flex:1;display:flex;flex-direction:column;overflow:hidden;">
+      <!-- ヘッダー -->
+      <div style="padding:10px 16px;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);color:white;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+        <span style="font-size:15px;font-weight:bold;">📐 レイアウト調整</span>
+        <button onclick="closeLayoutAdjuster()" style="background:rgba(255,255,255,0.2);border:none;color:white;font-size:18px;width:36px;height:36px;border-radius:50%;cursor:pointer;">✕</button>
+      </div>
+      
+      <!-- プレビューエリア（上半分） -->
+      <div style="flex:1;overflow:auto;background:#e2e8f0;padding:8px;min-height:0;">
+        <div id="layoutPreview" style="background:white;margin:0 auto;padding:5mm 6mm;box-shadow:0 2px 8px rgba(0,0,0,0.15);border-radius:2px;width:100%;max-width:380px;font-family:'Hiragino Kaku Gothic Pro',sans-serif;font-size:8px;line-height:1.4;position:relative;">
+          <!-- ヘッダー部（タイトル＋会社情報） -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3mm;padding-bottom:2mm;border-bottom:2px solid #2c5282;">
+            <div style="flex:1;">
+              <div style="font-size:16px;font-weight:bold;letter-spacing:4px;color:#1a365d;margin-bottom:1mm;">御 見 積 書</div>
+              <div style="width:100%;height:2px;background:linear-gradient(to right,#2c5282,#4299e1,transparent);"></div>
+            </div>
+            <div id="previewCompanyBlock" style="text-align:right;font-size:7px;line-height:1.6;position:relative;min-width:45%;">
+              ${logoData ? '<img id="previewLogo" src="' + logoData + '" style="max-width:' + logoW*0.5 + 'mm;display:block;margin-left:auto;margin-bottom:1mm;position:relative;">' : '<div id="previewLogo" style="display:none;"></div>'}
+              <div style="font-size:9px;font-weight:bold;margin-bottom:0.5mm;">${escapeHtml(companyName)}</div>
+              <div>〒${escapeHtml(postalCode)} ${escapeHtml(address)}</div>
+              <div>TEL: ${escapeHtml(phone)}</div>
+              ${stampData ? '<img id="previewStamp" src="' + stampData + '" style="position:absolute;bottom:' + (-stOY*0.5) + 'mm;right:' + (-stOX*0.5) + 'mm;width:' + stSize*0.5 + 'mm;height:' + stSize*0.5 + 'mm;opacity:0.85;">' : '<div id="previewStamp" style="display:none;"></div>'}
+            </div>
+          </div>
+          <!-- 宛先 -->
+          <div style="display:flex;justify-content:space-between;margin-bottom:2mm;">
+            <div>
+              <div style="font-size:11px;font-weight:bold;padding-bottom:1mm;border-bottom:1px solid #1a1a1a;display:inline-block;margin-bottom:1mm;">サンプル工務店 様</div>
+              <div style="font-size:8px;margin-top:1mm;">件名: 設備改修工事</div>
+            </div>
+            <div style="text-align:right;font-size:7px;line-height:1.8;">
+              <div>見積番号: EST-20260206-001</div>
+              <div>見積日: 2026年02月06日</div>
+            </div>
+          </div>
+          <!-- 合計金額枠 -->
+          <div style="border:2px solid #2c5282;padding:1.5mm 3mm;margin-bottom:2mm;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:9px;font-weight:bold;color:#2c5282;">合計金額（税込）</span>
+            <span style="font-size:14px;font-weight:bold;color:#2c5282;">¥1,234,567</span>
+          </div>
+          <!-- 明細テーブル（簡易） -->
+          <table style="width:100%;border-collapse:collapse;font-size:7px;margin-bottom:2mm;">
+            <thead><tr style="background:#2c5282;color:white;">
+              <th style="padding:1mm;width:6mm;border:0.5px solid #ccc;">No</th>
+              <th style="padding:1mm;border:0.5px solid #ccc;">品名</th>
+              <th style="padding:1mm;width:8mm;border:0.5px solid #ccc;">数量</th>
+              <th style="padding:1mm;width:14mm;border:0.5px solid #ccc;">単価</th>
+              <th style="padding:1mm;width:14mm;border:0.5px solid #ccc;">金額</th>
+            </tr></thead>
+            <tbody>
+              <tr><td style="text-align:center;padding:1mm;border:0.5px solid #e2e8f0;">1</td><td style="padding:1mm;border:0.5px solid #e2e8f0;">配管部材 一式</td><td style="text-align:center;padding:1mm;border:0.5px solid #e2e8f0;">1</td><td style="text-align:right;padding:1mm;border:0.5px solid #e2e8f0;">¥500,000</td><td style="text-align:right;padding:1mm;border:0.5px solid #e2e8f0;">¥500,000</td></tr>
+              <tr style="background:#f7fafc;"><td style="text-align:center;padding:1mm;border:0.5px solid #e2e8f0;">2</td><td style="padding:1mm;border:0.5px solid #e2e8f0;">施工費</td><td style="text-align:center;padding:1mm;border:0.5px solid #e2e8f0;">3日</td><td style="text-align:right;padding:1mm;border:0.5px solid #e2e8f0;">¥200,000</td><td style="text-align:right;padding:1mm;border:0.5px solid #e2e8f0;">¥600,000</td></tr>
+              <tr><td style="text-align:center;padding:1mm;border:0.5px solid #e2e8f0;">3</td><td style="padding:1mm;border:0.5px solid #e2e8f0;">諸経費</td><td style="text-align:center;padding:1mm;border:0.5px solid #e2e8f0;">1</td><td style="text-align:right;padding:1mm;border:0.5px solid #e2e8f0;">¥22,300</td><td style="text-align:right;padding:1mm;border:0.5px solid #e2e8f0;">¥22,300</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- 調整コントロール（下半分・スクロール可能） -->
+      <div style="flex-shrink:0;max-height:50%;overflow-y:auto;padding:12px 16px;background:#f8fafc;border-top:2px solid #e2e8f0;">
+        
+        <!-- ロゴ調整 -->
+        <div style="margin-bottom:12px;padding:10px;background:#f0f9ff;border-radius:8px;border:1px solid #bae6fd;">
+          <div style="font-size:12px;font-weight:bold;color:#0369a1;margin-bottom:8px;">🖼️ ロゴ調整</div>
+          <div style="margin-bottom:6px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#6b7280;"><span>サイズ（幅）</span><span id="adjLogoWidthValue">${logoW}mm</span></div>
+            <input type="range" id="adjLogoWidth" min="10" max="70" value="${logoW}" style="width:100%;" oninput="updateLayoutPreview()">
+          </div>
+          <div style="margin-bottom:6px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#6b7280;"><span>上下 ↕</span><span id="adjLogoOffsetYValue">${logoOY}mm</span></div>
+            <input type="range" id="adjLogoOffsetY" min="-10" max="15" value="${logoOY}" style="width:100%;" oninput="updateLayoutPreview()">
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#6b7280;"><span>左右 ↔</span><span id="adjLogoOffsetXValue">${logoOX}mm</span></div>
+            <input type="range" id="adjLogoOffsetX" min="-20" max="20" value="${logoOX}" style="width:100%;" oninput="updateLayoutPreview()">
+          </div>
+        </div>
+        
+        <!-- 印鑑調整 -->
+        <div style="margin-bottom:12px;padding:10px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;">
+          <div style="font-size:12px;font-weight:bold;color:#166534;margin-bottom:8px;">🔏 印鑑調整</div>
+          <div style="margin-bottom:6px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#6b7280;"><span>サイズ</span><span id="adjStampSizeValue">${stSize}mm</span></div>
+            <input type="range" id="adjStampSize" min="8" max="40" value="${stSize}" style="width:100%;" oninput="updateLayoutPreview()">
+          </div>
+          <div style="margin-bottom:6px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#6b7280;"><span>上下 ↕</span><span id="adjStampOffsetYValue">${stOY}mm</span></div>
+            <input type="range" id="adjStampOffsetY" min="-20" max="10" value="${stOY}" style="width:100%;" oninput="updateLayoutPreview()">
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#6b7280;"><span>左右 ↔</span><span id="adjStampOffsetXValue">${stOX}mm</span></div>
+            <input type="range" id="adjStampOffsetX" min="-30" max="10" value="${stOX}" style="width:100%;" oninput="updateLayoutPreview()">
+          </div>
+        </div>
+        
+        <!-- 保存ボタン -->
+        <div style="display:flex;gap:8px;">
+          <button onclick="saveLayoutAdjustment()" style="flex:1;padding:12px;background:#3b82f6;color:white;border:none;border-radius:8px;font-size:14px;font-weight:bold;cursor:pointer;">✅ この設定で保存</button>
+          <button onclick="closeLayoutAdjuster()" style="padding:12px 16px;background:#e5e7eb;color:#374151;border:none;border-radius:8px;font-size:14px;cursor:pointer;">キャンセル</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+}
+
+/**
+ * プレビューをリアルタイム更新
+ */
+function updateLayoutPreview() {
+  // スライダー値を読み取り
+  var logoW = parseInt(document.getElementById('adjLogoWidth').value);
+  var logoOX = parseInt(document.getElementById('adjLogoOffsetX').value);
+  var logoOY = parseInt(document.getElementById('adjLogoOffsetY').value);
+  var stSize = parseInt(document.getElementById('adjStampSize').value);
+  var stOX = parseInt(document.getElementById('adjStampOffsetX').value);
+  var stOY = parseInt(document.getElementById('adjStampOffsetY').value);
+
+  // 値表示を更新
+  document.getElementById('adjLogoWidthValue').textContent = logoW + 'mm';
+  document.getElementById('adjLogoOffsetXValue').textContent = logoOX + 'mm';
+  document.getElementById('adjLogoOffsetYValue').textContent = logoOY + 'mm';
+  document.getElementById('adjStampSizeValue').textContent = stSize + 'mm';
+  document.getElementById('adjStampOffsetXValue').textContent = stOX + 'mm';
+  document.getElementById('adjStampOffsetYValue').textContent = stOY + 'mm';
+
+  // プレビューのロゴを更新（縮小率0.5）
+  var logoEl = document.getElementById('previewLogo');
+  if (logoEl && logoEl.tagName === 'IMG') {
+    logoEl.style.maxWidth = (logoW * 0.5) + 'mm';
+    logoEl.style.top = (logoOY * 0.5) + 'mm';
+    logoEl.style.right = (-logoOX * 0.5) + 'mm';
+  }
+
+  // プレビューの印鑑を更新（縮小率0.5）
+  var stampEl = document.getElementById('previewStamp');
+  if (stampEl && stampEl.tagName === 'IMG') {
+    stampEl.style.width = (stSize * 0.5) + 'mm';
+    stampEl.style.height = (stSize * 0.5) + 'mm';
+    stampEl.style.bottom = (-stOY * 0.5) + 'mm';
+    stampEl.style.right = (-stOX * 0.5) + 'mm';
+  }
+}
+
+/**
+ * 調整値を保存してモーダルを閉じる
+ */
+function saveLayoutAdjustment() {
+  // モーダル内のスライダー値を設定画面のhidden inputに転送
+  document.getElementById('logoWidth').value = document.getElementById('adjLogoWidth').value;
+  document.getElementById('logoOffsetX').value = document.getElementById('adjLogoOffsetX').value;
+  document.getElementById('logoOffsetY').value = document.getElementById('adjLogoOffsetY').value;
+  document.getElementById('stampSize').value = document.getElementById('adjStampSize').value;
+  document.getElementById('stampOffsetX').value = document.getElementById('adjStampOffsetX').value;
+  document.getElementById('stampOffsetY').value = document.getElementById('adjStampOffsetY').value;
+
+  // 設定を保存
+  saveSettings();
+  closeLayoutAdjuster();
+  
+  alert('✅ ロゴ＆印鑑の配置を保存しました！\n見積書・請求書に反映されます。');
+}
+
+/**
+ * レイアウト調整モーダルを閉じる
+ */
+function closeLayoutAdjuster() {
+  var modal = document.getElementById('layoutAdjusterModal');
+  if (modal) modal.remove();
+}
