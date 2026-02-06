@@ -2,6 +2,7 @@
 // Service Worker - リフォーム見積・会計 Pro
 // Version: 2.0.0
 // ★ v2.0.0: idb-storage.js追加（IndexedDB画像ストレージ）
+// ★ v2.0.1: スプラッシュ画像・アイコン・privacy-policy追加
 // ==========================================
 
 const CACHE_NAME = 'reform-app-v2.0.0';
@@ -52,7 +53,13 @@ const FILES_TO_CACHE = [
   'customers.html',
   'materials.html',
   'expenses.html',
-  'data.html'
+  'data.html',
+  'privacy-policy.html',
+  // ★ v2.0.1追加: 画像アセット（スプラッシュ・アイコン）
+  'cocomi_galaxy.jpg',
+  'perafca_galaxy.jpg',
+  'icon-192.png',
+  'icon-512.png'
 ];
 
 // インストール時

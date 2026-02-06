@@ -495,6 +495,12 @@ function generateDocumentHTML(d) {
   }
 
   /* === 合計行（テーブル内統合） === */
+  /* ★ v0.96修正: 親の .items-table tbody td のborderを打ち消し */
+  .totals-row td {
+    border: none !important;
+    background: transparent !important;
+  }
+
   .totals-row .totals-spacer-cell {
     border: none !important;
     background: transparent !important;

@@ -427,7 +427,7 @@ function loadSettings() {
 // ==========================================
 // パスワード管理
 // ==========================================
-function checkPasswordOnLoad() { return; // パスワード無効化
+function checkPasswordOnLoad() { return; // ★ パスワード無効化中（将来有効化を検討）
   const savedPassword = localStorage.getItem('reform_app_password');
   if (savedPassword) {
     document.getElementById('lock-screen').classList.remove('hidden');
