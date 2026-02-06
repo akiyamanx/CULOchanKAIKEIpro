@@ -33,6 +33,12 @@ async function showScreen(screenId) {
   targetScreen.classList.add('active');
   window.scrollTo(0, 0);
   
+  // v0.96: 保存バーの表示制御（設定画面のときだけ表示）
+  var saveBar = document.querySelector('.save-bar');
+  if (saveBar) {
+    saveBar.style.display = (screenId === 'settings') ? 'block' : 'none';
+  }
+  
   if (screenId !== 'home') {
     history.pushState({ screen: screenId }, '', '');
   }

@@ -665,6 +665,7 @@
       padding: 16px;
       border-top: 1px solid #e5e7eb;
       z-index: 100;
+      display: none; /* v0.96: デフォルト非表示。settings画面表示時にJSで表示 */
     }
     
     .save-btn {
