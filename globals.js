@@ -9,6 +9,9 @@ let taxType = 'blue'; // 'blue' or 'white'
 // 品名マスター
 let productMaster = [];
 
+// v0.97追加: サジェスト選択直後の上書き防止フラグ
+let _suggestJustSelected = false;
+
 // レシート関連
 let receiptItems = [];
 let projects = [];  // v0.92追加: 現場割り当て用

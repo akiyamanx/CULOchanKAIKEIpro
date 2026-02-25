@@ -128,7 +128,7 @@ function renderEstimateMaterials() {
               oninput="showEstimateSuggestions(this, ${item.id})"
               onfocus="showEstimateSuggestions(this, ${item.id})"
               onblur="setTimeout(() => hideEstimateSuggestions(${item.id}), 200)"
-              onchange="updateEstimateMaterial(${item.id}, 'name', this.value)">
+              onchange="if(!_suggestJustSelected) updateEstimateMaterial(${item.id}, 'name', this.value)">
             <div class="suggest-dropdown" id="est-suggest-${item.id}"></div>
           </div>
           <input type="number" placeholder="数量" value="${item.quantity}" min="1" id="est-qty-${item.id}"
@@ -333,7 +333,9 @@ function hideEstimateSuggestions(itemId) {
   if (dropdown) dropdown.classList.remove('show');
 }
 
+// v0.97修正: フラグを立ててonchangeの上書きを防止
 function selectEstimateMaterial(itemId, name, price) {
+  _suggestJustSelected = true;
   const item = estimateMaterials.find(m => m.id === itemId);
   if (item) {
     item.name = name;
@@ -344,6 +346,8 @@ function selectEstimateMaterial(itemId, name, price) {
     renderEstimateMaterials();
     calculateEstimateTotal();
   }
+  // 300ms後にフラグ解除（onchangeイベントが処理された後）
+  setTimeout(() => { _suggestJustSelected = false; }, 300);
 }
 
 function addEstimateWork(name = '', value = 0, unit = '') {

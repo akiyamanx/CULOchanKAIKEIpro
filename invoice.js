@@ -131,7 +131,7 @@ function renderInvoiceMaterials() {
               oninput="showInvSuggestions(this, ${item.id})"
               onfocus="showInvSuggestions(this, ${item.id})"
               onblur="setTimeout(() => hideInvSuggestions(${item.id}), 200)"
-              onchange="updateInvoiceMaterial(${item.id}, 'name', this.value)">
+              onchange="if(!_suggestJustSelected) updateInvoiceMaterial(${item.id}, 'name', this.value)">
             <div class="suggest-dropdown" id="inv-suggest-${item.id}"></div>
           </div>
           <input type="number" placeholder="数量" value="${item.quantity}" min="1"
@@ -183,7 +183,9 @@ function hideInvSuggestions(itemId) {
   if (dropdown) dropdown.classList.remove('show');
 }
 
+// v0.97修正: フラグを立ててonchangeの上書きを防止
 function selectInvMaterial(itemId, name, price) {
+  _suggestJustSelected = true;
   const item = invoiceMaterials.find(m => m.id === itemId);
   if (item) {
     item.name = name;
@@ -191,6 +193,7 @@ function selectInvMaterial(itemId, name, price) {
     renderInvoiceMaterials();
     calculateInvoiceTotal();
   }
+  setTimeout(() => { _suggestJustSelected = false; }, 300);
 }
 
 function addInvoiceWork(name = '', value = 0, unit = '') {
