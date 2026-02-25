@@ -127,8 +127,7 @@ function renderEstimateMaterials() {
             <input type="text" placeholder="品名" value="${escapeHtml(item.name)}" id="est-name-${item.id}"
               oninput="showEstimateSuggestions(this, ${item.id})"
               onfocus="showEstimateSuggestions(this, ${item.id})"
-              onblur="setTimeout(() => hideEstimateSuggestions(${item.id}), 200)"
-              onchange="if(!_suggestJustSelected) updateEstimateMaterial(${item.id}, 'name', this.value)">
+              onblur="setTimeout(() => { if(!_suggestJustSelected) updateEstimateMaterial(${item.id}, 'name', this.value) }, 250); setTimeout(() => hideEstimateSuggestions(${item.id}), 200)">
             <div class="suggest-dropdown" id="est-suggest-${item.id}"></div>
           </div>
           <input type="number" placeholder="数量" value="${item.quantity}" min="1" id="est-qty-${item.id}"

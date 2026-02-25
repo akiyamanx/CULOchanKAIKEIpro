@@ -130,8 +130,7 @@ function renderInvoiceMaterials() {
             <input type="text" placeholder="品名" value="${escapeHtml(item.name)}"
               oninput="showInvSuggestions(this, ${item.id})"
               onfocus="showInvSuggestions(this, ${item.id})"
-              onblur="setTimeout(() => hideInvSuggestions(${item.id}), 200)"
-              onchange="if(!_suggestJustSelected) updateInvoiceMaterial(${item.id}, 'name', this.value)">
+              onblur="setTimeout(() => { if(!_suggestJustSelected) updateInvoiceMaterial(${item.id}, 'name', this.value) }, 250); setTimeout(() => hideInvSuggestions(${item.id}), 200)">
             <div class="suggest-dropdown" id="inv-suggest-${item.id}"></div>
           </div>
           <input type="number" placeholder="数量" value="${item.quantity}" min="1"
