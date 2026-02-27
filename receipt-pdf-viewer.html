@@ -1,0 +1,36 @@
+  <!-- ========== レシートPDF一覧・閲覧画面 (v0.96新規) ========== -->
+  <div id="receipt-pdf-viewer-screen" class="screen">
+    <div class="header">
+      <button class="back-btn" onclick="showScreen('home')" title="ホームに戻る">🏠</button>
+      <h1>📄 レシートPDF</h1>
+      <button class="back-btn" onclick="showScreen('receipt')" title="レシート読込へ" style="font-size: 20px;">📷</button>
+    </div>
+
+    <div class="form-container">
+      <!-- 月選択 -->
+      <div style="display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px 0;">
+        <button onclick="changeReceiptPdfMonth(-1)" 
+          style="width: 40px; height: 40px; border-radius: 50%; border: 1px solid #d1d5db; background: white; font-size: 18px; cursor: pointer;">◀</button>
+        <span id="receiptPdfMonthLabel" style="font-size: 18px; font-weight: 700; color: #1f2937; min-width: 140px; text-align: center;">2026年2月</span>
+        <button onclick="changeReceiptPdfMonth(1)" 
+          style="width: 40px; height: 40px; border-radius: 50%; border: 1px solid #d1d5db; background: white; font-size: 18px; cursor: pointer;">▶</button>
+      </div>
+
+      <!-- 統計バー -->
+      <div id="receiptPdfStats" 
+        style="display: flex; justify-content: space-around; padding: 10px; background: linear-gradient(135deg, #eff6ff, #f0fdf4); border-radius: 10px; margin-bottom: 12px; font-size: 13px; color: #374151;">
+        <span>📄 0件</span>
+        <span>🧾 0枚</span>
+        <span style="font-weight: 600; color: #3b82f6;">¥0</span>
+      </div>
+
+      <!-- 日付一覧 -->
+      <div id="receiptPdfList" style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="text-align: center; padding: 40px 20px; color: #9ca3af;">
+          <div style="font-size: 48px; margin-bottom: 12px;">📄</div>
+          <div style="font-size: 15px;">保存済みPDFはまだありません</div>
+          <div style="font-size: 12px; margin-top: 8px;">レシートを読み込んで「PDF生成して保存」を<br>タップするとここに表示されます</div>
+        </div>
+      </div>
+    </div>
+  </div>
