@@ -20,6 +20,7 @@ const SCREEN_FILES = [
   'settings',
   'receipt',
   'receipt-list',
+  'receipt-pdf-viewer',
   'estimate',
   'invoice',
   'customers',
