@@ -2,7 +2,7 @@
  * receipt-pdf.js v0.97
  * レシートPDF生成＆IndexedDB保存モジュール
  * 
- * 依存: jsPDF (CDN), receipt-ai.js (getLastAiResults), receipt-core.js (receiptImageData)
+ * 依存: jsPDF (CDN), receipt-ai.js (getLastAiResults), globals.js (receiptImageData, multiImageDataUrls)
  *       noto-sans-jp-base64.js (NOTO_SANS_JP_BASE64: 日本語フォントBase64)
  * 
  * 変更履歴:
@@ -285,10 +285,12 @@ async function generateAndSaveReceiptPdfs() {
       return;
     }
 
-    // 画像データ取得
-    var imageData = null;
-    if (typeof receiptImageData !== 'undefined' && receiptImageData) {
-      imageData = receiptImageData;
+    // 画像データ取得（単枚 or 複数選択対応）v0.97fix5
+    var allImages = [];
+    if (typeof multiImageDataUrls !== 'undefined' && multiImageDataUrls.length > 0) {
+      allImages = multiImageDataUrls.slice(); // 複数選択の画像配列
+    } else if (typeof receiptImageData !== 'undefined' && receiptImageData) {
+      allImages = [receiptImageData]; // 単枚撮影
     }
 
     // 日付別にグループ化
@@ -301,8 +303,9 @@ async function generateAndSaveReceiptPdfs() {
         dateGroups[dateKey] = { receipts: [], images: [] };
       }
       dateGroups[dateKey].receipts.push(r);
-      // 画像は全レシートに同じ撮影画像を紐付け（Phase2でクロップ対応予定）
-      dateGroups[dateKey].images.push(imageData);
+      // レシートiに対応する画像: 画像数以内ならi番目、超えたら最後の画像を使う
+      var imgIdx = Math.min(i, allImages.length - 1);
+      dateGroups[dateKey].images.push(allImages.length > 0 ? allImages[imgIdx] : null);
     }
 
     // 日付ごとにPDF生成・保存
