@@ -1,11 +1,11 @@
 // ==========================================
 // Service Worker - リフォーム見積・会計 Pro
-// Version: 2.0.0
+// Version: 2.1.0
 // ★ v2.0.0: idb-storage.js追加（IndexedDB画像ストレージ）
 // ★ v2.0.1: スプラッシュ画像・アイコン・privacy-policy追加
 // ==========================================
 
-const CACHE_NAME = 'reform-app-v2.0.0';
+const CACHE_NAME = 'reform-app-v2.1.0';
 const OFFLINE_URL = 'index.html';
 
 // キャッシュするファイル（相対パス）
@@ -26,6 +26,9 @@ const FILES_TO_CACHE = [
   'products.js',
   'receipt-core.js',
   'receipt-ai.js',
+  'receipt-pdf.js',
+  'receipt-pdf-viewer.js',
+  'receipt-pdf-viewer.html',
   'receipt-history.js',
   'receipt-list.js',
   'estimate.js',
@@ -64,7 +67,7 @@ const FILES_TO_CACHE = [
 
 // インストール時
 self.addEventListener('install', event => {
-  console.log('[SW] インストール開始 v2.0.0');
+  console.log('[SW] インストール開始 v2.1.0');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
