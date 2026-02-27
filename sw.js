@@ -5,7 +5,7 @@
 // ★ v2.0.1: スプラッシュ画像・アイコン・privacy-policy追加
 // ==========================================
 
-const CACHE_NAME = 'reform-app-v2.1.0';
+const CACHE_NAME = 'reform-app-v2.2.0';
 const OFFLINE_URL = 'index.html';
 
 // キャッシュするファイル（相対パス）
@@ -26,6 +26,7 @@ const FILES_TO_CACHE = [
   'products.js',
   'receipt-core.js',
   'receipt-ai.js',
+  'noto-sans-jp-base64.js',
   'receipt-pdf.js',
   'receipt-pdf-viewer.js',
   'receipt-pdf-viewer.html',

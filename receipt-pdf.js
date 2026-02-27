@@ -1,232 +1,315 @@
-// ==========================================
-// レシートPDF生成・管理機能
-// Reform App Pro v0.96（新規）
-// ==========================================
-// 日付ごとにレシート画像＋ラベル付きPDFを生成し、
-// IndexedDBに保存する。
-//
-// 企画書 Phase 1: 撮影→読み取り→PDF保存→閲覧
-//
-// 依存:
-//   - jsPDF (CDN読込済み)
-//   - receipt-ai.js (getLastAiResults, _lastAiReceiptResults)
-//   - receipt-core.js (receiptItems, receiptImageData)
-//   - idb-storage.js (IndexedDB操作)
-//   - globals.js (escapeHtml)
-// ==========================================
+/**
+ * receipt-pdf.js v0.97
+ * レシートPDF生成＆IndexedDB保存モジュール
+ * 
+ * 依存: jsPDF (CDN), receipt-ai.js (getLastAiResults), receipt-core.js (receiptImageData)
+ *       noto-sans-jp-base64.js (NOTO_SANS_JP_BASE64: 日本語フォントBase64)
+ * 
+ * 変更履歴:
+ *   v0.96 — 初版。PDF生成、IndexedDB保存、日付別グループ化
+ *   v0.97 — 日本語フォント対応（NotoSansJP埋め込み）、PDF閲覧をダウンロード方式に変更
+ * 
+ * IndexedDB: CULOchanReceiptPDFs
+ *   - receipt_pdfs ストア: keyPath 'date' (YYYY-MM-DD)
+ *   - receipts ストア: keyPath 'id' (合成キー)
+ */
 
-
-// ==========================================
-// IndexedDB: receipt_pdfsストア操作
-// ==========================================
-
+// === IndexedDB設定 ===
 var RECEIPT_PDF_DB_NAME = 'CULOchanReceiptPDFs';
 var RECEIPT_PDF_DB_VERSION = 1;
-var RECEIPT_PDF_STORE = 'receipt_pdfs';
-var RECEIPT_DATA_STORE = 'receipts';
 
-/**
- * レシートPDF用のIndexedDBを取得/作成
- */
-function getReceiptPdfDB() {
+// === IndexedDB初期化 ===
+function openReceiptPdfDb() {
   return new Promise(function(resolve, reject) {
     var request = indexedDB.open(RECEIPT_PDF_DB_NAME, RECEIPT_PDF_DB_VERSION);
-
     request.onupgradeneeded = function(event) {
       var db = event.target.result;
-
-      // PDF保存ストア（日付キー）
-      if (!db.objectStoreNames.contains(RECEIPT_PDF_STORE)) {
-        var pdfStore = db.createObjectStore(RECEIPT_PDF_STORE, { keyPath: 'date' });
+      // 日付別PDFストア
+      if (!db.objectStoreNames.contains('receipt_pdfs')) {
+        var pdfStore = db.createObjectStore('receipt_pdfs', { keyPath: 'date' });
         pdfStore.createIndex('updated_at', 'updated_at', { unique: false });
       }
-
-      // レシートデータストア（UUID）
-      if (!db.objectStoreNames.contains(RECEIPT_DATA_STORE)) {
-        var dataStore = db.createObjectStore(RECEIPT_DATA_STORE, { keyPath: 'id' });
-        dataStore.createIndex('date', 'date', { unique: false });
-        dataStore.createIndex('type', 'type', { unique: false });
-        dataStore.createIndex('store', 'store', { unique: false });
+      // 個別レシートデータストア
+      if (!db.objectStoreNames.contains('receipts')) {
+        var receiptStore = db.createObjectStore('receipts', { keyPath: 'id' });
+        receiptStore.createIndex('date', 'date', { unique: false });
+        receiptStore.createIndex('type', 'type', { unique: false });
+        receiptStore.createIndex('store', 'store', { unique: false });
       }
     };
-
-    request.onsuccess = function(event) { resolve(event.target.result); };
-    request.onerror = function(event) { reject(event.target.error); };
+    request.onsuccess = function(event) {
+      resolve(event.target.result);
+    };
+    request.onerror = function(event) {
+      console.error('IndexedDB open error:', event.target.error);
+      reject(event.target.error);
+    };
   });
 }
 
-
-// ==========================================
-// PDF生成
-// ==========================================
-
-/**
- * レシート画像+ラベル付きPDFを生成
- * @param {string} dateKey - 日付(YYYY-MM-DD)
- * @param {Array} receiptDataList - その日のレシートデータ配列
- * @param {Array} imageDataList - 対応するレシート画像Base64配列
- * @returns {Promise<string>} 生成されたPDFのBase64データ
- */
+// === PDF生成（jsPDF + NotoSansJP日本語フォント対応） ===
 async function generateReceiptPdf(dateKey, receiptDataList, imageDataList) {
-  var jspdf = window.jspdf || window.jsPDF;
-  var JsPDF = jspdf.jsPDF || jspdf;
+  // jsPDFが読み込まれているか確認
+  if (typeof jspdf === 'undefined' || typeof jspdf.jsPDF === 'undefined') {
+    throw new Error('jsPDFが読み込まれていません');
+  }
 
-  // A4縦
-  var doc = new JsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  var pageW = 210;
-  var pageH = 297;
-  var margin = 10;
-  var contentW = pageW - margin * 2;
+  var doc = new jspdf.jsPDF('p', 'mm', 'a4');
+
+  // 日本語フォント登録 (NotoSansJP レシート用サブセット) v0.97
+  var fontLoaded = false;
+  if (typeof NOTO_SANS_JP_BASE64 !== 'undefined' && NOTO_SANS_JP_BASE64.length > 0) {
+    try {
+      doc.addFileToVFS('NotoSansJP-Regular.ttf', NOTO_SANS_JP_BASE64);
+      doc.addFont('NotoSansJP-Regular.ttf', 'NotoSansJP', 'normal');
+      doc.setFont('NotoSansJP');
+      fontLoaded = true;
+      console.log('日本語フォント(NotoSansJP)登録成功');
+    } catch (e) {
+      console.warn('日本語フォント登録に失敗。helveticaで代替します:', e);
+      doc.setFont('helvetica');
+    }
+  } else {
+    console.warn('NOTO_SANS_JP_BASE64未定義。helveticaで代替します');
+    doc.setFont('helvetica');
+  }
+
+  var pageWidth = 210;
+  var pageHeight = 297;
+  var margin = 15;
+  var contentWidth = pageWidth - margin * 2;
   var y = margin;
 
-  // ヘッダー
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text(formatDateJapanese(dateKey) + '  レシート', margin, y + 5);
-  y += 8;
-
-  var count = receiptDataList.length;
-  var totalAmount = receiptDataList.reduce(function(s, r) {
-    return s + (parseInt(r.total) || 0);
-  }, 0);
-
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text(count + ' receipts / Total: Y' + totalAmount.toLocaleString(), margin, y + 3);
-  y += 8;
+  // タイトル
+  doc.setFontSize(16);
+  var titleText = 'レシート記録 — ' + dateKey;
+  if (fontLoaded) {
+    doc.text(titleText, margin, y);
+  } else {
+    doc.text('Receipt Record - ' + dateKey, margin, y);
+  }
+  y += 10;
 
   // 区切り線
-  doc.setDrawColor(100, 100, 100);
-  doc.setLineWidth(0.3);
-  doc.line(margin, y, pageW - margin, y);
+  doc.setDrawColor(200, 200, 200);
+  doc.line(margin, y, pageWidth - margin, y);
   y += 5;
 
-  // 各レシートを配置
+  // 各レシートのデータを描画
   for (var i = 0; i < receiptDataList.length; i++) {
     var receipt = receiptDataList[i];
-    var imgData = imageDataList[i] || null;
 
-    // ページ残りチェック（最低60mm必要）
-    if (y > pageH - 70) {
+    // ページ残量チェック（残り60mm未満で改ページ）
+    if (y > pageHeight - 60) {
       doc.addPage();
       y = margin;
+      // 改ページ後もフォント再設定
+      if (fontLoaded) {
+        doc.setFont('NotoSansJP');
+      }
     }
 
-    // ラベル（店名・金額・種別）
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    var storeLabel = (receipt.store || 'Unknown') + '  Y' + ((receipt.total || 0).toLocaleString());
-    doc.text(storeLabel, margin, y + 4);
+    // レシート番号ラベル
+    doc.setFontSize(12);
+    doc.setTextColor(80, 80, 80);
+    var receiptLabel = fontLoaded
+      ? '【レシート ' + (i + 1) + '/' + receiptDataList.length + '】'
+      : '[Receipt ' + (i + 1) + '/' + receiptDataList.length + ']';
+    doc.text(receiptLabel, margin, y);
+    y += 7;
+
+    // 店名
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    var storeName = receipt.store || receipt.storeName || '不明';
+    var storeLabel = fontLoaded ? '店名: ' + storeName : 'Store: ' + storeName;
+    doc.text(storeLabel, margin, y);
     y += 6;
 
-    // 種別＆時間（駐車場の場合）
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    var typeLabel = receipt.type === 'parking' ? '[Parking]' : '[Shopping]';
-    if (receipt.type === 'parking' && receipt.entry_time) {
-      typeLabel += ' ' + (receipt.entry_time || '') + ' - ' + (receipt.exit_time || '');
+    // 種別（parking/shopping等）
+    if (receipt.type) {
+      var typeLabel = fontLoaded
+        ? '種別: ' + (receipt.type === 'parking' ? '駐車場' : receipt.type === 'shopping' ? '買い物' : receipt.type)
+        : 'Type: ' + receipt.type;
+      doc.text(typeLabel, margin, y);
+      y += 6;
     }
-    doc.text(typeLabel, margin, y + 3);
-    y += 5;
 
-    // レシート画像を配置
-    if (imgData) {
-      try {
-        var imgDim = await getImageDimensions(imgData);
-        // 最大幅: contentW/2 (半分), 最大高さ: 90mm
-        var maxW = contentW * 0.5;
-        var maxH = 90;
-        var scale = Math.min(maxW / imgDim.w, maxH / imgDim.h, 1);
-        var drawW = imgDim.w * scale;
-        var drawH = imgDim.h * scale;
-
-        // ページ残りチェック
-        if (y + drawH > pageH - margin) {
-          doc.addPage();
-          y = margin;
-        }
-
-        var imgFormat = imgData.indexOf('data:image/png') === 0 ? 'PNG' : 'JPEG';
-        doc.addImage(imgData, imgFormat, margin, y, drawW, drawH);
-        y += drawH + 3;
-      } catch (imgErr) {
-        console.warn('[receipt-pdf] 画像追加失敗:', imgErr);
-        doc.setFontSize(8);
-        doc.text('(image unavailable)', margin, y + 3);
+    // 駐車場の場合：入出庫時間
+    if (receipt.type === 'parking') {
+      if (receipt.entry_time) {
+        var entryLabel = fontLoaded ? '入庫: ' + receipt.entry_time : 'Entry: ' + receipt.entry_time;
+        doc.text(entryLabel, margin, y);
+        y += 6;
+      }
+      if (receipt.exit_time) {
+        var exitLabel = fontLoaded ? '出庫: ' + receipt.exit_time : 'Exit: ' + receipt.exit_time;
+        doc.text(exitLabel, margin, y);
         y += 6;
       }
     }
 
-    // 品目リスト（テキスト）
+    // 品目一覧
     if (receipt.items && receipt.items.length > 0) {
-      doc.setFontSize(7);
-      receipt.items.forEach(function(item) {
-        if (y > pageH - 15) {
+      doc.setFontSize(10);
+      var itemHeader = fontLoaded ? '--- 品目 ---' : '--- Items ---';
+      doc.text(itemHeader, margin, y);
+      y += 5;
+      for (var j = 0; j < receipt.items.length; j++) {
+        var item = receipt.items[j];
+        var itemName = item.name || item.itemName || '品目不明';
+        var itemPrice = item.price || item.amount || 0;
+        var itemQty = item.quantity || 1;
+        var itemText = '  ' + itemName;
+        if (itemQty > 1) {
+          itemText += ' x' + itemQty;
+        }
+        itemText += '  ¥' + Number(itemPrice).toLocaleString();
+        doc.text(itemText, margin, y);
+        y += 5;
+        // ページ残量チェック
+        if (y > pageHeight - 30) {
           doc.addPage();
           y = margin;
+          if (fontLoaded) { doc.setFont('NotoSansJP'); }
         }
-        var line = '  ' + (item.name || '?') +
-          ' x' + (item.qty || item.quantity || 1) +
-          '  Y' + ((item.price || 0).toLocaleString());
-        doc.text(line, margin + 2, y + 2.5);
-        y += 3.5;
-      });
+      }
     }
 
-    // レシート間の区切り
-    y += 3;
+    // 合計金額
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    var total = receipt.total || receipt.totalAmount || 0;
+    var totalLabel = fontLoaded
+      ? '合計: ¥' + Number(total).toLocaleString()
+      : 'Total: ¥' + Number(total).toLocaleString();
+    doc.text(totalLabel, margin, y);
+    y += 8;
+
+    // レシート画像（あれば添付）
+    if (imageDataList && imageDataList[i]) {
+      var imgData = imageDataList[i];
+      // ページ残量チェック（画像用に80mm確保）
+      if (y > pageHeight - 80) {
+        doc.addPage();
+        y = margin;
+        if (fontLoaded) { doc.setFont('NotoSansJP'); }
+      }
+      try {
+        // 画像サイズ計算（幅は最大contentWidth, 高さは比率維持で最大60mm）
+        var imgWidth = contentWidth * 0.6;
+        var imgHeight = 60;
+        doc.addImage(imgData, 'JPEG', margin, y, imgWidth, imgHeight);
+        y += imgHeight + 5;
+      } catch (e) {
+        console.warn('画像追加エラー:', e);
+        var imgErrorLabel = fontLoaded ? '（画像を追加できませんでした）' : '(Image could not be added)';
+        doc.setFontSize(9);
+        doc.setTextColor(150, 150, 150);
+        doc.text(imgErrorLabel, margin, y);
+        y += 6;
+      }
+    }
+
+    // レシート間の区切り線
     if (i < receiptDataList.length - 1) {
-      doc.setDrawColor(200, 200, 200);
-      doc.setLineWidth(0.2);
-      doc.line(margin, y, pageW - margin, y);
-      y += 4;
+      doc.setDrawColor(220, 220, 220);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 5;
     }
   }
 
-  // Base64で返す
-  return doc.output('datauristring');
+  // フッター（生成日時）
+  doc.setFontSize(8);
+  doc.setTextColor(150, 150, 150);
+  var now = new Date();
+  var footerText = fontLoaded
+    ? '生成: ' + now.toLocaleString('ja-JP')
+    : 'Generated: ' + now.toISOString();
+  doc.text(footerText, margin, pageHeight - 10);
+
+  // PDF出力（Base64）
+  var pdfBase64 = doc.output('datauristring').split(',')[1];
+  return pdfBase64;
 }
 
+// === メインフロー: AI結果→日付別グループ→PDF生成→IDB保存 ===
+async function generateAndSaveReceiptPdfs() {
+  try {
+    // AI解析結果を取得
+    var aiResults = null;
+    if (typeof getLastAiResults === 'function') {
+      aiResults = getLastAiResults();
+    }
+    if (!aiResults || !aiResults.receipts || aiResults.receipts.length === 0) {
+      alert('AI解析結果がありません。先にレシートを読み取ってください。');
+      return;
+    }
 
-// ==========================================
-// 画像サイズ取得ユーティリティ
-// ==========================================
+    // 画像データ取得
+    var imageData = null;
+    if (typeof receiptImageData !== 'undefined' && receiptImageData) {
+      imageData = receiptImageData;
+    }
 
-function getImageDimensions(dataUrl) {
-  return new Promise(function(resolve) {
-    var img = new Image();
-    img.onload = function() { resolve({ w: img.width, h: img.height }); };
-    img.onerror = function() { resolve({ w: 200, h: 300 }); };
-    img.src = dataUrl;
-  });
+    // 日付別にグループ化
+    var dateGroups = {};
+    var receipts = aiResults.receipts;
+    for (var i = 0; i < receipts.length; i++) {
+      var r = receipts[i];
+      var dateKey = r.date || new Date().toISOString().split('T')[0];
+      if (!dateGroups[dateKey]) {
+        dateGroups[dateKey] = { receipts: [], images: [] };
+      }
+      dateGroups[dateKey].receipts.push(r);
+      // 画像は全レシートに同じ撮影画像を紐付け（Phase2でクロップ対応予定）
+      dateGroups[dateKey].images.push(imageData);
+    }
+
+    // 日付ごとにPDF生成・保存
+    var savedCount = 0;
+    var dateKeys = Object.keys(dateGroups);
+    for (var d = 0; d < dateKeys.length; d++) {
+      var dk = dateKeys[d];
+      var group = dateGroups[dk];
+      var totalAmount = 0;
+      for (var r2 = 0; r2 < group.receipts.length; r2++) {
+        totalAmount += Number(group.receipts[r2].total || group.receipts[r2].totalAmount || 0);
+      }
+
+      // PDF生成
+      var pdfBase64 = await generateReceiptPdf(dk, group.receipts, group.images);
+
+      // IndexedDB保存
+      await saveReceiptPdf(dk, pdfBase64, group.receipts.length, totalAmount);
+
+      // 個別レシートデータも保存
+      for (var r3 = 0; r3 < group.receipts.length; r3++) {
+        var receiptData = group.receipts[r3];
+        var receiptId = dk + '_' + r3 + '_' + Date.now();
+        await saveReceiptData(receiptId, dk, receiptData);
+      }
+
+      savedCount++;
+    }
+
+    alert('PDF生成完了！' + savedCount + '日分のPDFを保存しました');
+    console.log('PDF生成完了: ' + savedCount + '日分');
+
+  } catch (e) {
+    console.error('PDF生成エラー:', e);
+    alert('PDF生成に失敗しました: ' + e.message);
+  }
 }
 
+// === IndexedDB CRUD ===
 
-// ==========================================
-// 日付フォーマット
-// ==========================================
-
-function formatDateJapanese(dateStr) {
-  if (!dateStr || dateStr === 'unknown') return dateStr;
-  var parts = dateStr.split('-');
-  if (parts.length !== 3) return dateStr;
-  return parts[0] + '/' + parts[1] + '/' + parts[2];
-}
-
-
-// ==========================================
-// IndexedDBへの保存・取得
-// ==========================================
-
-/**
- * 生成したPDFをIndexedDBに保存
- */
+// PDF保存
 async function saveReceiptPdf(dateKey, pdfBase64, receiptCount, totalAmount) {
-  var db = await getReceiptPdfDB();
+  var db = await openReceiptPdfDb();
   return new Promise(function(resolve, reject) {
-    var tx = db.transaction(RECEIPT_PDF_STORE, 'readwrite');
-    var store = tx.objectStore(RECEIPT_PDF_STORE);
-
+    var tx = db.transaction('receipt_pdfs', 'readwrite');
+    var store = tx.objectStore('receipt_pdfs');
     var record = {
       date: dateKey,
       pdf_data: pdfBase64,
@@ -234,38 +317,60 @@ async function saveReceiptPdf(dateKey, pdfBase64, receiptCount, totalAmount) {
       total_amount: totalAmount,
       updated_at: new Date().toISOString()
     };
-
-    var req = store.put(record);
-    req.onsuccess = function() { resolve(true); };
-    req.onerror = function() { reject(req.error); };
+    var request = store.put(record);
+    request.onsuccess = function() { resolve(); };
+    request.onerror = function(e) { reject(e.target.error); };
   });
 }
 
-/**
- * 日付キーでPDFを取得
- */
+// 個別レシートデータ保存
+async function saveReceiptData(id, dateKey, receiptData) {
+  var db = await openReceiptPdfDb();
+  return new Promise(function(resolve, reject) {
+    var tx = db.transaction('receipts', 'readwrite');
+    var store = tx.objectStore('receipts');
+    var record = {
+      id: id,
+      date: dateKey,
+      type: receiptData.type || 'shopping',
+      store: receiptData.store || receiptData.storeName || '',
+      total: Number(receiptData.total || receiptData.totalAmount || 0),
+      items: receiptData.items || [],
+      entry_time: receiptData.entry_time || null,
+      exit_time: receiptData.exit_time || null,
+      purpose: receiptData.purpose || null,
+      pdf_date: dateKey,
+      created_at: new Date().toISOString()
+    };
+    var request = store.put(record);
+    request.onsuccess = function() { resolve(); };
+    request.onerror = function(e) { reject(e.target.error); };
+  });
+}
+
+// PDF取得
 async function getReceiptPdf(dateKey) {
-  var db = await getReceiptPdfDB();
+  var db = await openReceiptPdfDb();
   return new Promise(function(resolve, reject) {
-    var tx = db.transaction(RECEIPT_PDF_STORE, 'readonly');
-    var store = tx.objectStore(RECEIPT_PDF_STORE);
-    var req = store.get(dateKey);
-    req.onsuccess = function() { resolve(req.result || null); };
-    req.onerror = function() { reject(req.error); };
+    var tx = db.transaction('receipt_pdfs', 'readonly');
+    var store = tx.objectStore('receipt_pdfs');
+    var request = store.get(dateKey);
+    request.onsuccess = function(e) { resolve(e.target.result || null); };
+    request.onerror = function(e) { reject(e.target.error); };
   });
 }
 
-/**
- * 全PDF一覧を取得（日付・件数・金額のみ、PDF本体は除く）
- */
+// PDF一覧取得（軽量: pdf_data除く）
 async function listReceiptPdfs() {
-  var db = await getReceiptPdfDB();
+  var db = await openReceiptPdfDb();
   return new Promise(function(resolve, reject) {
-    var tx = db.transaction(RECEIPT_PDF_STORE, 'readonly');
-    var store = tx.objectStore(RECEIPT_PDF_STORE);
-    var req = store.getAll();
-    req.onsuccess = function() {
-      var list = (req.result || []).map(function(r) {
+    var tx = db.transaction('receipt_pdfs', 'readonly');
+    var store = tx.objectStore('receipt_pdfs');
+    var request = store.getAll();
+    request.onsuccess = function(e) {
+      var results = e.target.result || [];
+      // 軽量化: pdf_dataを除いて返す
+      var lightResults = results.map(function(r) {
         return {
           date: r.date,
           receipt_count: r.receipt_count,
@@ -273,149 +378,25 @@ async function listReceiptPdfs() {
           updated_at: r.updated_at
         };
       });
-      // 日付の新しい順
-      list.sort(function(a, b) { return b.date.localeCompare(a.date); });
-      resolve(list);
+      resolve(lightResults);
     };
-    req.onerror = function() { reject(req.error); };
+    request.onerror = function(e) { reject(e.target.error); };
   });
 }
 
-/**
- * PDFを削除
- */
+// PDF削除
 async function deleteReceiptPdf(dateKey) {
-  var db = await getReceiptPdfDB();
+  var db = await openReceiptPdfDb();
   return new Promise(function(resolve, reject) {
-    var tx = db.transaction(RECEIPT_PDF_STORE, 'readwrite');
-    var store = tx.objectStore(RECEIPT_PDF_STORE);
-    var req = store.delete(dateKey);
-    req.onsuccess = function() { resolve(true); };
-    req.onerror = function() { reject(req.error); };
+    var tx = db.transaction('receipt_pdfs', 'readwrite');
+    var store = tx.objectStore('receipt_pdfs');
+    var request = store.delete(dateKey);
+    request.onsuccess = function() { resolve(); };
+    request.onerror = function(e) { reject(e.target.error); };
   });
 }
 
-
-// ==========================================
-// レシートデータの保存（receiptsストア）
-// ==========================================
-
-/**
- * 個別レシートデータをIndexedDBに保存
- */
-async function saveReceiptData(receiptRecord) {
-  var db = await getReceiptPdfDB();
-  return new Promise(function(resolve, reject) {
-    var tx = db.transaction(RECEIPT_DATA_STORE, 'readwrite');
-    var store = tx.objectStore(RECEIPT_DATA_STORE);
-    var req = store.put(receiptRecord);
-    req.onsuccess = function() { resolve(true); };
-    req.onerror = function() { reject(req.error); };
-  });
-}
-
-/**
- * 日付でレシートデータを検索
- */
-async function getReceiptDataByDate(dateKey) {
-  var db = await getReceiptPdfDB();
-  return new Promise(function(resolve, reject) {
-    var tx = db.transaction(RECEIPT_DATA_STORE, 'readonly');
-    var store = tx.objectStore(RECEIPT_DATA_STORE);
-    var index = store.index('date');
-    var req = index.getAll(dateKey);
-    req.onsuccess = function() { resolve(req.result || []); };
-    req.onerror = function() { reject(req.error); };
-  });
-}
-
-
-// ==========================================
-// メインフロー: 撮影→解析→PDF保存
-// ==========================================
-
-/**
- * AI解析結果からPDFを生成して保存する
- * 保存ボタン or 自動で呼ばれる
- */
-async function generateAndSaveReceiptPdfs() {
-  var aiResults = getLastAiResults();
-  if (!aiResults || !aiResults.receipts || aiResults.receipts.length === 0) {
-    alert('AI解析結果がありません。\n先にレシートを読み取ってください。');
-    return;
-  }
-
-  showAiLoading('PDF生成中...');
-
-  try {
-    // 日付別にグループ化
-    var grouped = {};
-    aiResults.receipts.forEach(function(r) {
-      var dateKey = r.date || 'unknown';
-      if (!grouped[dateKey]) grouped[dateKey] = [];
-      grouped[dateKey].push(r);
-    });
-
-    var dateKeys = Object.keys(grouped);
-    var savedCount = 0;
-
-    for (var d = 0; d < dateKeys.length; d++) {
-      var dateKey = dateKeys[d];
-      var receiptsForDate = grouped[dateKey];
-
-      // 画像データ（現状は全レシート共通の撮影画像を使用）
-      // Phase 2で個別切り出し画像に対応予定
-      var images = receiptsForDate.map(function() {
-        return receiptImageData || null;
-      });
-
-      // PDF生成
-      var pdfData = await generateReceiptPdf(dateKey, receiptsForDate, images);
-
-      // 合計金額
-      var totalAmt = receiptsForDate.reduce(function(s, r) {
-        return s + (parseInt(r.total) || 0);
-      }, 0);
-
-      // IDBに保存
-      await saveReceiptPdf(dateKey, pdfData, receiptsForDate.length, totalAmt);
-
-      // 各レシートデータもIDBに保存
-      for (var ri = 0; ri < receiptsForDate.length; ri++) {
-        var r = receiptsForDate[ri];
-        await saveReceiptData({
-          id: dateKey + '_' + ri + '_' + Date.now(),
-          date: dateKey,
-          type: r.type || 'shopping',
-          store: r.store || '',
-          total: parseInt(r.total) || 0,
-          items: r.items || [],
-          entry_time: r.entry_time || '',
-          exit_time: r.exit_time || '',
-          purpose: '',
-          pdf_date: dateKey,
-          created_at: new Date().toISOString()
-        });
-      }
-
-      savedCount++;
-    }
-
-    hideAiLoading();
-    alert('✅ PDF生成完了！\n' + savedCount + '日分のPDFを保存しました。');
-
-  } catch (e) {
-    hideAiLoading();
-    console.error('[receipt-pdf] PDF生成エラー:', e);
-    alert('PDF生成中にエラーが発生しました:\n' + e.message);
-  }
-}
-
-
-// ==========================================
-// PDF閲覧（新しいタブで開く）
-// ==========================================
-
+// === PDF閲覧（v0.97: ダウンロード方式） ===
 async function viewReceiptPdf(dateKey) {
   try {
     var record = await getReceiptPdf(dateKey);
@@ -423,36 +404,37 @@ async function viewReceiptPdf(dateKey) {
       alert('PDFが見つかりません: ' + dateKey);
       return;
     }
-    // data:application/pdf;base64,... の形式で開く
-    var pdfWindow = window.open('');
-    if (pdfWindow) {
-      pdfWindow.document.write(
-        '<html><head><title>' + dateKey + ' Receipt</title></head>' +
-        '<body style="margin:0;"><iframe src="' + record.pdf_data +
-        '" style="width:100%;height:100vh;border:none;"></iframe></body></html>'
-      );
-    } else {
-      // ポップアップブロック対策
-      var link = document.createElement('a');
-      link.href = record.pdf_data;
-      link.download = dateKey + '_receipt.pdf';
-      link.click();
+
+    // Base64 → Uint8Array → Blob変換
+    var byteChars = atob(record.pdf_data);
+    var byteNumbers = new Array(byteChars.length);
+    for (var i = 0; i < byteChars.length; i++) {
+      byteNumbers[i] = byteChars.charCodeAt(i);
     }
+    var byteArray = new Uint8Array(byteNumbers);
+    var blob = new Blob([byteArray], { type: 'application/pdf' });
+
+    // Blob URLでダウンロード
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'receipt_' + dateKey + '.pdf';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+
+    // クリーンアップ
+    setTimeout(function() {
+      if (a.parentNode) {
+        document.body.removeChild(a);
+      }
+      URL.revokeObjectURL(url);
+    }, 1500);
+
+    console.log('PDF ダウンロード開始: receipt_' + dateKey + '.pdf');
+
   } catch (e) {
-    alert('PDF表示エラー: ' + e.message);
+    console.error('PDF閲覧エラー:', e);
+    alert('PDF表示に失敗しました: ' + e.message);
   }
 }
-
-
-// ==========================================
-// グローバル公開
-// ==========================================
-window.generateReceiptPdf = generateReceiptPdf;
-window.generateAndSaveReceiptPdfs = generateAndSaveReceiptPdfs;
-window.saveReceiptPdf = saveReceiptPdf;
-window.getReceiptPdf = getReceiptPdf;
-window.listReceiptPdfs = listReceiptPdfs;
-window.deleteReceiptPdf = deleteReceiptPdf;
-window.viewReceiptPdf = viewReceiptPdf;
-window.saveReceiptData = saveReceiptData;
-window.getReceiptDataByDate = getReceiptDataByDate;
