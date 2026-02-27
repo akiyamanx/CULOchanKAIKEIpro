@@ -118,6 +118,9 @@ async function generateReceiptPdf(dateKey, receiptDataList, imageDataList) {
     doc.text(receiptLabel, margin, y);
     y += 7;
 
+    // デバッグログ: AI結果の中身を確認 v0.97
+    console.log('PDF描画 レシート' + (i+1) + ':', JSON.stringify(receipt));
+
     // 店名
     doc.setFontSize(11);
     doc.setTextColor(0, 0, 0);
@@ -176,37 +179,56 @@ async function generateReceiptPdf(dateKey, receiptDataList, imageDataList) {
       }
     }
 
-    // 合計金額
+    // 合計金額 v0.97: 文字列対応＋0円でも表示
     doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
-    var total = receipt.total || receipt.totalAmount || 0;
+    var total = receipt.total || receipt.totalAmount || receipt.amount || 0;
+    // 文字列の場合は数値に変換（"850" → 850、"¥850" → 850）
+    if (typeof total === 'string') {
+      total = Number(total.replace(/[¥￥,，]/g, '')) || 0;
+    }
     var totalLabel = fontLoaded
       ? '合計: ¥' + Number(total).toLocaleString()
       : 'Total: ¥' + Number(total).toLocaleString();
     doc.text(totalLabel, margin, y);
     y += 8;
 
-    // レシート画像（あれば添付）
+    // レシート画像（あれば添付）— アスペクト比維持 v0.97
     if (imageDataList && imageDataList[i]) {
       var imgData = imageDataList[i];
-      // ページ残量チェック（画像用に80mm確保）
-      if (y > pageHeight - 80) {
-        doc.addPage();
-        y = margin;
-        if (fontLoaded) { doc.setFont('NotoSansJP'); }
-      }
       try {
-        // 画像サイズ計算（幅は最大contentWidth, 高さは比率維持で最大60mm）
-        var imgWidth = contentWidth * 0.6;
-        var imgHeight = 60;
+        // 画像の実際のサイズを取得してアスペクト比を計算
+        var imgDims = await getImageDimensions(imgData);
+        var maxW = contentWidth * 0.55; // 最大幅 (mm)
+        var maxH = 100; // 最大高さ (mm)
+        var ratio = imgDims.width / imgDims.height;
+        var imgWidth, imgHeight;
+        // アスペクト比を維持してmaxW/maxHに収める
+        if (ratio >= 1) {
+          // 横長画像
+          imgWidth = Math.min(maxW, contentWidth * 0.7);
+          imgHeight = imgWidth / ratio;
+          if (imgHeight > maxH) { imgHeight = maxH; imgWidth = imgHeight * ratio; }
+        } else {
+          // 縦長画像（レシートは大抵こっち）
+          imgHeight = Math.min(maxH, 90);
+          imgWidth = imgHeight * ratio;
+          if (imgWidth > maxW) { imgWidth = maxW; imgHeight = imgWidth / ratio; }
+        }
+        // ページ残量チェック
+        if (y > pageHeight - imgHeight - 15) {
+          doc.addPage();
+          y = margin;
+          if (fontLoaded) { doc.setFont('NotoSansJP'); }
+        }
         doc.addImage(imgData, 'JPEG', margin, y, imgWidth, imgHeight);
         y += imgHeight + 5;
       } catch (e) {
         console.warn('画像追加エラー:', e);
-        var imgErrorLabel = fontLoaded ? '（画像を追加できませんでした）' : '(Image could not be added)';
         doc.setFontSize(9);
         doc.setTextColor(150, 150, 150);
-        doc.text(imgErrorLabel, margin, y);
+        var imgErrMsg = fontLoaded ? '（画像を追加できませんでした）' : '(Image error)';
+        doc.text(imgErrMsg, margin, y);
         y += 6;
       }
     }
@@ -437,4 +459,20 @@ async function viewReceiptPdf(dateKey) {
     console.error('PDF閲覧エラー:', e);
     alert('PDF表示に失敗しました: ' + e.message);
   }
+}
+
+// === 画像サイズ取得ヘルパー（アスペクト比計算用） v0.97 ===
+function getImageDimensions(imgSrc) {
+  return new Promise(function(resolve, reject) {
+    var img = new Image();
+    img.onload = function() {
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.onerror = function() {
+      // 取得失敗時はデフォルト値（3:4縦長）
+      console.warn('画像サイズ取得失敗。デフォルト3:4を使用');
+      resolve({ width: 3, height: 4 });
+    };
+    img.src = imgSrc;
+  });
 }
