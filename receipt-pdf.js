@@ -179,11 +179,10 @@ async function generateReceiptPdf(dateKey, receiptDataList, imageDataList) {
       }
     }
 
-    // 合計金額 v0.97fix2: デバッグ表示付き
+    // 合計金額 v0.97fix3
     doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
     var total = receipt.total || receipt.totalAmount || receipt.amount || 0;
-    // 文字列の場合は数値に変換（"850" → 850、"¥850" → 850）
     if (typeof total === 'string') {
       total = Number(total.replace(/[¥￥,，]/g, '')) || 0;
     }
@@ -191,21 +190,7 @@ async function generateReceiptPdf(dateKey, receiptDataList, imageDataList) {
       ? '合計: ¥' + Number(total).toLocaleString()
       : 'Total: ¥' + Number(total).toLocaleString();
     doc.text(totalLabel, margin, y);
-    y += 6;
-
-    // === デバッグ表示（原因特定後に削除してね） ===
-    doc.setFontSize(7);
-    doc.setTextColor(180, 0, 0);
-    var debugKeys = Object.keys(receipt).join(', ');
-    doc.text('[DEBUG keys: ' + debugKeys + ']', margin, y);
-    y += 4;
-    var debugVals = 'total=' + JSON.stringify(receipt.total)
-      + ' totalAmount=' + JSON.stringify(receipt.totalAmount)
-      + ' amount=' + JSON.stringify(receipt.amount);
-    doc.text('[DEBUG vals: ' + debugVals + ']', margin, y);
-    y += 6;
-    doc.setTextColor(0, 0, 0);
-    // === デバッグここまで ===
+    y += 8;
 
     // レシート画像（あれば添付）— アスペクト比維持 v0.97
     if (imageDataList && imageDataList[i]) {
