@@ -95,18 +95,47 @@ async function generateReceiptPdf(dateKey, receiptDataList, imageDataList) {
   doc.line(margin, y, pageWidth - margin, y);
   y += 5;
 
-  // 各レシートのデータを描画
+  // 各レシートのデータを描画 v0.97fix4
+  // ページ跨ぎ防止: 各レシートのテキスト+画像をまとめて1ブロックとして扱う
+  // 同じ画像の重複防止: 既に添付済みの画像はスキップ
+  var attachedImages = {}; // 添付済み画像の追跡用
+
   for (var i = 0; i < receiptDataList.length; i++) {
     var receipt = receiptDataList[i];
 
-    // ページ残量チェック（残り60mm未満で改ページ）
-    if (y > pageHeight - 60) {
+    // --- テキスト部分の高さを事前計算 ---
+    var textHeight = 7; // レシート番号ラベル
+    textHeight += 6; // 店名
+    if (receipt.type) textHeight += 6; // 種別
+    if (receipt.type === 'parking') {
+      if (receipt.entry_time) textHeight += 6;
+      if (receipt.exit_time) textHeight += 6;
+    }
+    if (receipt.items && receipt.items.length > 0) {
+      textHeight += 5; // 品目ヘッダー
+      textHeight += receipt.items.length * 5; // 各品目
+    }
+    textHeight += 8; // 合計金額
+
+    // --- 画像の高さを事前計算 ---
+    var willAttachImage = false;
+    var estimatedImgHeight = 0;
+    if (imageDataList && imageDataList[i]) {
+      var imgSrc = imageDataList[i];
+      // 同じ画像が既に添付済みかチェック（データURLの先頭100文字で判定）
+      var imgKey = imgSrc.substring(0, 100);
+      if (!attachedImages[imgKey]) {
+        willAttachImage = true;
+        estimatedImgHeight = 75; // 縦長レシート画像の概算高さ(mm)
+      }
+    }
+
+    // --- ブロック全体がページに収まるかチェック ---
+    var totalBlockHeight = textHeight + (willAttachImage ? estimatedImgHeight + 5 : 0) + 10;
+    if (y + totalBlockHeight > pageHeight - 15) {
       doc.addPage();
       y = margin;
-      // 改ページ後もフォント再設定
-      if (fontLoaded) {
-        doc.setFont('NotoSansJP');
-      }
+      if (fontLoaded) { doc.setFont('NotoSansJP'); }
     }
 
     // レシート番号ラベル
@@ -117,9 +146,6 @@ async function generateReceiptPdf(dateKey, receiptDataList, imageDataList) {
       : '[Receipt ' + (i + 1) + '/' + receiptDataList.length + ']';
     doc.text(receiptLabel, margin, y);
     y += 7;
-
-    // デバッグログ: AI結果の中身を確認 v0.97
-    console.log('PDF描画 レシート' + (i+1) + ':', JSON.stringify(receipt));
 
     // 店名
     doc.setFontSize(11);
@@ -170,16 +196,10 @@ async function generateReceiptPdf(dateKey, receiptDataList, imageDataList) {
         itemText += '  ¥' + Number(itemPrice).toLocaleString();
         doc.text(itemText, margin, y);
         y += 5;
-        // ページ残量チェック
-        if (y > pageHeight - 30) {
-          doc.addPage();
-          y = margin;
-          if (fontLoaded) { doc.setFont('NotoSansJP'); }
-        }
       }
     }
 
-    // 合計金額 v0.97fix3
+    // 合計金額
     doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
     var total = receipt.total || receipt.totalAmount || receipt.amount || 0;
@@ -192,36 +212,34 @@ async function generateReceiptPdf(dateKey, receiptDataList, imageDataList) {
     doc.text(totalLabel, margin, y);
     y += 8;
 
-    // レシート画像（あれば添付）— アスペクト比維持 v0.97
-    if (imageDataList && imageDataList[i]) {
+    // レシート画像（アスペクト比維持 + 重複防止）
+    if (willAttachImage) {
       var imgData = imageDataList[i];
+      var imgKey2 = imgData.substring(0, 100);
       try {
-        // 画像の実際のサイズを取得してアスペクト比を計算
         var imgDims = await getImageDimensions(imgData);
-        var maxW = contentWidth * 0.55; // 最大幅 (mm)
-        var maxH = 100; // 最大高さ (mm)
+        var maxW = contentWidth * 0.55;
+        var maxH = 100;
         var ratio = imgDims.width / imgDims.height;
         var imgWidth, imgHeight;
-        // アスペクト比を維持してmaxW/maxHに収める
         if (ratio >= 1) {
-          // 横長画像
           imgWidth = Math.min(maxW, contentWidth * 0.7);
           imgHeight = imgWidth / ratio;
           if (imgHeight > maxH) { imgHeight = maxH; imgWidth = imgHeight * ratio; }
         } else {
-          // 縦長画像（レシートは大抵こっち）
           imgHeight = Math.min(maxH, 90);
           imgWidth = imgHeight * ratio;
           if (imgWidth > maxW) { imgWidth = maxW; imgHeight = imgWidth / ratio; }
         }
-        // ページ残量チェック
-        if (y > pageHeight - imgHeight - 15) {
+        // 画像がページに収まらない場合は改ページ
+        if (y + imgHeight + 10 > pageHeight - 15) {
           doc.addPage();
           y = margin;
           if (fontLoaded) { doc.setFont('NotoSansJP'); }
         }
         doc.addImage(imgData, 'JPEG', margin, y, imgWidth, imgHeight);
         y += imgHeight + 5;
+        attachedImages[imgKey2] = true; // 添付済みとして記録
       } catch (e) {
         console.warn('画像追加エラー:', e);
         doc.setFontSize(9);
