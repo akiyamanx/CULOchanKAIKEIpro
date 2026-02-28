@@ -1,49 +1,33 @@
 /**
- * receipt-pdf.js v0.97
- * レシートPDF生成＆IndexedDB保存モジュール
- * 
- * 依存: jsPDF (CDN), receipt-ai.js (getLastAiResults), globals.js (receiptImageData, multiImageDataUrls)
- *       noto-sans-jp-base64.js (NOTO_SANS_JP_BASE64: 日本語フォントBase64)
- * 
- * 変更履歴:
- *   v0.96 — 初版。PDF生成、IndexedDB保存、日付別グループ化
- *   v0.97 — 日本語フォント対応（NotoSansJP埋め込み）、PDF閲覧をダウンロード方式に変更
- * 
- * IndexedDB: CULOchanReceiptPDFs
- *   - receipt_pdfs ストア: keyPath 'date' (YYYY-MM-DD)
- *   - receipts ストア: keyPath 'id' (合成キー)
+ * receipt-pdf.js v0.97fix6+phase16
+ * レシートPDF生成＆IndexedDB保存
+ * 依存: jsPDF, receipt-ai.js, globals.js, noto-sans-jp-base64.js, receipt-store.js
  */
 
 // === IndexedDB設定 ===
-var RECEIPT_PDF_DB_NAME = 'CULOchanReceiptPDFs';
-var RECEIPT_PDF_DB_VERSION = 1;
-
-// === IndexedDB初期化 ===
+// v1.6: receipt-store.jsのopenReceiptStoreDb()を使用（DB v2対応）
+// receipt-store.jsが先に読み込まれていない場合のフォールバック
 function openReceiptPdfDb() {
+  if (typeof openReceiptStoreDb === 'function') {
+    return openReceiptStoreDb();
+  }
+  // フォールバック（旧実装）
+  var RECEIPT_PDF_DB_NAME = 'CULOchanReceiptPDFs';
   return new Promise(function(resolve, reject) {
-    var request = indexedDB.open(RECEIPT_PDF_DB_NAME, RECEIPT_PDF_DB_VERSION);
+    var request = indexedDB.open(RECEIPT_PDF_DB_NAME, 1);
     request.onupgradeneeded = function(event) {
       var db = event.target.result;
-      // 日付別PDFストア
       if (!db.objectStoreNames.contains('receipt_pdfs')) {
         var pdfStore = db.createObjectStore('receipt_pdfs', { keyPath: 'date' });
         pdfStore.createIndex('updated_at', 'updated_at', { unique: false });
       }
-      // 個別レシートデータストア
       if (!db.objectStoreNames.contains('receipts')) {
         var receiptStore = db.createObjectStore('receipts', { keyPath: 'id' });
         receiptStore.createIndex('date', 'date', { unique: false });
-        receiptStore.createIndex('type', 'type', { unique: false });
-        receiptStore.createIndex('store', 'store', { unique: false });
       }
     };
-    request.onsuccess = function(event) {
-      resolve(event.target.result);
-    };
-    request.onerror = function(event) {
-      console.error('IndexedDB open error:', event.target.error);
-      reject(event.target.error);
-    };
+    request.onsuccess = function(event) { resolve(event.target.result); };
+    request.onerror = function(event) { reject(event.target.error); };
   });
 }
 
@@ -337,6 +321,16 @@ async function generateAndSaveReceiptPdfs() {
 
     alert('PDF生成完了！' + savedCount + '日分のPDFを保存しました');
     console.log('PDF生成完了: ' + savedCount + '日分');
+
+    // Phase1.6: レシート個別管理にも保存
+    if (typeof saveReceiptsFromAi === 'function') {
+      try {
+        var savedIds = await saveReceiptsFromAi(aiResults, allImages);
+        console.log('レシート個別保存完了: ' + savedIds.length + '件');
+      } catch (storeErr) {
+        console.warn('レシート個別保存に失敗（PDF保存は成功）:', storeErr);
+      }
+    }
 
   } catch (e) {
     console.error('PDF生成エラー:', e);

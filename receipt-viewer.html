@@ -1,0 +1,69 @@
+  <!-- ========== レシート管理画面（Phase1.6） ========== -->
+  <div id="receipt-viewer-screen" class="screen">
+    <div class="header">
+      <button class="back-btn" onclick="showScreen('receipt')" title="レシート読込に戻る">📷</button>
+      <h1>🧾 レシート管理</h1>
+      <button onclick="showScreen('home')" style="background: none; border: none; font-size: 20px; cursor: pointer;" title="ホーム">🏠</button>
+    </div>
+
+    <div class="form-container" style="padding-bottom: 80px;">
+
+      <!-- 日付サマリー一覧 / レシート詳細 の切り替え -->
+      <div id="receiptViewerDateList">
+        <!-- 統計バー -->
+        <div id="receiptViewerStats" style="padding: 12px 16px; background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-radius: 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <span style="font-size: 13px; color: #16a34a; font-weight: 600;">📊 保存済みレシート</span>
+            <span id="rvTotalCount" style="font-size: 18px; font-weight: 700; color: #15803d; margin-left: 8px;">0件</span>
+          </div>
+          <div style="text-align: right;">
+            <span style="font-size: 12px; color: #6b7280;">合計</span>
+            <span id="rvTotalAmount" style="font-size: 16px; font-weight: 700; color: #15803d; margin-left: 4px;">¥0</span>
+          </div>
+        </div>
+
+        <!-- 日付カードリスト -->
+        <div id="receiptViewerDateCards" style="display: flex; flex-direction: column; gap: 8px;">
+          <!-- JSで動的生成 -->
+        </div>
+
+        <!-- 空状態 -->
+        <div id="receiptViewerEmpty" style="display: none; text-align: center; padding: 40px 16px;">
+          <div style="font-size: 48px; margin-bottom: 12px;">📭</div>
+          <div style="font-size: 16px; color: #6b7280; font-weight: 500;">レシートがまだありません</div>
+          <div style="font-size: 13px; color: #9ca3af; margin-top: 8px;">レシート読込画面でAI解析→「レシートを個別保存」してください</div>
+        </div>
+      </div>
+
+      <!-- 特定日付のレシート一覧（チェックボックス付き） -->
+      <div id="receiptViewerDetail" style="display: none;">
+        <!-- 戻るバー -->
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <button onclick="showReceiptDateList()" style="background: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 12px; font-size: 14px; cursor: pointer;">← 日付一覧</button>
+          <h2 id="rvDetailDate" style="margin: 0; font-size: 18px; color: #1f2937; flex: 1;"></h2>
+        </div>
+
+        <!-- 操作バー -->
+        <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 12px; padding: 10px 12px; background: #f9fafb; border-radius: 10px; border: 1px solid #e5e7eb;">
+          <label style="display: flex; align-items: center; gap: 4px; font-size: 13px; color: #374151; cursor: pointer;">
+            <input type="checkbox" id="rvSelectAll" onchange="toggleAllReceiptChecks(this.checked)" style="width: 18px; height: 18px; accent-color: #3b82f6;">
+            全選択
+          </label>
+          <span id="rvCheckedCount" style="flex: 1; font-size: 12px; color: #6b7280; text-align: center;">0件選択中</span>
+          <button id="rvDeleteSelectedBtn" onclick="deleteSelectedReceipts()" style="padding: 6px 12px; background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; border-radius: 6px; font-size: 12px; cursor: pointer; display: none;">🗑️ 削除</button>
+        </div>
+
+        <!-- レシートカード一覧 -->
+        <div id="rvReceiptCards" style="display: flex; flex-direction: column; gap: 8px;">
+          <!-- JSで動的生成 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 下部アクションバー（チェック選択時に表示） -->
+    <div id="rvActionBar" style="display: none; position: fixed; bottom: 0; left: 0; right: 0; padding: 12px 16px; background: white; border-top: 2px solid #e5e7eb; box-shadow: 0 -4px 12px rgba(0,0,0,0.1); z-index: 100;">
+      <button id="rvPdfExportBtn" onclick="exportSelectedReceiptsPdf()" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer;">
+        📄 選択したレシートをPDF出力（<span id="rvPdfCount">0</span>件）
+      </button>
+    </div>
+  </div>

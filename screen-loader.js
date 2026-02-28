@@ -21,6 +21,7 @@ const SCREEN_FILES = [
   'receipt',
   'receipt-list',
   'receipt-pdf-viewer',
+  'receipt-viewer',
   'estimate',
   'invoice',
   'customers',
