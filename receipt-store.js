@@ -132,6 +132,8 @@ async function saveReceipt(receipt) {
       };
     }),
     imageData: receipt.imageData || null,
+    bounds: receipt.bounds || null, // v1.8追加: AI座標{x,y,w,h}%
+    originalImageData: receipt.originalImageData || null, // v1.8追加: 切り出し前の元画像
     purpose: receipt.purpose || '',
     siteId: receipt.siteId || '',
     siteName: receipt.siteName || '',
@@ -160,10 +162,11 @@ async function saveReceipt(receipt) {
  * AI解析結果＋画像からレシートを一括保存（重複チェック付き）
  * generateAndSaveReceiptPdfs()の後に呼ぶ想定
  * @param {object} aiResults - getLastAiResults()の戻り値
- * @param {string[]} imageDataUrls - 画像データURL配列
+ * @param {string[]} imageDataUrls - 画像データURL配列（切り出し済み or 元画像）
+ * @param {string} originalImageUrl - v1.8: 切り出し前の元画像（1枚撮影の場合）
  * @returns {Promise<string[]>} 保存したID配列
  */
-async function saveReceiptsFromAi(aiResults, imageDataUrls) {
+async function saveReceiptsFromAi(aiResults, imageDataUrls, originalImageUrl) {
   if (!aiResults || !aiResults.receipts || aiResults.receipts.length === 0) {
     console.warn('[receipt-store] AI結果が空です');
     return [];
@@ -208,6 +211,8 @@ async function saveReceiptsFromAi(aiResults, imageDataUrls) {
       total: total,
       items: r.items || [],
       imageData: imgData,
+      bounds: r.bounds || null, // v1.8: AI座標
+      originalImageData: originalImageUrl || null, // v1.8: 切り出し前の元画像
       entryTime: r.entry_time,
       exitTime: r.exit_time
     });

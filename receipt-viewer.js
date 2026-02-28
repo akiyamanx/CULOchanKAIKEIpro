@@ -1,5 +1,5 @@
-// receipt-viewer.js v1.7 — レシート管理画面（Phase1.6+1.7カードタップ）
-// 依存: receipt-store.js, globals.js, receipt-purpose.js
+// receipt-viewer.js v1.8 — レシート管理画面（Phase1.6+1.7+1.8 bounds切り出し対応）
+// 依存: receipt-store.js, globals.js, receipt-purpose.js, receipt-crop.js
 
 var _rvCurrentDate = null;
 var _rvCurrentReceipts = [];
@@ -362,11 +362,11 @@ async function showReceiptImage(receiptId) {
 }
 
 
-// === PDF出力（Phase1.8: 角検出＋駐車場目的表示） ===
+// === PDF出力（Phase1.8: bounds座標切り出し＋角検出＋駐車場目的表示） ===
 
 /**
  * 選択したレシートをPDF出力
- * Phase1.8: 角検出＆白背景切り出し＋駐車場レシートの目的表示
+ * v1.8: boundsがあればAI座標切り出し、なければ角検出フォールバック
  */
 async function exportSelectedReceiptsPdf() {
   var ids = getCheckedReceiptIds();
@@ -376,17 +376,23 @@ async function exportSelectedReceiptsPdf() {
   }
 
   try {
-    // 選択レシート取得＋画像切り出し
     var selectedReceipts = [];
     var processedImages = [];
+    var cropOpts = { padding: 15, maxWidth: 700, quality: 0.8 };
+
     for (var i = 0; i < ids.length; i++) {
       var r = await getReceiptById(ids[i]);
       if (!r) continue;
       selectedReceipts.push(r);
-      // Phase1.8: 角検出＆切り出し
+
+      // v1.8: 画像切り出し判定
       var imgOut = null;
-      if (r.imageData && typeof cropReceiptImage === 'function') {
-        imgOut = await cropReceiptImage(r.imageData, { padding: 15, maxWidth: 700, quality: 0.8 });
+      if (r.bounds && r.originalImageData && typeof cropReceiptByBounds === 'function') {
+        // AI座標(bounds)＋元画像がある → 座標指定切り出し
+        imgOut = await cropReceiptByBounds(r.originalImageData, r.bounds, cropOpts);
+      } else if (r.imageData && typeof cropReceiptImage === 'function') {
+        // boundsなし → 従来の角検出切り出し
+        imgOut = await cropReceiptImage(r.imageData, cropOpts);
       } else {
         imgOut = r.imageData || null;
       }
@@ -400,7 +406,6 @@ async function exportSelectedReceiptsPdf() {
 
     var dateKey = selectedReceipts[0].date || new Date().toISOString().split('T')[0];
 
-    // Phase1.8: purpose/siteNameを含めてPDF生成
     var receiptDataList = selectedReceipts.map(function(r) {
       return {
         store: r.store, type: r.type, total: r.total,
@@ -413,7 +418,6 @@ async function exportSelectedReceiptsPdf() {
 
     if (typeof generateReceiptPdf === 'function') {
       var pdfBase64 = await generateReceiptPdf(dateKey, receiptDataList, processedImages);
-      // ダウンロード
       var byteChars = atob(pdfBase64);
       var byteNumbers = new Array(byteChars.length);
       for (var k = 0; k < byteChars.length; k++) {
@@ -494,5 +498,4 @@ window.getCheckedReceiptIds = getCheckedReceiptIds;
 window.deleteSelectedReceipts = deleteSelectedReceipts;
 window.showReceiptImage = showReceiptImage;
 window.exportSelectedReceiptsPdf = exportSelectedReceiptsPdf;
-
-console.log('[receipt-viewer.js] ✓ レシート管理画面モジュール読み込み完了 (v1.7: カードタップ対応)');
+console.log('[receipt-viewer.js] ✓ v1.8: bounds座標切り出し対応');

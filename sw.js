@@ -5,7 +5,7 @@
 // ★ v2.0.1: スプラッシュ画像・アイコン・privacy-policy追加
 // ==========================================
 
-const CACHE_NAME = 'reform-app-v2.10.0';
+const CACHE_NAME = 'reform-app-v2.11.0';
 const OFFLINE_URL = 'index.html';
 
 // キャッシュするファイル（相対パス）

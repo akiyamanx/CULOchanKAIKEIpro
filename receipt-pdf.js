@@ -345,10 +345,12 @@ async function generateAndSaveReceiptPdfs() {
     alert('PDF生成完了！' + savedCount + '日分のPDFを保存しました');
     console.log('PDF生成完了: ' + savedCount + '日分');
 
-    // Phase1.6: レシート個別管理に保存（v1.8: 切り出し済み画像を渡す）
+    // Phase1.6: レシート個別管理に保存（v1.8: 切り出し済み画像＋元画像を渡す）
     if (typeof saveReceiptsFromAi === 'function') {
       try {
-        var savedIds = await saveReceiptsFromAi(aiResults, perReceiptImages);
+        // v1.8: 元画像を1枚渡す（複数レシートが1枚に写っている場合の再切り出し用）
+        var origImg = allImages.length === 1 ? allImages[0] : null;
+        var savedIds = await saveReceiptsFromAi(aiResults, perReceiptImages, origImg);
         console.log('レシート個別保存完了: ' + savedIds.length + '件');
       } catch (storeErr) {
         console.warn('レシート個別保存に失敗（PDF保存は成功）:', storeErr);
