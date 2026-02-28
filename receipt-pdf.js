@@ -94,6 +94,8 @@ async function generateReceiptPdf(dateKey, receiptDataList, imageDataList) {
     if (receipt.type === 'parking') {
       if (receipt.entry_time) textHeight += 6;
       if (receipt.exit_time) textHeight += 6;
+      if (receipt.purpose) textHeight += 6; // v1.8追加
+      if (receipt.siteName) textHeight += 6; // v1.8追加
     }
     if (receipt.items && receipt.items.length > 0) {
       textHeight += 5; // 品目ヘッダー
@@ -158,6 +160,21 @@ async function generateReceiptPdf(dateKey, receiptDataList, imageDataList) {
       if (receipt.exit_time) {
         var exitLabel = fontLoaded ? '出庫: ' + receipt.exit_time : 'Exit: ' + receipt.exit_time;
         doc.text(exitLabel, margin, y);
+        y += 6;
+      }
+      // v1.8追加: 目的＋現場名
+      if (receipt.purpose) {
+        var purposeLabel = fontLoaded ? '目的: ' + receipt.purpose : 'Purpose: ' + receipt.purpose;
+        doc.setTextColor(0, 80, 180);
+        doc.text(purposeLabel, margin, y);
+        doc.setTextColor(0, 0, 0);
+        y += 6;
+      }
+      if (receipt.siteName) {
+        var siteLabel = fontLoaded ? '現場: ' + receipt.siteName : 'Site: ' + receipt.siteName;
+        doc.setTextColor(0, 120, 60);
+        doc.text(siteLabel, margin, y);
+        doc.setTextColor(0, 0, 0);
         y += 6;
       }
     }
@@ -354,30 +371,7 @@ async function saveReceiptPdf(dateKey, pdfBase64, receiptCount, totalAmount) {
   });
 }
 
-// 個別レシートデータ保存
-async function saveReceiptData(id, dateKey, receiptData) {
-  var db = await openReceiptPdfDb();
-  return new Promise(function(resolve, reject) {
-    var tx = db.transaction('receipts', 'readwrite');
-    var store = tx.objectStore('receipts');
-    var record = {
-      id: id,
-      date: dateKey,
-      type: receiptData.type || 'shopping',
-      store: receiptData.store || receiptData.storeName || '',
-      total: Number(receiptData.total || receiptData.totalAmount || 0),
-      items: receiptData.items || [],
-      entry_time: receiptData.entry_time || null,
-      exit_time: receiptData.exit_time || null,
-      purpose: receiptData.purpose || null,
-      pdf_date: dateKey,
-      created_at: new Date().toISOString()
-    };
-    var request = store.put(record);
-    request.onsuccess = function() { resolve(); };
-    request.onerror = function(e) { reject(e.target.error); };
-  });
-}
+// v1.8: 旧saveReceiptData()はfix7で廃止済み。receipt-store.jsのsaveReceiptsFromAi()に一本化
 
 // PDF取得
 async function getReceiptPdf(dateKey) {

@@ -362,12 +362,11 @@ async function showReceiptImage(receiptId) {
 }
 
 
-// === PDF出力（Phase1.8で本格実装） ===
+// === PDF出力（Phase1.8: 角検出＋駐車場目的表示） ===
 
 /**
  * 選択したレシートをPDF出力
- * Phase1.8でチェック式PDF生成を本格実装
- * ここでは既存のPDF生成を活用した暫定実装
+ * Phase1.8: 角検出＆白背景切り出し＋駐車場レシートの目的表示
  */
 async function exportSelectedReceiptsPdf() {
   var ids = getCheckedReceiptIds();
@@ -377,15 +376,21 @@ async function exportSelectedReceiptsPdf() {
   }
 
   try {
-    // 選択されたレシートを取得
+    // 選択レシート取得＋画像切り出し
     var selectedReceipts = [];
-    var selectedImages = [];
+    var processedImages = [];
     for (var i = 0; i < ids.length; i++) {
       var r = await getReceiptById(ids[i]);
-      if (r) {
-        selectedReceipts.push(r);
-        selectedImages.push(r.imageData || null);
+      if (!r) continue;
+      selectedReceipts.push(r);
+      // Phase1.8: 角検出＆切り出し
+      var imgOut = null;
+      if (r.imageData && typeof cropReceiptImage === 'function') {
+        imgOut = await cropReceiptImage(r.imageData, { padding: 15, maxWidth: 700, quality: 0.8 });
+      } else {
+        imgOut = r.imageData || null;
       }
+      processedImages.push(imgOut);
     }
 
     if (selectedReceipts.length === 0) {
@@ -393,35 +398,28 @@ async function exportSelectedReceiptsPdf() {
       return;
     }
 
-    // 日付キー（最初のレシートの日付を使用）
     var dateKey = selectedReceipts[0].date || new Date().toISOString().split('T')[0];
 
-    // AI結果形式に変換して既存PDF生成を利用
+    // Phase1.8: purpose/siteNameを含めてPDF生成
     var receiptDataList = selectedReceipts.map(function(r) {
       return {
-        store: r.store,
-        type: r.type,
-        total: r.total,
+        store: r.store, type: r.type, total: r.total,
         items: r.items || [],
-        entry_time: r.entryTime,
-        exit_time: r.exitTime,
-        purpose: r.purpose,
+        entry_time: r.entryTime, exit_time: r.exitTime,
+        purpose: r.purpose || '', siteName: r.siteName || '',
         date: r.date
       };
     });
 
-    // 既存のPDF生成関数を呼ぶ
     if (typeof generateReceiptPdf === 'function') {
-      var pdfBase64 = await generateReceiptPdf(dateKey, receiptDataList, selectedImages);
-
+      var pdfBase64 = await generateReceiptPdf(dateKey, receiptDataList, processedImages);
       // ダウンロード
       var byteChars = atob(pdfBase64);
       var byteNumbers = new Array(byteChars.length);
       for (var k = 0; k < byteChars.length; k++) {
         byteNumbers[k] = byteChars.charCodeAt(k);
       }
-      var byteArray = new Uint8Array(byteNumbers);
-      var blob = new Blob([byteArray], { type: 'application/pdf' });
+      var blob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url;
@@ -433,7 +431,6 @@ async function exportSelectedReceiptsPdf() {
         if (a.parentNode) document.body.removeChild(a);
         URL.revokeObjectURL(url);
       }, 1500);
-
       alert('✅ ' + selectedReceipts.length + '件のレシートPDFを出力しました');
     } else {
       alert('PDF生成機能が利用できません');
