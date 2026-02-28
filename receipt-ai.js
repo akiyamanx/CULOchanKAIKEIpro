@@ -12,6 +12,9 @@
 //   - 駐車場レシート対応（入出庫時間）
 //   - 日付振り分け対応（異なる日付を分離）
 //   - 旧形式レスポンスとの後方互換
+// v1.8追加:
+//   - 通常モードプロンプトにbounds（レシート位置座標%）返却を追加
+//   - 出力形式サンプルにboundsフィールド追加
 //
 // 依存: globals.js, receipt-core.js
 // ==========================================
@@ -125,7 +128,7 @@ async function analyzeReceiptWithGemini(imageData, apiKey) {
       + '- 読み取れない文字は推測して補完する\n'
       + '- JSONのみを出力し、説明文は不要\n\n';
   } else {
-    // 通常モード: 複数レシートを個別認識
+    // 通常モード: 複数レシートを個別認識 + v1.8座標返却
     prompt = 'この画像に写っているレシート/領収書を全て個別に識別して解析してください。\n\n'
       + '【ルール】\n'
       + '- 画像内にレシートが複数枚ある場合、それぞれ別のオブジェクトとして返す\n'
@@ -138,6 +141,7 @@ async function analyzeReceiptWithGemini(imageData, apiKey) {
       + '- 小計・合計・消費税の行は品目に含めない\n'
       + '- 値引き/割引は別の品目（マイナス金額）として記録\n'
       + '- 読み取れない文字は推測して補完する\n'
+      + '- 各レシートの画像内での位置を"bounds"として返す。boundsは画像全体を100%とした割合(0〜100の数値)で、左上のx,yと幅w,高さhを返す。レシートが1枚しかない場合もboundsを返す\n'
       + '- JSONのみを出力し、説明文は不要\n\n';
   }
   
@@ -149,6 +153,7 @@ async function analyzeReceiptWithGemini(imageData, apiKey) {
     + '      "store": "カインズ松戸店",\n'
     + '      "total": 3500,\n'
     + '      "type": "shopping",\n'
+    + '      "bounds": {"x": 5, "y": 3, "w": 45, "h": 94},\n'
     + '      "items": [\n'
     + '        {"name": "VP管20A", "qty": 2, "price": 800},\n'
     + '        {"name": "エルボ", "qty": 4, "price": 120}\n'
@@ -159,6 +164,7 @@ async function analyzeReceiptWithGemini(imageData, apiKey) {
     + '      "store": "タイムズ代々木",\n'
     + '      "total": 1200,\n'
     + '      "type": "parking",\n'
+    + '      "bounds": {"x": 52, "y": 5, "w": 44, "h": 60},\n'
     + '      "entry_time": "08:56",\n'
     + '      "exit_time": "10:42",\n'
     + '      "items": []\n'

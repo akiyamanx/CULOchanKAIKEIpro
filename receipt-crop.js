@@ -1,6 +1,6 @@
 // ==========================================
-// receipt-crop.js v1.0 — レシート画像切り出し
-// Phase1.8: 角検出＆白背景配置
+// receipt-crop.js v1.8 — レシート画像切り出し
+// Phase1.8: 角検出＆白背景配置 + AI座標による個別切り出し
 // 依存: なし（Canvas APIのみ使用）
 // ==========================================
 // 処理フロー:
@@ -339,9 +339,128 @@ function loadImageFromDataUrl(dataUrl) {
 
 
 // ==========================================
+// v1.8追加: AI座標(bounds)によるレシート個別切り出し
+// ==========================================
+
+/**
+ * AI返却のbounds（%座標）で画像からレシートを切り出し
+ * @param {string} imageDataUrl - 元画像のDataURL
+ * @param {object} bounds - {x, y, w, h} 各0〜100の%値
+ * @param {object} options - padding, maxWidth, quality
+ * @returns {Promise<string|null>} 切り出し後のDataURL
+ */
+async function cropReceiptByBounds(imageDataUrl, bounds, options) {
+  if (!imageDataUrl || !bounds) return null;
+
+  // boundsの妥当性チェック
+  if (typeof bounds.x !== 'number' || typeof bounds.y !== 'number' ||
+      typeof bounds.w !== 'number' || typeof bounds.h !== 'number') {
+    console.warn('[receipt-crop] bounds値が不正、フォールバック');
+    return cropReceiptImage(imageDataUrl, options);
+  }
+
+  // 範囲チェック（0〜100の%）
+  var bx = Math.max(0, Math.min(100, bounds.x));
+  var by = Math.max(0, Math.min(100, bounds.y));
+  var bw = Math.max(1, Math.min(100 - bx, bounds.w));
+  var bh = Math.max(1, Math.min(100 - by, bounds.h));
+
+  // 面積が小さすぎる場合はフォールバック
+  if (bw * bh < 5) {
+    console.warn('[receipt-crop] bounds面積が小さすぎる(' + (bw * bh).toFixed(1) + '%)、フォールバック');
+    return cropReceiptImage(imageDataUrl, options);
+  }
+
+  var opts = options || {};
+  var padding = opts.padding || 15;
+  var maxWidth = opts.maxWidth || 700;
+  var quality = opts.quality || 0.85;
+
+  try {
+    var img = await loadImageFromDataUrl(imageDataUrl);
+    var imgW = img.naturalWidth;
+    var imgH = img.naturalHeight;
+
+    // %→ピクセル変換
+    var cropRect = {
+      x: Math.round(imgW * bx / 100),
+      y: Math.round(imgH * by / 100),
+      w: Math.round(imgW * bw / 100),
+      h: Math.round(imgH * bh / 100)
+    };
+
+    // はみ出し防止
+    cropRect.x = Math.max(0, cropRect.x);
+    cropRect.y = Math.max(0, cropRect.y);
+    cropRect.w = Math.min(imgW - cropRect.x, cropRect.w);
+    cropRect.h = Math.min(imgH - cropRect.y, cropRect.h);
+
+    // マージン追加（AIの座標は少しタイトなことがあるので2%外側に拡張）
+    var marginX = Math.round(imgW * 0.02);
+    var marginY = Math.round(imgH * 0.02);
+    cropRect.x = Math.max(0, cropRect.x - marginX);
+    cropRect.y = Math.max(0, cropRect.y - marginY);
+    cropRect.w = Math.min(imgW - cropRect.x, cropRect.w + marginX * 2);
+    cropRect.h = Math.min(imgH - cropRect.y, cropRect.h + marginY * 2);
+
+    console.log('[receipt-crop] bounds切り出し: (' + bx + ',' + by + ' ' + bw + 'x' + bh + '%) → '
+      + cropRect.x + ',' + cropRect.y + ' ' + cropRect.w + 'x' + cropRect.h + 'px');
+
+    return createCroppedImage(img, cropRect, padding, maxWidth, quality);
+
+  } catch (e) {
+    console.warn('[receipt-crop] bounds切り出しエラー、フォールバック:', e);
+    return cropReceiptImage(imageDataUrl, options);
+  }
+}
+
+/**
+ * 複数レシートをAI座標で一括切り出し
+ * @param {string} imageDataUrl - 元画像（1枚に複数レシートが写っている）
+ * @param {object[]} receiptsList - AI結果のreceipts配列（各要素にboundsがある想定）
+ * @param {object} options - padding, maxWidth, quality
+ * @returns {Promise<string[]>} 各レシートの切り出し画像DataURL配列
+ */
+async function cropMultipleReceipts(imageDataUrl, receiptsList, options) {
+  if (!imageDataUrl || !receiptsList || receiptsList.length === 0) return [];
+
+  var results = [];
+  // boundsを持つレシートが何件あるか
+  var hasBounds = 0;
+  for (var i = 0; i < receiptsList.length; i++) {
+    if (receiptsList[i].bounds) hasBounds++;
+  }
+
+  for (var j = 0; j < receiptsList.length; j++) {
+    var r = receiptsList[j];
+    var cropped = null;
+
+    if (r.bounds && hasBounds > 0) {
+      // AI座標で切り出し
+      cropped = await cropReceiptByBounds(imageDataUrl, r.bounds, options);
+    } else if (receiptsList.length === 1) {
+      // 1枚だけの場合は既存の角検出で切り出し
+      cropped = await cropReceiptImage(imageDataUrl, options);
+    } else {
+      // boundsなし＆複数枚→元画像をそのまま使う（切り出し不能）
+      console.log('[receipt-crop] bounds無し、元画像を使用: レシート' + (j + 1));
+      cropped = imageDataUrl;
+    }
+
+    results.push(cropped || imageDataUrl);
+  }
+
+  console.log('[receipt-crop] 一括切り出し完了: ' + results.length + '枚（bounds有=' + hasBounds + '件）');
+  return results;
+}
+
+
+// ==========================================
 // グローバル公開
 // ==========================================
 window.cropReceiptImage = cropReceiptImage;
 window.loadImageFromDataUrl = loadImageFromDataUrl;
+window.cropReceiptByBounds = cropReceiptByBounds;
+window.cropMultipleReceipts = cropMultipleReceipts;
 
-console.log('[receipt-crop.js] ✓ レシート画像切り出しモジュール読み込み完了');
+console.log('[receipt-crop.js] ✓ レシート画像切り出しモジュール読み込み完了 (v1.8: AI座標切り出し対応)');

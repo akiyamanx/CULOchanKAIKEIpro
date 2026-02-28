@@ -289,14 +289,29 @@ async function generateAndSaveReceiptPdfs() {
     // 画像データ取得（単枚 or 複数選択対応）v0.97fix5
     var allImages = [];
     if (typeof multiImageDataUrls !== 'undefined' && multiImageDataUrls.length > 0) {
-      allImages = multiImageDataUrls.slice(); // 複数選択の画像配列
+      allImages = multiImageDataUrls.slice();
     } else if (typeof receiptImageData !== 'undefined' && receiptImageData) {
-      allImages = [receiptImageData]; // 単枚撮影
+      allImages = [receiptImageData];
+    }
+
+    // v1.8: AI座標による個別切り出し
+    // 画像が1枚で複数レシートがある場合、boundsで個別切り出し
+    var receipts = aiResults.receipts;
+    var perReceiptImages = []; // 各レシートに対応する個別画像
+    if (allImages.length === 1 && receipts.length > 1 && typeof cropMultipleReceipts === 'function') {
+      // 1枚の写真に複数レシート → AI座標で個別切り出し
+      console.log('[receipt-pdf] v1.8: 1枚から' + receipts.length + '枚を個別切り出し');
+      perReceiptImages = await cropMultipleReceipts(allImages[0], receipts, { padding: 15, maxWidth: 700, quality: 0.8 });
+    } else {
+      // 画像数≧レシート数 or 切り出し不要 → 従来通りの割り当て
+      for (var ri = 0; ri < receipts.length; ri++) {
+        var imgIdx = Math.min(ri, allImages.length - 1);
+        perReceiptImages.push(allImages.length > 0 ? allImages[imgIdx] : null);
+      }
     }
 
     // 日付別にグループ化
     var dateGroups = {};
-    var receipts = aiResults.receipts;
     for (var i = 0; i < receipts.length; i++) {
       var r = receipts[i];
       var dateKey = r.date || new Date().toISOString().split('T')[0];
@@ -304,9 +319,7 @@ async function generateAndSaveReceiptPdfs() {
         dateGroups[dateKey] = { receipts: [], images: [] };
       }
       dateGroups[dateKey].receipts.push(r);
-      // レシートiに対応する画像: 画像数以内ならi番目、超えたら最後の画像を使う
-      var imgIdx = Math.min(i, allImages.length - 1);
-      dateGroups[dateKey].images.push(allImages.length > 0 ? allImages[imgIdx] : null);
+      dateGroups[dateKey].images.push(perReceiptImages[i] || null);
     }
 
     // 日付ごとにPDF生成・保存
@@ -326,18 +339,16 @@ async function generateAndSaveReceiptPdfs() {
       // IndexedDB保存
       await saveReceiptPdf(dk, pdfBase64, group.receipts.length, totalAmount);
 
-      // v1.6: 旧saveReceiptData廃止 → saveReceiptsFromAiに一本化（下で呼ぶ）
-
       savedCount++;
     }
 
     alert('PDF生成完了！' + savedCount + '日分のPDFを保存しました');
     console.log('PDF生成完了: ' + savedCount + '日分');
 
-    // Phase1.6: レシート個別管理に保存（画像データ付き）
+    // Phase1.6: レシート個別管理に保存（v1.8: 切り出し済み画像を渡す）
     if (typeof saveReceiptsFromAi === 'function') {
       try {
-        var savedIds = await saveReceiptsFromAi(aiResults, allImages);
+        var savedIds = await saveReceiptsFromAi(aiResults, perReceiptImages);
         console.log('レシート個別保存完了: ' + savedIds.length + '件');
       } catch (storeErr) {
         console.warn('レシート個別保存に失敗（PDF保存は成功）:', storeErr);
