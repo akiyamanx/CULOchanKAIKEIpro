@@ -1,9 +1,8 @@
-// receipt-viewer.js v1.0 — レシート管理画面（Phase1.6）
-// 依存: receipt-store.js, globals.js
+// receipt-viewer.js v1.7 — レシート管理画面（Phase1.6+1.7カードタップ）
+// 依存: receipt-store.js, globals.js, receipt-purpose.js
 
 var _rvCurrentDate = null;
 var _rvCurrentReceipts = [];
-
 
 // === 日付サマリー一覧 ===
 
@@ -183,11 +182,24 @@ async function renderReceiptCards(dateStr) {
       if (r.type === 'parking') {
         if (r.entryTime) extraInfo += '入庫 ' + r.entryTime;
         if (r.exitTime) extraInfo += (extraInfo ? ' → ' : '') + '出庫 ' + r.exitTime;
-        if (r.purpose) extraInfo += (extraInfo ? ' / ' : '') + r.purpose;
+        if (r.purpose) extraInfo += (extraInfo ? ' / ' : '') + '📋 ' + r.purpose;
+        if (r.siteName) extraInfo += (extraInfo ? ' / ' : '') + '📍 ' + r.siteName;
       }
 
-      html += '<div data-receipt-id="' + escapeHtml(r.id) + '" '
+      // v1.7追加: 駐車場で目的未入力の場合ヒント表示
+      var purposeHint = '';
+      if (r.type === 'parking' && !r.purpose && !r.siteName) {
+        purposeHint = '<div style="font-size: 11px; color: #3b82f6; margin-top: 3px;">💡 タップして目的・現場を入力</div>';
+      }
+
+      // v1.7追加: カードタップで目的入力（駐車場のみ）or 詳細表示
+      var cardOnClick = r.type === 'parking'
+        ? 'onclick="openPurposeModal(\'' + escapeHtml(r.id) + '\')"'
+        : '';
+
+      html += '<div data-receipt-id="' + escapeHtml(r.id) + '" ' + cardOnClick + ' '
         + 'style="padding: 12px; background: white; border: 1px solid #e5e7eb; border-radius: 12px; '
+        + (r.type === 'parking' ? 'cursor: pointer; ' : '')
         + 'display: flex; align-items: flex-start; gap: 10px;">'
         // チェックボックス
         + '<input type="checkbox" class="rv-receipt-check" data-id="' + escapeHtml(r.id) + '" '
@@ -209,6 +221,7 @@ async function renderReceiptCards(dateStr) {
       if (extraInfo) {
         html += '<div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">' + escapeHtml(extraInfo) + '</div>';
       }
+      html += purposeHint;
 
       html += '</div>'
         // 金額
@@ -432,7 +445,6 @@ async function exportSelectedReceiptsPdf() {
   }
 }
 
-
 // === ユーティリティ ===
 
 /**
@@ -476,7 +488,6 @@ function formatDateLabel(dateStr) {
   }
 })();
 
-
 // === グローバル公開 ===
 window.showReceiptDateList = showReceiptDateList;
 window.showReceiptsForDate = showReceiptsForDate;
@@ -487,4 +498,4 @@ window.deleteSelectedReceipts = deleteSelectedReceipts;
 window.showReceiptImage = showReceiptImage;
 window.exportSelectedReceiptsPdf = exportSelectedReceiptsPdf;
 
-console.log('[receipt-viewer.js] ✓ レシート管理画面モジュール読み込み完了');
+console.log('[receipt-viewer.js] ✓ レシート管理画面モジュール読み込み完了 (v1.7: カードタップ対応)');

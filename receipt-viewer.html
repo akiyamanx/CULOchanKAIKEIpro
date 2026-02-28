@@ -66,4 +66,58 @@
         📄 選択したレシートをPDF出力（<span id="rvPdfCount">0</span>件）
       </button>
     </div>
+
+    <!-- v1.7追加: 駐車場レシート目的入力モーダル -->
+    <div id="rvPurposeModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; display: none; align-items: center; justify-content: center; padding: 16px;">
+      <div style="background: white; border-radius: 16px; width: 100%; max-width: 400px; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.2);">
+        <!-- ヘッダー -->
+        <div style="padding: 16px 20px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between;">
+          <h3 style="margin: 0; font-size: 17px; color: #1f2937;">🅿️ 駐車場の目的</h3>
+          <button onclick="closePurposeModal()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: #6b7280; padding: 4px;">✕</button>
+        </div>
+
+        <!-- レシート情報 -->
+        <div id="rvPurposeReceiptInfo" style="padding: 12px 20px; background: #f9fafb; font-size: 13px; color: #6b7280;"></div>
+
+        <!-- 定型文選択 -->
+        <div style="padding: 16px 20px;">
+          <div style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">よく使う目的</div>
+          <div id="rvPurposePresets" style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <!-- JSで動的生成 -->
+          </div>
+        </div>
+
+        <!-- 自由入力 -->
+        <div style="padding: 0 20px 16px;">
+          <div style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">自由入力</div>
+          <input type="text" id="rvPurposeInput" placeholder="例: 袖ケ浦市○○邸 材料搬入" style="width: 100%; padding: 12px 14px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 15px; box-sizing: border-box; outline: none;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#d1d5db'">
+        </div>
+
+        <!-- 現場選択 -->
+        <div style="padding: 0 20px 16px;">
+          <div style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">📍 現場を選択</div>
+          <select id="rvSiteSelect" style="width: 100%; padding: 12px 14px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 15px; background: white; box-sizing: border-box;">
+            <option value="">（現場なし）</option>
+            <!-- JSで動的生成 -->
+          </select>
+          <!-- 新規現場追加 -->
+          <div style="display: flex; gap: 6px; margin-top: 8px;">
+            <input type="text" id="rvNewSiteName" placeholder="新しい現場名を追加" style="flex: 1; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
+            <button onclick="addSiteFromPurposeModal()" style="padding: 10px 14px; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; cursor: pointer; white-space: nowrap;">＋追加</button>
+          </div>
+        </div>
+
+        <!-- 保存ボタン -->
+        <div style="padding: 0 20px 20px;">
+          <button onclick="savePurposeFromModal()" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer;">
+            ✅ 保存する
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 画像フルスクリーンビューア（既存のreceiptImageViewerが別画面にある場合の代替） -->
+    <div id="receiptImageViewer" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 300; align-items: center; justify-content: center;" onclick="this.style.display='none'">
+      <img id="receiptImageFullView" src="" style="max-width: 95%; max-height: 95%; object-fit: contain;">
+    </div>
   </div>
