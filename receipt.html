@@ -65,6 +65,17 @@
             📁 複数枚まとめて選択
           </button>
           
+          <!-- v1.6.3: 分割撮影モードトグル -->
+          <div id="splitModeToggle" style="display: none; margin-top: 8px; padding: 10px 14px; background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 10px; border: 1px solid #f59e0b;">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+              <input type="checkbox" id="splitModeCheck" onchange="toggleSplitMode(this.checked)" style="width: 20px; height: 20px; accent-color: #f59e0b;">
+              <div>
+                <div style="font-size: 14px; font-weight: 600; color: #92400e;">📄✂️ 分割撮影モード</div>
+                <div style="font-size: 11px; color: #a16207; margin-top: 2px;">ONにすると、複数の写真を「1枚のレシートの分割撮影」として統合解析します</div>
+              </div>
+            </label>
+          </div>
+          
           <!-- v0.95: OCRボタン削除、AIボタンのみ -->
           <button class="ocr-btn" id="aiBtn" onclick="runAiOcr()" disabled style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); margin-top: 8px;">
             🤖 AIで読み取る（Gemini）

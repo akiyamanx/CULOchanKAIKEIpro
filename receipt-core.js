@@ -250,6 +250,9 @@ function handleAddImageSelect(event) {
       // v0.95: OCRボタン削除
       const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
       document.getElementById('aiBtn').disabled = !settings.geminiApiKey;
+      
+      // v1.6.3: 分割撮影モードトグル表示更新
+      if (typeof updateSplitModeVisibility === 'function') updateSplitModeVisibility();
     });
   };
   reader.readAsDataURL(file);
@@ -299,6 +302,9 @@ function handleMultiImageSelect(event) {
           // AIボタン有効化
           const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
           document.getElementById('aiBtn').disabled = !settings.geminiApiKey;
+          
+          // v1.6.3: 分割撮影モードトグル表示更新
+          if (typeof updateSplitModeVisibility === 'function') updateSplitModeVisibility();
           
           if (!settings.geminiApiKey) {
             alert('Gemini APIキーが設定されていません。\n設定画面からAPIキーを入力してください。');
@@ -381,6 +387,8 @@ function clearAllImages() {
   document.getElementById('imagePlaceholder').style.display = 'block';
   document.getElementById('imagePreview').style.display = 'none';
   document.getElementById('aiBtn').disabled = true;
+  // v1.6.3: 分割モードリセット
+  if (typeof updateSplitModeVisibility === 'function') updateSplitModeVisibility();
   // v0.95: ocrBtn削除
 }
 

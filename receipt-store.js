@@ -157,7 +157,7 @@ async function saveReceipt(receipt) {
 }
 
 /**
- * AI解析結果＋画像からレシートを一括保存
+ * AI解析結果＋画像からレシートを一括保存（重複チェック付き）
  * generateAndSaveReceiptPdfs()の後に呼ぶ想定
  * @param {object} aiResults - getLastAiResults()の戻り値
  * @param {string[]} imageDataUrls - 画像データURL配列
@@ -171,18 +171,41 @@ async function saveReceiptsFromAi(aiResults, imageDataUrls) {
 
   var allImages = imageDataUrls || [];
   var savedIds = [];
+  var skippedCount = 0;
 
   for (var i = 0; i < aiResults.receipts.length; i++) {
     var r = aiResults.receipts[i];
+    var dateStr = r.date || new Date().toISOString().split('T')[0];
+    var storeName = r.store || r.storeName || '';
+    var total = Number(r.total || r.totalAmount || 0);
+
+    // v1.6.1: 重複チェック（日付＋店名部分一致＋金額一致）
+    var duplicate = await findDuplicateReceipt(dateStr, storeName, total);
+    if (duplicate) {
+      var msg = '⚠️ 同じレシートが既に保存されています。\n\n'
+        + '保存済み: ' + duplicate.store + ' ¥' + Number(duplicate.total).toLocaleString()
+        + ' (' + duplicate.date + ')\n\n'
+        + '上書きしますか？\n'
+        + '「OK」→ 上書き / 「キャンセル」→ スキップ';
+      if (!confirm(msg)) {
+        console.log('[receipt-store] 重複スキップ: ' + storeName + ' ¥' + total);
+        skippedCount++;
+        continue;
+      }
+      // 上書きの場合: 既存を削除してから保存
+      await deleteReceiptById(duplicate.id);
+      console.log('[receipt-store] 上書き: ' + duplicate.id);
+    }
+
     // 画像の紐付け: i番目の画像、超えたら最後の画像
     var imgIdx = Math.min(i, allImages.length - 1);
     var imgData = allImages.length > 0 ? allImages[imgIdx] : null;
 
     var id = await saveReceipt({
-      date: r.date,
-      store: r.store || r.storeName,
+      date: dateStr,
+      store: storeName,
       type: r.type || 'shopping',
-      total: r.total || r.totalAmount,
+      total: total,
       items: r.items || [],
       imageData: imgData,
       entryTime: r.entry_time,
@@ -191,8 +214,51 @@ async function saveReceiptsFromAi(aiResults, imageDataUrls) {
     savedIds.push(id);
   }
 
-  console.log('[receipt-store] ' + savedIds.length + '件のレシートを保存');
+  var msg2 = savedIds.length + '件保存';
+  if (skippedCount > 0) msg2 += '（' + skippedCount + '件スキップ）';
+  console.log('[receipt-store] ' + msg2);
   return savedIds;
+}
+
+/**
+ * 重複レシートを検索（日付＋店名部分一致＋金額一致）
+ * v1.6.1追加: 同じレシートの2重登録を防止
+ * @param {string} dateStr - "YYYY-MM-DD"
+ * @param {string} storeName - 店名
+ * @param {number} total - 合計金額
+ * @returns {Promise<object|null>} 見つかったら既存レシート、なければnull
+ */
+async function findDuplicateReceipt(dateStr, storeName, total) {
+  try {
+    var existing = await getReceiptsByDate(dateStr);
+    if (!existing || existing.length === 0) return null;
+
+    // 店名の正規化（スペース除去＋小文字化）
+    var normStore = (storeName || '').replace(/\s+/g, '').toLowerCase();
+    // 店名から主要キーワードを抽出（最初の3文字以上の塊）
+    var storeKeywords = normStore.match(/[a-zA-Zａ-ｚＡ-Ｚぁ-んァ-ヶ亜-熙]{2,}/g) || [];
+
+    for (var i = 0; i < existing.length; i++) {
+      var e = existing[i];
+      // 金額が一致するか
+      if (Number(e.total) !== total) continue;
+
+      // 店名チェック: 完全一致 or 部分一致（キーワードが含まれるか）
+      var normExisting = (e.store || '').replace(/\s+/g, '').toLowerCase();
+      if (normStore === normExisting) return e; // 完全一致
+
+      // キーワード部分一致（「DCM」「エコロパーク」等）
+      for (var k = 0; k < storeKeywords.length; k++) {
+        if (storeKeywords[k].length >= 2 && normExisting.indexOf(storeKeywords[k]) >= 0) {
+          return e; // キーワード一致
+        }
+      }
+    }
+    return null;
+  } catch (err) {
+    console.warn('[receipt-store] 重複チェックエラー:', err);
+    return null; // エラー時は重複なし扱い（保存を優先）
+  }
 }
 
 /**
@@ -353,6 +419,7 @@ window.openReceiptStoreDb = openReceiptStoreDb;
 window.generateReceiptId = generateReceiptId;
 window.saveReceipt = saveReceipt;
 window.saveReceiptsFromAi = saveReceiptsFromAi;
+window.findDuplicateReceipt = findDuplicateReceipt;
 window.getReceiptById = getReceiptById;
 window.getReceiptsByDateStore = getReceiptsByDate; // 既存getReceiptsByDate(receipt-ai.js)と名前衝突回避
 window.getReceiptDateSummary = getReceiptDateSummary;

@@ -17,6 +17,7 @@ let receiptItems = [];
 let projects = [];  // v0.92追加: 現場割り当て用
 let receiptImageData = null;
 let multiImageDataUrls = [];
+let splitMode = false; // v1.6.3追加: 分割撮影モード
 
 // ==========================================
 // API使用量管理
@@ -463,4 +464,26 @@ function formatDate(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
+// v1.6.3: 分割撮影モード切替
+function toggleSplitMode(enabled) {
+  splitMode = enabled;
+  console.log('[splitMode] ' + (enabled ? 'ON: 1枚のレシートの分割撮影' : 'OFF: 通常モード'));
+}
+
+// v1.6.3: 複数画像選択時に分割モードトグルを表示/非表示
+function updateSplitModeVisibility() {
+  var toggle = document.getElementById('splitModeToggle');
+  if (!toggle) return;
+  // 複数画像がある時だけ表示
+  if (multiImageDataUrls && multiImageDataUrls.length >= 2) {
+    toggle.style.display = '';
+  } else {
+    toggle.style.display = 'none';
+    // 画像1枚以下なら分割モードOFF
+    splitMode = false;
+    var check = document.getElementById('splitModeCheck');
+    if (check) check.checked = false;
+  }
 }
