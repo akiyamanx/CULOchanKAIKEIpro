@@ -309,12 +309,7 @@ async function generateAndSaveReceiptPdfs() {
       // IndexedDB保存
       await saveReceiptPdf(dk, pdfBase64, group.receipts.length, totalAmount);
 
-      // 個別レシートデータも保存
-      for (var r3 = 0; r3 < group.receipts.length; r3++) {
-        var receiptData = group.receipts[r3];
-        var receiptId = dk + '_' + r3 + '_' + Date.now();
-        await saveReceiptData(receiptId, dk, receiptData);
-      }
+      // v1.6: 旧saveReceiptData廃止 → saveReceiptsFromAiに一本化（下で呼ぶ）
 
       savedCount++;
     }
@@ -322,7 +317,7 @@ async function generateAndSaveReceiptPdfs() {
     alert('PDF生成完了！' + savedCount + '日分のPDFを保存しました');
     console.log('PDF生成完了: ' + savedCount + '日分');
 
-    // Phase1.6: レシート個別管理にも保存
+    // Phase1.6: レシート個別管理に保存（画像データ付き）
     if (typeof saveReceiptsFromAi === 'function') {
       try {
         var savedIds = await saveReceiptsFromAi(aiResults, allImages);
