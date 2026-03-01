@@ -7,11 +7,12 @@
 // ★ v2.17.0: Phase2 回転方向修正（正面化→左90度回転 v2.2）
 // ★ v2.18.0: OpenCV.jsデバッグ表示追加
 // ★ v2.19.0: OpenCV.js CDN変更（jsdelivr優先+フォールバック）
-// ★ v2.20.0: デバッグ表示をreceipt-multi-crop.jsに移動（確実に動作）
-// ★ v2.20.0: デバッグ表示をJSに移動（insertAdjacentHTMLではscript未実行の対策）
+// ★ v2.21.0: デバッグ表示をreceipt-multi-crop.jsに移動（確実に動作）
+// ★ v2.21.0: デバッグ表示をJSに移動（insertAdjacentHTMLではscript未実行の対策）
+// ★ v2.21.0: Phase2 v2.3 閾値170+5%マージン（レシート端切れ対策）
 // ==========================================
 
-const CACHE_NAME = 'reform-app-v2.20.0';
+const CACHE_NAME = 'reform-app-v2.21.0';
 const OFFLINE_URL = 'index.html';
 
 // キャッシュするファイル（相対パス）
@@ -80,7 +81,7 @@ const FILES_TO_CACHE = [
 
 // インストール時
 self.addEventListener('install', event => {
-  console.log('[SW] インストール開始 v2.20.0');
+  console.log('[SW] インストール開始 v2.21.0');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -166,4 +167,4 @@ self.addEventListener('sync', event => {
   }
 });
 
-console.log('[SW] Service Worker ロード完了 v2.20.0');
+console.log('[SW] Service Worker ロード完了 v2.21.0');

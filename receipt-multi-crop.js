@@ -1,17 +1,17 @@
 // ==========================================
-// receipt-multi-crop.js v2.2 — 複数レシート自動検出＆切り出し（OpenCV.js版）
+// receipt-multi-crop.js v2.3 — 複数レシート自動検出＆切り出し（OpenCV.js版）
 // Phase2: 白紙検出＋モルフォロジー＋minAreaRect＋透視変換＋左90度回転で縦補正
 // フォールバック: OpenCV未ロード時はCanvas自前処理（v1.0互換）
 // 依存: receipt-crop.js（loadImageFromDataUrl, createCroppedImage等）
 // ==========================================
-// 処理フロー（OpenCV版 v2.1）:
+// 処理フロー（OpenCV版 v2.3）:
 //   1. 画像をCanvasに描画 → cv.imread()
 //   2. グレースケール → ガウシアンブラー
-//   3. 明るさ閾値(180)で白い紙を二値化
+//   3. 明るさ閾値(170)で白い紙を二値化
 //   4. モルフォロジー（大きめカーネルでClose→Open）
 //   5. findContours()で白い紙の輪郭を検出
 //   6. 面積フィルタ（2%〜80%）
-//   7. minAreaRect()で回転矩形を取得
+//   7. minAreaRect()で回転矩形を取得（5%マージン付き）
 //   8. 4点順序整理→透視変換で縦方向に補正して切り出し
 // ==========================================
 
@@ -115,8 +115,8 @@ async function _detectWithOpenCV(imageDataUrl, expectedCount, options) {
     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
     cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
 
-    // v2.1: 閾値180で白い紙を検出（Python検証で最適値確認済み）
-    cv.threshold(blurred, binary, 180, 255, cv.THRESH_BINARY);
+    // v2.3: 閾値170で白い紙を検出（180だと端が切れる、170で最適バランス）
+    cv.threshold(blurred, binary, 170, 255, cv.THRESH_BINARY);
 
     // v2.1: 大きめモルフォロジーで穴埋め＋ノイズ除去
     var kernelClose = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(15, 15));
@@ -205,14 +205,20 @@ function _perspectiveCropFromContour(srcMat, contour, padding, maxWidth, quality
     var wRect = size.width;
     var hRect = size.height;
 
-    // boxPoints相当: 4頂点を計算
-    var box = _getBoxPoints(center, size, angle);
+    // v2.3: 5%マージン追加（レシートの端が切れない）
+    var margin = 1.05;
+    var wExpand = wRect * margin;
+    var hExpand = hRect * margin;
+
+    // boxPoints相当: マージン込みの4頂点を計算
+    var expandedSize = { width: wExpand, height: hExpand };
+    var box = _getBoxPoints(center, expandedSize, angle);
     var ordered = _orderBoxPoints(box);
     var tl = ordered[0], tr = ordered[1], br = ordered[2], bl = ordered[3];
 
-    // v2.2: まず元のサイズで正面に補正（回転はしない）
-    var dstW = Math.round(wRect > hRect ? wRect : wRect);
-    var dstH = Math.round(wRect > hRect ? hRect : hRect);
+    // v2.3: 正面に補正（回転はしない）
+    var dstW = Math.round(wExpand);
+    var dstH = Math.round(hExpand);
     if (dstW < 50 || dstH < 50) return null;
 
     srcPts = cv.matFromArray(4, 1, cv.CV_32FC2, [
@@ -421,4 +427,4 @@ function _cRegions(lm,w,h){var rd={};for(var i=0;i<lm.length;i++){var l=lm[i];if
 window.detectAndCropMultipleReceipts = detectAndCropMultipleReceipts;
 window.isOpenCVAvailable = isOpenCVAvailable;
 
-console.log('[receipt-multi-crop.js] ✓ v2.2 OpenCV.js版（白紙検出+透視変換+左90度回転補正）');
+console.log('[receipt-multi-crop.js] ✓ v2.3 OpenCV.js版（閾値170+5%マージン+透視変換+回転補正）');
