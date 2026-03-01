@@ -395,9 +395,9 @@ async function cropReceiptByBounds(imageDataUrl, bounds, options) {
     cropRect.w = Math.min(imgW - cropRect.x, cropRect.w);
     cropRect.h = Math.min(imgH - cropRect.y, cropRect.h);
 
-    // マージン追加（AIの座標は少しタイトなことがあるので2%外側に拡張）
-    var marginX = Math.round(imgW * 0.02);
-    var marginY = Math.round(imgH * 0.02);
+    // マージン追加（AIの座標は少しタイトなことがあるので1%外側に拡張）
+    var marginX = Math.round(imgW * 0.01);
+    var marginY = Math.round(imgH * 0.01);
     cropRect.x = Math.max(0, cropRect.x - marginX);
     cropRect.y = Math.max(0, cropRect.y - marginY);
     cropRect.w = Math.min(imgW - cropRect.x, cropRect.w + marginX * 2);
