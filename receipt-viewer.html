@@ -17,19 +17,22 @@
       (function checkOcvDebug() {
         var bar = document.getElementById('ocvDebugBar');
         if (!bar) return;
-        if (typeof isOpenCVAvailable === 'function' && isOpenCVAvailable()) {
+        var elapsed = (checkOcvDebug._start = checkOcvDebug._start || Date.now());
+        var sec = Math.round((Date.now() - elapsed) / 1000);
+        if (typeof cv !== 'undefined' && typeof cv.Mat === 'function') {
           bar.style.background = '#d1fae5';
           bar.style.color = '#065f46';
-          bar.innerHTML = '✅ OpenCV.js 準備完了！（v2.2 白紙検出+透視変換+回転補正）';
-        } else if (typeof cv !== 'undefined') {
-          bar.innerHTML = '🔄 OpenCV.js 読み込み中...（cvは存在、Mat未準備）';
-          setTimeout(checkOcvDebug, 1000);
-        } else {
+          bar.innerHTML = '✅ OpenCV.js 準備完了！（' + sec + '秒）';
+          return;
+        }
+        if (sec > 30) {
           bar.style.background = '#fee2e2';
           bar.style.color = '#991b1b';
-          bar.innerHTML = '❌ OpenCV.js 未読み込み（Canvas版フォールバック使用中）';
-          setTimeout(checkOcvDebug, 2000);
+          bar.innerHTML = '❌ OpenCV.js 読み込み失敗（' + sec + '秒経過）Canvas版で動作中';
+          return;
         }
+        bar.innerHTML = '⏳ OpenCV.js 読み込み中... ' + sec + '秒 (cv=' + (typeof cv) + ')';
+        setTimeout(checkOcvDebug, 1000);
       })();
       </script>
 

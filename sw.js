@@ -5,10 +5,11 @@
 // ★ v2.15.0: Phase2 OpenCV.js導入（receipt-multi-crop.js v2.0）
 // ★ v2.16.0: Phase2 白紙検出+透視変換+縦補正（receipt-multi-crop.js v2.1）
 // ★ v2.17.0: Phase2 回転方向修正（正面化→左90度回転 v2.2）
-// ★ v2.18.0: OpenCV.jsデバッグ表示追加（receipt-viewer.html）
+// ★ v2.18.0: OpenCV.jsデバッグ表示追加
+// ★ v2.19.0: OpenCV.js CDN変更（jsdelivr優先+フォールバック）
 // ==========================================
 
-const CACHE_NAME = 'reform-app-v2.18.0';
+const CACHE_NAME = 'reform-app-v2.19.0';
 const OFFLINE_URL = 'index.html';
 
 // キャッシュするファイル（相対パス）
@@ -77,7 +78,7 @@ const FILES_TO_CACHE = [
 
 // インストール時
 self.addEventListener('install', event => {
-  console.log('[SW] インストール開始 v2.18.0');
+  console.log('[SW] インストール開始 v2.19.0');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -163,4 +164,4 @@ self.addEventListener('sync', event => {
   }
 });
 
-console.log('[SW] Service Worker ロード完了 v2.18.0');
+console.log('[SW] Service Worker ロード完了 v2.19.0');

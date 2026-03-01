@@ -23,7 +23,25 @@
   <!-- v0.95: Tesseract.js OCR削除（AI解析に一本化） -->
   
   <!-- v0.97 Phase2: OpenCV.js（コンピュータビジョン、レシート高精度切り出し用） -->
-  <script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="console.log('[OpenCV.js] スクリプト読込完了')"></script>
+  <!-- CDN1: jsdelivr（高速・安定） CDN2: opencv.org（フォールバック） -->
+  <script>
+  (function loadOpenCV(){
+    var s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/opencv.js@1.2.1/opencv.min.js';
+    s.async=true;
+    s.onload=function(){console.log('[OpenCV.js] jsdelivr読込完了');};
+    s.onerror=function(){
+      console.warn('[OpenCV.js] jsdelivr失敗、opencv.org試行');
+      var s2=document.createElement('script');
+      s2.src='https://docs.opencv.org/4.8.0/opencv.js';
+      s2.async=true;
+      s2.onload=function(){console.log('[OpenCV.js] opencv.org読込完了');};
+      s2.onerror=function(){console.error('[OpenCV.js] 全CDN失敗');};
+      document.head.appendChild(s2);
+    };
+    document.head.appendChild(s);
+  })();
+  </script>
   
   <!-- jsPDF for PDF出力 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
