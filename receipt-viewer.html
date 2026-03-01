@@ -9,6 +9,30 @@
     <div class="form-container" style="padding-bottom: 80px;">
 
       <!-- 日付サマリー一覧 / レシート詳細 の切り替え -->
+      <!-- v2.2デバッグ: OpenCV.js状態表示（確認後削除） -->
+      <div id="ocvDebugBar" style="padding: 8px 12px; background: #fef3c7; border-radius: 8px; margin-bottom: 8px; font-size: 12px; color: #92400e;">
+        ⏳ OpenCV.js 読み込み中...
+      </div>
+      <script>
+      (function checkOcvDebug() {
+        var bar = document.getElementById('ocvDebugBar');
+        if (!bar) return;
+        if (typeof isOpenCVAvailable === 'function' && isOpenCVAvailable()) {
+          bar.style.background = '#d1fae5';
+          bar.style.color = '#065f46';
+          bar.innerHTML = '✅ OpenCV.js 準備完了！（v2.2 白紙検出+透視変換+回転補正）';
+        } else if (typeof cv !== 'undefined') {
+          bar.innerHTML = '🔄 OpenCV.js 読み込み中...（cvは存在、Mat未準備）';
+          setTimeout(checkOcvDebug, 1000);
+        } else {
+          bar.style.background = '#fee2e2';
+          bar.style.color = '#991b1b';
+          bar.innerHTML = '❌ OpenCV.js 未読み込み（Canvas版フォールバック使用中）';
+          setTimeout(checkOcvDebug, 2000);
+        }
+      })();
+      </script>
+
       <div id="receiptViewerDateList">
         <!-- 統計バー -->
         <div id="receiptViewerStats" style="padding: 12px 16px; background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-radius: 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
