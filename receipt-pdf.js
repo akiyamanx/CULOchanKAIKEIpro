@@ -294,14 +294,14 @@ async function generateAndSaveReceiptPdfs() {
       allImages = [receiptImageData];
     }
 
-    // v1.8: AI座標による個別切り出し
-    // 画像が1枚で複数レシートがある場合、boundsで個別切り出し
+    // v1.8: Canvas画像処理による複数レシート個別切り出し
+    // 画像が1枚で複数レシートがある場合、白い紙を自動検出して切り出し
     var receipts = aiResults.receipts;
-    var perReceiptImages = []; // 各レシートに対応する個別画像
-    if (allImages.length === 1 && receipts.length > 1 && typeof cropMultipleReceipts === 'function') {
-      // 1枚の写真に複数レシート → AI座標で個別切り出し
-      console.log('[receipt-pdf] v1.8: 1枚から' + receipts.length + '枚を個別切り出し');
-      perReceiptImages = await cropMultipleReceipts(allImages[0], receipts, { padding: 15, maxWidth: 700, quality: 0.8 });
+    var perReceiptImages = [];
+    if (allImages.length === 1 && receipts.length > 1 && typeof detectAndCropMultipleReceipts === 'function') {
+      // 1枚の写真に複数レシート → Canvas自動検出で個別切り出し
+      console.log('[receipt-pdf] v1.8: Canvas自動検出で' + receipts.length + '枚を切り出し');
+      perReceiptImages = await detectAndCropMultipleReceipts(allImages[0], receipts.length, { padding: 15, maxWidth: 700, quality: 0.8 });
     } else {
       // 画像数≧レシート数 or 切り出し不要 → 従来通りの割り当て
       for (var ri = 0; ri < receipts.length; ri++) {

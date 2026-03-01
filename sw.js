@@ -5,7 +5,7 @@
 // ★ v2.0.1: スプラッシュ画像・アイコン・privacy-policy追加
 // ==========================================
 
-const CACHE_NAME = 'reform-app-v2.13.0';
+const CACHE_NAME = 'reform-app-v2.14.0';
 const OFFLINE_URL = 'index.html';
 
 // キャッシュするファイル（相対パス）
@@ -35,6 +35,7 @@ const FILES_TO_CACHE = [
   'receipt-viewer.html',
   'receipt-purpose.js',
   'receipt-crop.js',
+  'receipt-multi-crop.js',
   'receipt-history.js',
   'receipt-list.js',
   'estimate.js',

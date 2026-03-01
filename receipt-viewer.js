@@ -362,47 +362,43 @@ async function showReceiptImage(receiptId) {
 }
 
 
-// === PDF出力（Phase1.8: bounds座標切り出し＋角検出＋駐車場目的表示） ===
-
-/**
- * 選択したレシートをPDF出力
- * v1.8: boundsがあればAI座標切り出し、なければ角検出フォールバック
- */
+// === PDF出力（Phase1.8: Canvas自動検出＋駐車場目的表示） ===
 async function exportSelectedReceiptsPdf() {
   var ids = getCheckedReceiptIds();
-  if (ids.length === 0) {
-    alert('レシートを選択してください');
-    return;
-  }
-
+  if (ids.length === 0) { alert('レシートを選択してください'); return; }
   try {
     var selectedReceipts = [];
-    var processedImages = [];
-    var cropOpts = { padding: 15, maxWidth: 700, quality: 0.8 };
-
     for (var i = 0; i < ids.length; i++) {
       var r = await getReceiptById(ids[i]);
-      if (!r) continue;
-      selectedReceipts.push(r);
-
-      // v1.8: 画像切り出し判定
-      var imgOut = null;
-      if (r.bounds && r.originalImageData && typeof cropReceiptByBounds === 'function') {
-        // AI座標(bounds)＋元画像がある → 座標指定切り出し
-        imgOut = await cropReceiptByBounds(r.originalImageData, r.bounds, cropOpts);
-      } else if (r.imageData && typeof cropReceiptImage === 'function') {
-        // boundsなし → 従来の角検出切り出し
-        imgOut = await cropReceiptImage(r.imageData, cropOpts);
+      if (r) selectedReceipts.push(r);
+    }
+    if (selectedReceipts.length === 0) { alert('レシートが見つかりません'); return; }
+    var cropOpts = { padding: 15, maxWidth: 700, quality: 0.8 };
+    // v1.8: 同一画像グループ化→Canvas自動検出で個別切り出し
+    var imgGroups = {};
+    for (var g = 0; g < selectedReceipts.length; g++) {
+      var imgKey = selectedReceipts[g].imageData ? selectedReceipts[g].imageData.substring(0, 100) : 'none_' + g;
+      if (!imgGroups[imgKey]) imgGroups[imgKey] = [];
+      imgGroups[imgKey].push(g);
+    }
+    var imgResults = {};
+    var groupKeys = Object.keys(imgGroups);
+    for (var gk = 0; gk < groupKeys.length; gk++) {
+      var indices = imgGroups[groupKeys[gk]];
+      var sampleR = selectedReceipts[indices[0]];
+      if (indices.length > 1 && sampleR.imageData && typeof detectAndCropMultipleReceipts === 'function') {
+        var crops = await detectAndCropMultipleReceipts(sampleR.imageData, indices.length, cropOpts);
+        for (var ci = 0; ci < indices.length; ci++) imgResults[indices[ci]] = crops[ci] || sampleR.imageData;
       } else {
-        imgOut = r.imageData || null;
+        for (var si = 0; si < indices.length; si++) {
+          var sr = selectedReceipts[indices[si]];
+          imgResults[indices[si]] = sr.imageData && typeof cropReceiptImage === 'function'
+            ? await cropReceiptImage(sr.imageData, cropOpts) : (sr.imageData || null);
+        }
       }
-      processedImages.push(imgOut);
     }
-
-    if (selectedReceipts.length === 0) {
-      alert('レシートが見つかりません');
-      return;
-    }
+    var processedImages = [];
+    for (var pi = 0; pi < selectedReceipts.length; pi++) processedImages.push(imgResults[pi] || null);
 
     var dateKey = selectedReceipts[0].date || new Date().toISOString().split('T')[0];
 
