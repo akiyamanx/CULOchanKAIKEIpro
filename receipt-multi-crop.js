@@ -17,14 +17,24 @@
 
 // v2.0: OpenCV.js読み込み状態管理
 var _opencvReady = false;
+var _ocvCheckStart = Date.now();
 
 function _checkOpenCVReady() {
+  var sec = Math.round((Date.now() - _ocvCheckStart) / 1000);
+  var bar = document.getElementById('ocvDebugBar');
   if (typeof cv !== 'undefined' && typeof cv.Mat === 'function') {
     _opencvReady = true;
-    console.log('[multi-crop] ✓ OpenCV.js 準備完了');
+    console.log('[multi-crop] ✓ OpenCV.js 準備完了 (' + sec + '秒)');
+    if (bar) { bar.style.background = '#d1fae5'; bar.style.color = '#065f46'; bar.innerHTML = '✅ OpenCV.js 準備完了！（' + sec + '秒）'; }
     return;
   }
-  setTimeout(_checkOpenCVReady, 500);
+  if (sec > 30) {
+    console.warn('[multi-crop] ✗ OpenCV.js 読み込み失敗 (' + sec + '秒)');
+    if (bar) { bar.style.background = '#fee2e2'; bar.style.color = '#991b1b'; bar.innerHTML = '❌ OpenCV.js 読み込み失敗（' + sec + '秒）Canvas版で動作中'; }
+    return;
+  }
+  if (bar) { bar.innerHTML = '⏳ OpenCV.js 読み込み中... ' + sec + '秒 (cv=' + (typeof cv) + ')'; }
+  setTimeout(_checkOpenCVReady, 1000);
 }
 setTimeout(_checkOpenCVReady, 1000);
 
