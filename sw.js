@@ -1,6 +1,6 @@
 // ==========================================
 // Service Worker - リフォーム見積・会計 Pro
-// Version: 2.22.0
+// Version: 2.24.0
 // ★ v2.14.0: Phase1.8 Canvas自動検出方式
 // ★ v2.15.0: Phase2 OpenCV.js導入（receipt-multi-crop.js v2.0）
 // ★ v2.16.0: Phase2 白紙検出+透視変換+縦補正（receipt-multi-crop.js v2.1）
@@ -12,9 +12,10 @@
 // ★ v2.21.0: Phase2 v2.3 閾値170+5%マージン（レシート端切れ対策）
 // ★ v2.22.0: Phase2 v2.4 アスペクト比修正（4点距離計算）+マージン境界クランプ
 // ★ v2.23.0: Phase2 v2.5 クランプ順序修正+warped実サイズ回転判定
+// ★ v2.24.0: Phase2 v3.0 ハイブリッド方式（Gemini座標検出＋OpenCV透視変換）
 // ==========================================
 
-const CACHE_NAME = 'reform-app-v2.23.0';
+const CACHE_NAME = 'reform-app-v2.24.0';
 const OFFLINE_URL = 'index.html';
 
 // キャッシュするファイル（相対パス）
@@ -45,6 +46,7 @@ const FILES_TO_CACHE = [
   'receipt-purpose.js',
   'receipt-crop.js',
   'receipt-multi-crop.js',
+  'receipt-hybrid-crop.js',
   'receipt-history.js',
   'receipt-list.js',
   'estimate.js',

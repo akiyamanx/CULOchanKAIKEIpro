@@ -299,9 +299,9 @@ async function generateAndSaveReceiptPdfs() {
     var receipts = aiResults.receipts;
     var perReceiptImages = [];
     if (allImages.length === 1 && receipts.length > 1 && typeof detectAndCropMultipleReceipts === 'function') {
-      // 1枚の写真に複数レシート → Canvas自動検出で個別切り出し
-      console.log('[receipt-pdf] v1.8: Canvas自動検出で' + receipts.length + '枚を切り出し');
-      perReceiptImages = await detectAndCropMultipleReceipts(allImages[0], receipts.length, { padding: 15, maxWidth: 700, quality: 0.8 });
+      // v3.0: ハイブリッド方式 — AI結果のcorners座標を渡して精密切り出し
+      console.log('[receipt-pdf] v3.0: ハイブリッド方式で' + receipts.length + '枚を切り出し');
+      perReceiptImages = await detectAndCropMultipleReceipts(allImages[0], receipts.length, { padding: 15, maxWidth: 700, quality: 0.8 }, receipts);
     } else {
       // 画像数≧レシート数 or 切り出し不要 → 従来通りの割り当て
       for (var ri = 0; ri < receipts.length; ri++) {

@@ -1,19 +1,11 @@
 // ==========================================
-// receipt-multi-crop.js v2.5 — 複数レシート自動検出＆切り出し（OpenCV.js版）
-// Phase2: 白紙検出＋モルフォロジー＋minAreaRect＋透視変換＋左90度回転で縦補正
-// v2.5修正: クランプ順序修正（距離計算後にクランプ）＋回転判定をwarped実サイズで確実判定
+// receipt-multi-crop.js v3.0 — 複数レシート自動検出＆切り出し（ハイブリッド版）
+// v3.0: ハイブリッド方式（Gemini座標検出＋OpenCV透視変換）
+//   - Geminiが返すcorners（四隅ピクセル座標）で位置検出（意味理解）
+//   - OpenCV.jsで透視変換＋回転補正（精密切り出し）
+//   - cornersがない場合はOpenCV.js閾値検出にフォールバック（v2.5互換）
 // フォールバック: OpenCV未ロード時はCanvas自前処理（v1.0互換）
 // 依存: receipt-crop.js（loadImageFromDataUrl, createCroppedImage等）
-// ==========================================
-// 処理フロー（OpenCV版 v2.5）:
-//   1. 画像をCanvasに描画 → cv.imread()
-//   2. グレースケール → ガウシアンブラー
-//   3. 明るさ閾値(170)で白い紙を二値化
-//   4. モルフォロジー（大きめカーネルでClose→Open）
-//   5. findContours()で白い紙の輪郭を検出
-//   6. 面積フィルタ（2%〜80%）
-//   7. minAreaRect()で回転矩形を取得（5%マージン付き＋境界クランプ）
-//   8. 4点距離からdstW/dstH計算→透視変換で縦方向に補正して切り出し
 // ==========================================
 
 // v2.0: OpenCV.js読み込み状態管理
@@ -44,14 +36,29 @@ function isOpenCVAvailable() {
 }
 
 /**
- * 複数レシートを自動検出して個別切り出し（メインAPI）
+ * v3.0: 複数レシート自動検出して個別切り出し（ハイブリッド対応メインAPI）
  * @param {string} imageDataUrl - 元画像
  * @param {number} expectedCount - AIが認識したレシート枚数
  * @param {object} options - padding, maxWidth, quality
+ * @param {Array} receipts - v3.0: Gemini AI結果（corners座標付き）。省略時はOpenCV検出
  * @returns {Promise<string[]>} 各レシートの切り出し画像DataURL配列
  */
-async function detectAndCropMultipleReceipts(imageDataUrl, expectedCount, options) {
+async function detectAndCropMultipleReceipts(imageDataUrl, expectedCount, options, receipts) {
   if (!imageDataUrl || expectedCount <= 0) return [];
+
+  // v3.0: ハイブリッド方式 — Gemini corners座標があれば優先使用
+  if (receipts && receipts.length > 0 && typeof _hasCorners === 'function' && _hasCorners(receipts)) {
+    console.log('[multi-crop] v3.0 ハイブリッド方式: Gemini corners座標で切り出し');
+    try {
+      var hybridResults = await _cropWithGeminiCorners(imageDataUrl, receipts, options);
+      if (hybridResults && hybridResults.length > 0) {
+        console.log('[multi-crop] ハイブリッド成功: ' + hybridResults.length + '枚切り出し');
+        return hybridResults;
+      }
+    } catch (e) {
+      console.warn('[multi-crop] ハイブリッドエラー、OpenCV検出にフォールバック:', e);
+    }
+  }
 
   if (expectedCount === 1) {
     if (isOpenCVAvailable()) {
@@ -448,4 +455,4 @@ function _cRegions(lm,w,h){var rd={};for(var i=0;i<lm.length;i++){var l=lm[i];if
 window.detectAndCropMultipleReceipts = detectAndCropMultipleReceipts;
 window.isOpenCVAvailable = isOpenCVAvailable;
 
-console.log('[receipt-multi-crop.js] ✓ v2.5 OpenCV.js版（クランプ順序修正+warped実サイズ回転判定+透視変換）');
+console.log('[receipt-multi-crop.js] ✓ v3.0 ハイブリッド版（Gemini座標検出＋OpenCV透視変換＋フォールバック）');

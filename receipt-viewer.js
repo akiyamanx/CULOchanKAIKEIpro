@@ -387,7 +387,9 @@ async function exportSelectedReceiptsPdf() {
       var indices = imgGroups[groupKeys[gk]];
       var sampleR = selectedReceipts[indices[0]];
       if (indices.length > 1 && sampleR.imageData && typeof detectAndCropMultipleReceipts === 'function') {
-        var crops = await detectAndCropMultipleReceipts(sampleR.imageData, indices.length, cropOpts);
+        // v3.0: ハイブリッド方式対応 — selectedReceiptsからcorners情報があれば渡す
+        var groupReceipts = indices.map(function(idx) { return selectedReceipts[idx]; });
+        var crops = await detectAndCropMultipleReceipts(sampleR.imageData, indices.length, cropOpts, groupReceipts);
         for (var ci = 0; ci < indices.length; ci++) imgResults[indices[ci]] = crops[ci] || sampleR.imageData;
       } else {
         for (var si = 0; si < indices.length; si++) {
