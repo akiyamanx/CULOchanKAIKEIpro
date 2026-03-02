@@ -67,7 +67,18 @@ async function runAiOcr() {
         var ci = result.data.receipts.map(function(r, i) {
           return (i+1) + '.' + (r.store||'?').substring(0,6) + (r.corners ? '✅' : '❌');
         }).join(' ');
-        alert('✅ AI解析完了！\n' + rCount + '枚/' + iCount + '品目\ncorners: ' + ci);
+        // v3.0デバッグ: 座標系の確認（1枚目と2枚目のcorners値を表示）
+        var coordInfo = '';
+        for (var di = 0; di < Math.min(3, result.data.receipts.length); di++) {
+          var dr = result.data.receipts[di];
+          if (dr.corners) {
+            coordInfo += '\nR' + (di+1) + ' ' + (dr.store||'?').substring(0,6) + ': ' + JSON.stringify(dr.corners);
+          }
+        }
+        // 画像サイズも表示
+        var imgSize = '';
+        if (result.data.image_width) imgSize = '\nimg: ' + result.data.image_width + 'x' + result.data.image_height;
+        alert('✅ AI解析完了！\n' + rCount + '枚/' + iCount + '品目\n' + ci + imgSize + '\n--- corners座標 ---' + coordInfo);
       } else {
         iCount = result.data.items ? result.data.items.length : 0;
         alert('✅ AI解析完了！\n' + iCount + '件の品目を検出しました。');
