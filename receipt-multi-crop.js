@@ -1,11 +1,11 @@
 // ==========================================
-// receipt-multi-crop.js v2.4 — 複数レシート自動検出＆切り出し（OpenCV.js版）
+// receipt-multi-crop.js v2.5 — 複数レシート自動検出＆切り出し（OpenCV.js版）
 // Phase2: 白紙検出＋モルフォロジー＋minAreaRect＋透視変換＋左90度回転で縦補正
-// v2.4修正: アスペクト比を4点距離から正しく計算＋マージン境界クランプ
+// v2.5修正: クランプ順序修正（距離計算後にクランプ）＋回転判定をwarped実サイズで確実判定
 // フォールバック: OpenCV未ロード時はCanvas自前処理（v1.0互換）
 // 依存: receipt-crop.js（loadImageFromDataUrl, createCroppedImage等）
 // ==========================================
-// 処理フロー（OpenCV版 v2.4）:
+// 処理フロー（OpenCV版 v2.5）:
 //   1. 画像をCanvasに描画 → cv.imread()
 //   2. グレースケール → ガウシアンブラー
 //   3. 明るさ閾値(170)で白い紙を二値化
@@ -206,18 +206,27 @@ function _perspectiveCropFromContour(srcMat, contour, padding, maxWidth, quality
     var wRect = size.width;
     var hRect = size.height;
 
-    // v2.4: 5%マージン追加（レシートの端が切れない）
+    // v2.5: 5%マージン追加（レシートの端が切れない）
     var margin = 1.05;
     var wExpand = wRect * margin;
     var hExpand = hRect * margin;
 
-    // v2.4: boxPoints相当: マージン込みの4頂点を計算
+    // v2.5: boxPoints相当: マージン込みの4頂点を計算
     var expandedSize = { width: wExpand, height: hExpand };
     var box = _getBoxPoints(center, expandedSize, angle);
     var ordered = _orderBoxPoints(box);
     var tl = ordered[0], tr = ordered[1], br = ordered[2], bl = ordered[3];
 
-    // v2.4: マージン境界クランプ（画像の外にはみ出さないように制限）
+    // v2.5: dstW/dstHを4点間の実距離から計算（クランプ前に計算して正確な比率を保持）
+    var distTop = Math.sqrt(Math.pow(tr.x - tl.x, 2) + Math.pow(tr.y - tl.y, 2));
+    var distBottom = Math.sqrt(Math.pow(br.x - bl.x, 2) + Math.pow(br.y - bl.y, 2));
+    var distLeft = Math.sqrt(Math.pow(bl.x - tl.x, 2) + Math.pow(bl.y - tl.y, 2));
+    var distRight = Math.sqrt(Math.pow(br.x - tr.x, 2) + Math.pow(br.y - tr.y, 2));
+    var dstW = Math.round(Math.max(distTop, distBottom));
+    var dstH = Math.round(Math.max(distLeft, distRight));
+    if (dstW < 50 || dstH < 50) return null;
+
+    // v2.5: マージン境界クランプ（距離計算の後に適用）
     var imgW = srcMat.cols;
     var imgH = srcMat.rows;
     tl.x = Math.max(0, Math.min(imgW - 1, tl.x));
@@ -228,15 +237,6 @@ function _perspectiveCropFromContour(srcMat, contour, padding, maxWidth, quality
     br.y = Math.max(0, Math.min(imgH - 1, br.y));
     bl.x = Math.max(0, Math.min(imgW - 1, bl.x));
     bl.y = Math.max(0, Math.min(imgH - 1, bl.y));
-
-    // v2.4: dstW/dstHを4点間の実距離から計算（アスペクト比を正確に保持）
-    var distTop = Math.sqrt(Math.pow(tr.x - tl.x, 2) + Math.pow(tr.y - tl.y, 2));
-    var distBottom = Math.sqrt(Math.pow(br.x - bl.x, 2) + Math.pow(br.y - bl.y, 2));
-    var distLeft = Math.sqrt(Math.pow(bl.x - tl.x, 2) + Math.pow(bl.y - tl.y, 2));
-    var distRight = Math.sqrt(Math.pow(br.x - tr.x, 2) + Math.pow(br.y - tr.y, 2));
-    var dstW = Math.round(Math.max(distTop, distBottom));
-    var dstH = Math.round(Math.max(distLeft, distRight));
-    if (dstW < 50 || dstH < 50) return null;
 
     srcPts = cv.matFromArray(4, 1, cv.CV_32FC2, [
       tl.x, tl.y, tr.x, tr.y, br.x, br.y, bl.x, bl.y
@@ -250,13 +250,17 @@ function _perspectiveCropFromContour(srcMat, contour, padding, maxWidth, quality
     cv.warpPerspective(srcMat, warped, M, new cv.Size(dstW, dstH),
       cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar(255, 255, 255, 255));
 
-    // v2.2: 横向き（幅>高さ）なら左90度回転で縦にする
-    if (dstW > dstH) {
+    // v2.5: 横向き判定 — warped画像の実サイズで判定（レシートは基本縦長）
+    var warpedW = warped.cols;
+    var warpedH = warped.rows;
+    console.log('[multi-crop/opencv] warped size: ' + warpedW + 'x' + warpedH + ' (W>H=' + (warpedW > warpedH) + ')');
+    if (warpedW > warpedH) {
       var rotated = new cv.Mat();
       cv.rotate(warped, rotated, cv.ROTATE_90_COUNTERCLOCKWISE);
       warped.delete();
       warped = rotated;
       var tmp = dstW; dstW = dstH; dstH = tmp; // サイズ入れ替え
+      console.log('[multi-crop/opencv] → 左90度回転適用');
     }
 
     // maxWidth制限
@@ -444,4 +448,4 @@ function _cRegions(lm,w,h){var rd={};for(var i=0;i<lm.length;i++){var l=lm[i];if
 window.detectAndCropMultipleReceipts = detectAndCropMultipleReceipts;
 window.isOpenCVAvailable = isOpenCVAvailable;
 
-console.log('[receipt-multi-crop.js] ✓ v2.4 OpenCV.js版（4点距離アスペクト比修正+境界クランプ+透視変換+回転補正）');
+console.log('[receipt-multi-crop.js] ✓ v2.5 OpenCV.js版（クランプ順序修正+warped実サイズ回転判定+透視変換）');

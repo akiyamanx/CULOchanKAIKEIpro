@@ -11,9 +11,10 @@
 // ★ v2.21.0: デバッグ表示をJSに移動（insertAdjacentHTMLではscript未実行の対策）
 // ★ v2.21.0: Phase2 v2.3 閾値170+5%マージン（レシート端切れ対策）
 // ★ v2.22.0: Phase2 v2.4 アスペクト比修正（4点距離計算）+マージン境界クランプ
+// ★ v2.23.0: Phase2 v2.5 クランプ順序修正+warped実サイズ回転判定
 // ==========================================
 
-const CACHE_NAME = 'reform-app-v2.22.0';
+const CACHE_NAME = 'reform-app-v2.23.0';
 const OFFLINE_URL = 'index.html';
 
 // キャッシュするファイル（相対パス）
