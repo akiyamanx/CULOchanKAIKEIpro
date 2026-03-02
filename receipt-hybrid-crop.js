@@ -1,12 +1,10 @@
 // ==========================================
-// receipt-hybrid-crop.js v3.0 — ハイブリッド方式切り出し
+// receipt-hybrid-crop.js v3.1 — ハイブリッド方式切り出し
 // このファイルはGemini AIが返すcorners座標を使って
 // OpenCV.jsで透視変換＋回転補正する機能を提供する
 //
-// v3.0新規作成:
-//   - Gemini座標検出（意味理解）＋ OpenCV精密切り出し（透視変換）
-//   - receipt-multi-crop.jsから呼び出される
-//   - OpenCV未ロード時はCanvas矩形切り出しにフォールバック
+// v3.0新規作成: Gemini座標検出＋OpenCV精密切り出し
+// v3.1修正: Geminiは1200px座標系で返すのでscale掛け算を削除（二重スケーリング修正）
 //
 // 依存: receipt-crop.js（loadImageFromDataUrl, createCroppedImage）
 //       receipt-multi-crop.js（isOpenCVAvailable）
@@ -71,9 +69,9 @@ async function _cropCornersWithOpenCV(canvas, receipts, scale, padding, maxWidth
         results.push(null);
         continue;
       }
-      // Gemini座標をスケール変換（Geminiは元画像ピクセル→1200pxリサイズ座標系）
+      // v3.1修正: Geminiは1200pxリサイズ後の座標系で返すのでscale不要
       var corners = r.corners.map(function(pt) {
-        return { x: pt[0] * scale, y: pt[1] * scale };
+        return { x: pt[0], y: pt[1] };
       });
       var cropped = _perspectiveCropFromCorners(src, corners, padding, maxWidth, quality, sw, sh);
       results.push(cropped);
@@ -215,4 +213,4 @@ async function _cropCornersWithCanvas(img, receipts, scale, padding, maxWidth, q
 window._hasCorners = _hasCorners;
 window._cropWithGeminiCorners = _cropWithGeminiCorners;
 
-console.log('[receipt-hybrid-crop.js] ✓ v3.0 ハイブリッド方式（Gemini座標→OpenCV透視変換）');
+console.log('[receipt-hybrid-crop.js] ✓ v3.1 ハイブリッド方式（Gemini1200px座標→OpenCV透視変換）');
