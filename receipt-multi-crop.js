@@ -47,7 +47,12 @@ async function detectAndCropMultipleReceipts(imageDataUrl, expectedCount, option
   if (!imageDataUrl || expectedCount <= 0) return [];
 
   // v3.0: ハイブリッド方式 — Gemini corners座標があれば優先使用
-  if (receipts && receipts.length > 0 && typeof _hasCorners === 'function' && _hasCorners(receipts)) {
+  var hasReceipts = receipts && receipts.length > 0;
+  var cornersFound = hasReceipts && typeof _hasCorners === 'function' && _hasCorners(receipts);
+  console.log('[multi-crop] v3.0判定: receipts=' + (hasReceipts ? receipts.length + '件' : 'なし')
+    + ' corners=' + (cornersFound ? 'あり' : 'なし')
+    + ' → ' + (cornersFound ? 'ハイブリッド' : 'OpenCV/Canvas'));
+  if (cornersFound) {
     console.log('[multi-crop] v3.0 ハイブリッド方式: Gemini corners座標で切り出し');
     try {
       var hybridResults = await _cropWithGeminiCorners(imageDataUrl, receipts, options);

@@ -1,17 +1,7 @@
-// ==========================================
-// レシートAI解析機能
-// Reform App Pro v0.96
-// ==========================================
-// このファイルはGemini APIを使用してレシート画像を
-// AI解析し、品目データを自動抽出する機能を提供する
-//
-// v0.95: OCR廃止→AI一本化、複数枚一括、品名マスターマッチ
-// v0.96追加: レシートごと分離認識、種別自動判定、駐車場対応、日付振り分け
-// v1.8追加: bounds（レシート位置座標%）返却
-// v2.0追加: ハイブリッド方式corners（四隅ピクセル座標）返却
-//
+// レシートAI解析機能 — Reform App Pro v0.96
+// Gemini APIでレシート画像をAI解析し品目データを自動抽出
+// v0.96: レシート分離認識・種別自動判定 / v1.8: bounds / v2.0: corners（ハイブリッド）
 // 依存: globals.js, receipt-core.js
-// ==========================================
 
 
 // ==========================================
@@ -74,7 +64,10 @@ async function runAiOcr() {
         iCount = result.data.receipts.reduce(function(s, r) {
           return s + (r.items ? r.items.length : 0);
         }, 0);
-        alert('✅ AI解析完了！\n' + rCount + '枚のレシートから' + iCount + '件の品目を検出しました。');
+        var ci = result.data.receipts.map(function(r, i) {
+          return (i+1) + '.' + (r.store||'?').substring(0,6) + (r.corners ? '✅' : '❌');
+        }).join(' ');
+        alert('✅ AI解析完了！\n' + rCount + '枚/' + iCount + '品目\ncorners: ' + ci);
       } else {
         iCount = result.data.items ? result.data.items.length : 0;
         alert('✅ AI解析完了！\n' + iCount + '件の品目を検出しました。');
@@ -225,6 +218,12 @@ async function analyzeReceiptWithGemini(imageData, apiKey) {
 
     var parsedData = parseGeminiResponse(text);
     if (parsedData) {
+      // v3.0デバッグ: Geminiレスポンス確認
+      console.log('[receipt-ai] === Gemini RAW ===\n' + text);
+      console.log('[receipt-ai] === パース結果 ===\n' + JSON.stringify(parsedData, null, 2));
+      if (parsedData.receipts) { parsedData.receipts.forEach(function(r, i) {
+        console.log('[receipt-ai] R' + (i+1) + ': ' + (r.store||'?') + ' corners=' + (r.corners ? JSON.stringify(r.corners) : 'なし'));
+      }); }
       // v0.96: 旧形式→新形式に正規化
       parsedData = normalizeAiResponse(parsedData);
       return { success: true, data: parsedData };
