@@ -1,10 +1,9 @@
 // ==========================================
-// receipt-hybrid-crop.js v3.1 — ハイブリッド方式切り出し
-// このファイルはGemini AIが返すcorners座標を使って
-// OpenCV.jsで透視変換＋回転補正する機能を提供する
-//
-// v3.0新規作成: Gemini座標検出＋OpenCV精密切り出し
-// v3.1修正: Geminiは1200px座標系で返すのでscale掛け算を削除（二重スケーリング修正）
+// receipt-hybrid-crop.js v3.3 — ハイブリッド方式切り出し
+// v3.0: Gemini座標検出＋OpenCV精密切り出し
+// v3.1: 二重スケーリング修正
+// v3.2: boundsフォールバック＋面積チェック
+// v3.3: お姉ちゃん提案統合 — 順序正規化(sum/diff)を必ず挟む
 //
 // 依存: receipt-crop.js（loadImageFromDataUrl, createCroppedImage）
 //       receipt-multi-crop.js（isOpenCVAvailable）
@@ -64,26 +63,150 @@ async function _cropCornersWithOpenCV(canvas, receipts, scale, padding, maxWidth
   try {
     for (var i = 0; i < receipts.length; i++) {
       var r = receipts[i];
-      if (!r.corners || r.corners.length !== 4) {
-        console.warn('[hybrid-crop] レシート' + (i+1) + ': corners不正、スキップ');
-        results.push(null);
-        continue;
+      var cropped = null;
+
+      // v3.3: お姉ちゃん提案 — corners順序正規化を必ず挟む（Geminiの順序を信頼しない）
+      if (r.corners && r.corners.length === 4) {
+        var rawCorners = r.corners.map(function(pt) {
+          return { x: pt[0], y: pt[1] };
+        });
+        // 順序正規化: sum/diffヒューリスティクスでTL→TR→BR→BL
+        var corners = _orderCornersTLTRBRBL(rawCorners);
+        // v3.2: corners座標の妥当性チェック（面積が画像の0.5%未満なら不正）
+        var area = _calcQuadArea(corners);
+        var imgArea = sw * sh;
+        if (area > imgArea * 0.005 && area < imgArea * 0.9) {
+          cropped = _perspectiveCropFromCorners(src, corners, padding, maxWidth, quality, sw, sh);
+        } else {
+          console.warn('[hybrid-crop] R' + (i+1) + ' corners面積不正: ' + Math.round(area) + ' (画像: ' + imgArea + ')');
+        }
       }
-      // v3.1修正: Geminiは1200pxリサイズ後の座標系で返すのでscale不要
-      var corners = r.corners.map(function(pt) {
-        return { x: pt[0], y: pt[1] };
-      });
-      var cropped = _perspectiveCropFromCorners(src, corners, padding, maxWidth, quality, sw, sh);
+
+      // v3.2: corners失敗時 → boundsでCanvas矩形切り出し
+      if (!cropped && r.bounds) {
+        console.log('[hybrid-crop] R' + (i+1) + ' → boundsフォールバック');
+        var bx = Math.round(sw * r.bounds.x / 100);
+        var by = Math.round(sh * r.bounds.y / 100);
+        var bw = Math.round(sw * r.bounds.w / 100);
+        var bh = Math.round(sh * r.bounds.h / 100);
+        bx = Math.max(0, bx); by = Math.max(0, by);
+        bw = Math.min(sw - bx, bw); bh = Math.min(sh - by, bh);
+        if (bw > 30 && bh > 30) {
+          // bounds領域を切り出してOpenCVで白紙検出→透視変換
+          cropped = _cropBoundsRegion(src, bx, by, bw, bh, padding, maxWidth, quality);
+        }
+      }
+
       results.push(cropped);
-      console.log('[hybrid-crop] レシート' + (i+1) + ' (' + (r.store||'不明') + ') ' + (cropped ? '✅成功' : '❌失敗'));
+      console.log('[hybrid-crop] R' + (i+1) + ' ' + (r.store||'?') + ': ' + (cropped ? '✅' : '❌'));
     }
     src.delete();
     return results;
   } catch (e) {
-    console.error('[hybrid-crop] OpenCV切り出しエラー:', e);
+    console.error('[hybrid-crop] エラー:', e);
     try { src.delete(); } catch(x){}
     return null;
   }
+}
+
+/**
+ * v3.2: 四角形の面積計算（Shoelace formula）
+ */
+function _calcQuadArea(pts) {
+  var n = pts.length;
+  var area = 0;
+  for (var i = 0; i < n; i++) {
+    var j = (i + 1) % n;
+    area += pts[i].x * pts[j].y;
+    area -= pts[j].x * pts[i].y;
+  }
+  return Math.abs(area / 2);
+}
+
+/**
+ * v3.2: bounds矩形領域を切り出し→OpenCVで白紙検出して透視変換
+ */
+function _cropBoundsRegion(srcMat, bx, by, bw, bh, padding, maxWidth, quality) {
+  var roi = null, gray = null, blur = null, thresh = null;
+  var morphK1 = null, morphK2 = null, closed = null, opened = null;
+  try {
+    // bounds領域をROIとして切り出し
+    roi = srcMat.roi(new cv.Rect(bx, by, bw, bh));
+
+    // v2.5と同じ白紙検出処理: グレースケール→ブラー→閾値→モルフォロジー→輪郭
+    gray = new cv.Mat();
+    cv.cvtColor(roi, gray, cv.COLOR_RGBA2GRAY);
+    blur = new cv.Mat();
+    cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0);
+    thresh = new cv.Mat();
+    cv.threshold(blur, thresh, 170, 255, cv.THRESH_BINARY);
+
+    // モルフォロジー（Close→Open）
+    morphK1 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(11, 11));
+    closed = new cv.Mat();
+    cv.morphologyEx(thresh, closed, cv.MORPH_CLOSE, morphK1);
+    morphK2 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5));
+    opened = new cv.Mat();
+    cv.morphologyEx(closed, opened, cv.MORPH_OPEN, morphK2);
+
+    // 輪郭検出
+    var contours = new cv.MatVector();
+    var hierarchy = new cv.Mat();
+    cv.findContours(opened, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+    // 最大面積の輪郭を選択
+    var maxArea = 0, maxIdx = -1;
+    var roiArea = bw * bh;
+    for (var c = 0; c < contours.size(); c++) {
+      var a = cv.contourArea(contours.get(c));
+      if (a > maxArea && a > roiArea * 0.1) { maxArea = a; maxIdx = c; }
+    }
+
+    var result = null;
+    if (maxIdx >= 0) {
+      // minAreaRect→4点取得→透視変換（v2.5と同じ）
+      var rect = cv.minAreaRect(contours.get(maxIdx));
+      var pts4 = cv.RotatedRect.points(rect);
+      var ordered = _orderCornersTLTRBRBL(pts4);
+      var corners = ordered.map(function(p) { return { x: p.x, y: p.y }; });
+      result = _perspectiveCropFromCorners(roi, corners, padding, maxWidth, quality, bw, bh);
+    }
+
+    // クリーンアップ
+    roi.delete(); gray.delete(); blur.delete(); thresh.delete();
+    morphK1.delete(); morphK2.delete(); closed.delete(); opened.delete();
+    contours.delete(); hierarchy.delete();
+    return result;
+  } catch (e) {
+    console.warn('[hybrid-crop] boundsRegionエラー:', e);
+    try { if(roi) roi.delete(); } catch(x){}
+    try { if(gray) gray.delete(); } catch(x){}
+    try { if(blur) blur.delete(); } catch(x){}
+    try { if(thresh) thresh.delete(); } catch(x){}
+    try { if(morphK1) morphK1.delete(); } catch(x){}
+    try { if(morphK2) morphK2.delete(); } catch(x){}
+    try { if(closed) closed.delete(); } catch(x){}
+    try { if(opened) opened.delete(); } catch(x){}
+    return null;
+  }
+}
+
+/**
+ * v3.3: 4点を画像座標系でTL→TR→BR→BLに並べ替え（お姉ちゃん提案のsum/diffヒューリスティクス）
+ * TL: min(x+y), BR: max(x+y), TR: min(x-y), BL: max(x-y)
+ */
+function _orderCornersTLTRBRBL(pts) {
+  var sums = pts.map(function(p) { return p.x + p.y; });
+  var diffs = pts.map(function(p) { return p.x - p.y; });
+  var minSum = Math.min.apply(null, sums);
+  var maxSum = Math.max.apply(null, sums);
+  var minDiff = Math.min.apply(null, diffs);
+  var maxDiff = Math.max.apply(null, diffs);
+  var tl = pts[sums.indexOf(minSum)];
+  var br = pts[sums.indexOf(maxSum)];
+  var tr = pts[diffs.indexOf(minDiff)];
+  var bl = pts[diffs.indexOf(maxDiff)];
+  return [tl, tr, br, bl];
 }
 
 /**
@@ -133,11 +256,11 @@ function _perspectiveCropFromCorners(srcMat, corners, padding, maxWidth, quality
     console.log('[hybrid-crop] warped: ' + warpedW + 'x' + warpedH + ' (W>H=' + (warpedW > warpedH) + ')');
     if (warpedW > warpedH) {
       var rotated = new cv.Mat();
-      cv.rotate(warped, rotated, cv.ROTATE_90_COUNTERCLOCKWISE);
+      cv.rotate(warped, rotated, cv.ROTATE_90_CLOCKWISE);
       warped.delete();
       warped = rotated;
       var tmp = dstW; dstW = dstH; dstH = tmp;
-      console.log('[hybrid-crop] → 左90度回転適用');
+      console.log('[hybrid-crop] → 右90度回転適用（お姉ちゃん提案）');
     }
 
     // maxWidth制限
@@ -213,4 +336,4 @@ async function _cropCornersWithCanvas(img, receipts, scale, padding, maxWidth, q
 window._hasCorners = _hasCorners;
 window._cropWithGeminiCorners = _cropWithGeminiCorners;
 
-console.log('[receipt-hybrid-crop.js] ✓ v3.1 ハイブリッド方式（Gemini1200px座標→OpenCV透視変換）');
+console.log('[receipt-hybrid-crop.js] ✓ v3.3 ハイブリッド（順序正規化＋boundsフォールバック）');
