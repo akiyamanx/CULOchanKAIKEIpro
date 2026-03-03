@@ -15,7 +15,7 @@
 // ★ v2.24.0: Phase2 v3.0 ハイブリッド方式（Gemini座標検出＋OpenCV透視変換）
 // ==========================================
 
-const CACHE_NAME = 'reform-app-v2.30.0';
+const CACHE_NAME = 'reform-app-v2.31.0';
 const OFFLINE_URL = 'index.html';
 
 // キャッシュするファイル（相対パス）
