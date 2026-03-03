@@ -64,13 +64,11 @@ async function runAiOcr() {
         iCount = result.data.receipts.reduce(function(s, r) {
           return s + (r.items ? r.items.length : 0);
         }, 0);
-        // v3.2デバッグ: corners座標表示
+        // v4.0: bounds方式チェック表示
         var ci = result.data.receipts.map(function(r, i) {
-          return (i+1) + '.' + (r.store||'?').substring(0,4) + (r.corners ? '✅' : '❌');
+          return (i+1) + '.' + (r.store||'?').substring(0,4) + (r.bounds ? '✅' : '❌');
         }).join(' ');
-        var c1 = result.data.receipts[0];
-        var cInfo = c1 && c1.corners ? '\nR1: ' + JSON.stringify(c1.corners) : '';
-        alert('✅ ' + rCount + '枚/' + iCount + '品目\n' + ci + cInfo);
+        alert('✅ ' + rCount + '枚/' + iCount + '品目\n' + ci);
       } else {
         iCount = result.data.items ? result.data.items.length : 0;
         alert('✅ AI解析完了！\n' + iCount + '件の品目を検出しました。');

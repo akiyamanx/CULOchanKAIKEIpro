@@ -61,13 +61,11 @@ async function _cropBoundsWithOpenCV(canvas, receipts, padding, maxWidth, qualit
       var r = receipts[i];
       var cropped = null;
       if (r.bounds) {
-        // v4.1: マージンなし。boundsをタイトに使う（隣レシート混入防止）
-        // むしろ少し内側に縮小（2%）して隣を確実に排除
-        var shrink = Math.round(Math.min(sw * r.bounds.w / 100, sh * r.bounds.h / 100) * 0.02);
-        var bx = Math.max(0, Math.round(sw * r.bounds.x / 100) + shrink);
-        var by = Math.max(0, Math.round(sh * r.bounds.y / 100) + shrink);
-        var bw = Math.min(sw - bx, Math.round(sw * r.bounds.w / 100) - shrink * 2);
-        var bh = Math.min(sh - by, Math.round(sh * r.bounds.h / 100) - shrink * 2);
+        // v4.1: boundsそのまま使用（shrinkなし）
+        var bx = Math.max(0, Math.round(sw * r.bounds.x / 100));
+        var by = Math.max(0, Math.round(sh * r.bounds.y / 100));
+        var bw = Math.min(sw - bx, Math.round(sw * r.bounds.w / 100));
+        var bh = Math.min(sh - by, Math.round(sh * r.bounds.h / 100));
         if (bw > 30 && bh > 30) {
           cropped = _cropBoundsRegion(src, bx, by, bw, bh, padding, maxWidth, quality);
         }
