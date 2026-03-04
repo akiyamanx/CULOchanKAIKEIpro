@@ -1,6 +1,7 @@
 // レシートAI解析機能 — Reform App Pro v0.96
 // Gemini APIでレシート画像をAI解析し品目データを自動抽出
 // v0.96: レシート分離認識・種別自動判定 / v1.8: bounds / v2.0: corners（ハイブリッド）
+// v5.0: Gemini公式box_2d座標系（0-1000正規化）+ responseMimeType + thinkingBudget=0
 // 依存: globals.js, receipt-core.js
 
 
@@ -64,11 +65,14 @@ async function runAiOcr() {
         iCount = result.data.receipts.reduce(function(s, r) {
           return s + (r.items ? r.items.length : 0);
         }, 0);
-        // v4.0: bounds方式チェック表示
+        // v3.2デバッグ: corners座標表示
+        // v5.0: box_2d座標表示
         var ci = result.data.receipts.map(function(r, i) {
-          return (i+1) + '.' + (r.store||'?').substring(0,4) + (r.bounds ? '✅' : '❌');
+          return (i+1) + '.' + (r.store||'?').substring(0,4) + (r.box_2d ? '✅' : '❌');
         }).join(' ');
-        alert('✅ ' + rCount + '枚/' + iCount + '品目\n' + ci);
+        var c1 = result.data.receipts[0];
+        var cInfo = c1 && c1.box_2d ? '\nR1 box_2d: ' + JSON.stringify(c1.box_2d) : '';
+        alert('✅ ' + rCount + '枚/' + iCount + '品目\n' + ci + cInfo);
       } else {
         iCount = result.data.items ? result.data.items.length : 0;
         alert('✅ AI解析完了！\n' + iCount + '件の品目を検出しました。');
@@ -139,16 +143,17 @@ async function analyzeReceiptWithGemini(imageData, apiKey) {
       + '- 小計・合計・消費税の行は品目に含めない\n'
       + '- 読み取れない文字は推測して補完する\n'
       + '- JSONのみを出力し、説明文は不要\n\n'
-      + '【boundsルール（最重要）】\n'
-      + '- boundsでレシートの紙を切り出すため、正確さが非常に重要\n'
-      + '- boundsは画像座標系（左上原点）で%指定\n'
-      + '- x=左端からの距離%, y=上端からの距離%, w=幅%, h=高さ%\n'
-      + '- 各boundsはそのレシートの紙だけをタイトに囲む\n'
+      // v5.0: Gemini公式box_2d座標系（0-1000正規化）に変更
+      + '【box_2dルール（最重要）】\n'
+      + '- box_2dでレシートの紙を切り出すため、正確さが非常に重要\n'
+      + '- box_2d形式: [y_min, x_min, y_max, x_max]（Y座標が先！0-1000正規化）\n'
+      + '- 座標範囲: 0〜1000（画像の端が0または1000）\n'
+      + '- 各box_2dはそのレシートの紙だけをタイトに囲む\n'
       + '- 最重要: 隣のレシートの紙が絶対に入らないようにする\n'
       + '- レシート間の隙間がある場合、隙間の中心で区切る\n'
       + '- レシートが重なっている場合は見えている部分だけを囲む\n'
-      + '- boundsは小さめ（タイト）にする。大きすぎると隣が混入する\n'
-      + '- レシートが1枚でもboundsを必ず返す\n\n';
+      + '- box_2dは小さめ（タイト）にする。大きすぎると隣が混入する\n'
+      + '- レシートが1枚でもbox_2dを必ず返す\n\n';
   }
   
   prompt += '【出力形式】\n'
@@ -175,18 +180,21 @@ async function analyzeReceiptWithGemini(imageData, apiKey) {
     + '  ]\n'
     + '}';
 
+  // v5.0: 画像→テキストの順序（公式推奨）、responseMimeType + thinkingBudget=0追加
   var requestBody = {
     contents: [{
       parts: [
-        { text: prompt },
-        { inline_data: { mime_type: mimeType, data: base64Data } }
+        { inline_data: { mime_type: mimeType, data: base64Data } },
+        { text: prompt }
       ]
     }],
     generationConfig: {
       temperature: 0.1,
       topK: 32,
       topP: 1,
-      maxOutputTokens: 4096
+      maxOutputTokens: 4096,
+      responseMimeType: "application/json",
+      thinkingConfig: { thinkingBudget: 0 }
     }
   };
 
@@ -204,6 +212,7 @@ async function analyzeReceiptWithGemini(imageData, apiKey) {
     }
 
     var data = await response.json();
+    // v5.0: responseMimeType="application/json"の場合はtextにJSON文字列が入る
     var text = data.candidates && data.candidates[0] &&
       data.candidates[0].content && data.candidates[0].content.parts &&
       data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text;
@@ -218,7 +227,7 @@ async function analyzeReceiptWithGemini(imageData, apiKey) {
       console.log('[receipt-ai] === Gemini RAW ===\n' + text);
       console.log('[receipt-ai] === パース結果 ===\n' + JSON.stringify(parsedData, null, 2));
       if (parsedData.receipts) { parsedData.receipts.forEach(function(r, i) {
-        console.log('[receipt-ai] R' + (i+1) + ': ' + (r.store||'?') + ' corners=' + (r.corners ? JSON.stringify(r.corners) : 'なし'));
+        console.log('[receipt-ai] R' + (i+1) + ': ' + (r.store||'?') + ' box_2d=' + (r.box_2d ? JSON.stringify(r.box_2d) : 'なし'));
       }); }
       // v0.96: 旧形式→新形式に正規化
       parsedData = normalizeAiResponse(parsedData);

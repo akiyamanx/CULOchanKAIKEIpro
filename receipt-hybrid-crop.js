@@ -1,30 +1,47 @@
-// receipt-hybrid-crop.js v4.0 — Gemini bounds方式切り出し
-// Gemini bounds(%)で各レシート領域を分離→OpenCVで白紙検出＋透視変換
+// receipt-hybrid-crop.js v5.0 — Gemini公式box_2d座標系対応
+// Gemini box_2d（0-1000正規化, [ymin,xmin,ymax,xmax]）で各レシート領域を分離
+// →OpenCVで白紙検出＋透視変換
 // v3.x: corners方式（Gemini精度不足で断念）
-// v4.0: bounds方式メイン（Geminiの得意な大まかな領域指定を活用）
+// v4.0: bounds方式（%指定、隣接混入問題あり）
+// v5.0: Gemini公式box_2d座標系（0-1000正規化, Y座標が先）
 // 依存: receipt-multi-crop.js（isOpenCVAvailable）
 
-console.log('[receipt-hybrid-crop.js] ✓ v4.0 bounds方式（Gemini領域分離→OpenCV精密切り出し）');
+console.log('[receipt-hybrid-crop.js] ✓ v5.0 box_2d方式（Gemini公式0-1000正規化→OpenCV精密切り出し）');
 
 // ==========================================
-// v4.0: 公開チェック関数
+// v5.0: 公開チェック関数
 // ==========================================
 
-// v4.0: receipts配列にbounds座標が含まれるかチェック
-function _hasBounds(receipts) {
+// v5.0: receipts配列にbox_2d座標が含まれるかチェック
+function _hasBox2d(receipts) {
   for (var i = 0; i < receipts.length; i++) {
-    if (receipts[i].bounds && typeof receipts[i].bounds.x === 'number') return true;
+    if (receipts[i].box_2d && Array.isArray(receipts[i].box_2d) && receipts[i].box_2d.length === 4) return true;
   }
   return false;
 }
-// v3.x互換 — receipt-multi-crop.jsから呼ばれる
-function _hasCorners(receipts) { return _hasBounds(receipts); }
+// v4.0互換 — _hasBounds/_hasCornersとして呼ばれる場合も対応
+function _hasBounds(receipts) { return _hasBox2d(receipts); }
+function _hasCorners(receipts) { return _hasBox2d(receipts); }
 
 // ==========================================
-// v4.0: メイン処理
+// v5.0: box_2d座標変換ヘルパー
 // ==========================================
 
-// v4.0: Gemini bounds方式メイン
+// v5.0: box_2d [ymin, xmin, ymax, xmax]（0-1000）をピクセル矩形に変換
+function _box2dToPixel(box2d, sw, sh) {
+  var ymin = box2d[0], xmin = box2d[1], ymax = box2d[2], xmax = box2d[3];
+  var bx = Math.max(0, Math.round(xmin / 1000 * sw));
+  var by = Math.max(0, Math.round(ymin / 1000 * sh));
+  var bw = Math.min(sw - bx, Math.round((xmax - xmin) / 1000 * sw));
+  var bh = Math.min(sh - by, Math.round((ymax - ymin) / 1000 * sh));
+  return { bx: bx, by: by, bw: bw, bh: bh };
+}
+
+// ==========================================
+// v5.0: メイン処理
+// ==========================================
+
+// v5.0: Gemini box_2d方式メイン
 async function _cropWithGeminiCorners(imageDataUrl, receipts, options) {
   var opts = options || {};
   var padding = opts.padding || 15;
@@ -42,37 +59,34 @@ async function _cropWithGeminiCorners(imageDataUrl, receipts, options) {
   var ctx = canvas.getContext('2d');
   ctx.drawImage(img, 0, 0, sw, sh);
   if (isOpenCVAvailable()) {
-    console.log('[hybrid-crop] v4.0 bounds方式 (' + receipts.length + '枚, ' + sw + 'x' + sh + ')');
-    return _cropBoundsWithOpenCV(canvas, receipts, padding, maxWidth, quality, sw, sh);
+    console.log('[hybrid-crop] v5.0 box_2d方式 (' + receipts.length + '枚, ' + sw + 'x' + sh + ')');
+    return _cropBox2dWithOpenCV(canvas, receipts, padding, maxWidth, quality, sw, sh);
   }
   console.log('[hybrid-crop] OpenCV未ロード → Canvas切り出し');
-  return _cropBoundsWithCanvas(img, receipts, padding, maxWidth, quality, origW, origH);
+  return _cropBox2dWithCanvas(img, receipts, padding, maxWidth, quality, origW, origH);
 }
 
 // ==========================================
-// v4.0: OpenCVでbounds領域ごとに精密切り出し
+// v5.0: OpenCVでbox_2d領域ごとに精密切り出し
 // ==========================================
 
-async function _cropBoundsWithOpenCV(canvas, receipts, padding, maxWidth, quality, sw, sh) {
+async function _cropBox2dWithOpenCV(canvas, receipts, padding, maxWidth, quality, sw, sh) {
   var src = cv.imread(canvas);
   var results = [];
   try {
     for (var i = 0; i < receipts.length; i++) {
       var r = receipts[i];
       var cropped = null;
-      if (r.bounds) {
-        // v4.1: boundsそのまま使用（shrinkなし）
-        var bx = Math.max(0, Math.round(sw * r.bounds.x / 100));
-        var by = Math.max(0, Math.round(sh * r.bounds.y / 100));
-        var bw = Math.min(sw - bx, Math.round(sw * r.bounds.w / 100));
-        var bh = Math.min(sh - by, Math.round(sh * r.bounds.h / 100));
-        if (bw > 30 && bh > 30) {
-          cropped = _cropBoundsRegion(src, bx, by, bw, bh, padding, maxWidth, quality);
+      if (r.box_2d && Array.isArray(r.box_2d) && r.box_2d.length === 4) {
+        // v5.0: box_2d [ymin, xmin, ymax, xmax] → ピクセル座標変換
+        var pix = _box2dToPixel(r.box_2d, sw, sh);
+        if (pix.bw > 30 && pix.bh > 30) {
+          cropped = _cropBoundsRegion(src, pix.bx, pix.by, pix.bw, pix.bh, padding, maxWidth, quality);
         }
       }
-      // OpenCV失敗時→bounds矩形そのままCanvas切り出し
-      if (!cropped && r.bounds) {
-        cropped = _cropBoundsSimple(canvas, r.bounds, padding, maxWidth, quality, sw, sh);
+      // OpenCV失敗時→box_2d矩形そのままCanvas切り出し
+      if (!cropped && r.box_2d && Array.isArray(r.box_2d)) {
+        cropped = _cropBox2dSimple(canvas, r.box_2d, padding, maxWidth, quality, sw, sh);
       }
       results.push(cropped);
       console.log('[hybrid-crop] R' + (i+1) + ' ' + (r.store||'?') + ': ' + (cropped ? '✅' : '❌'));
@@ -87,7 +101,7 @@ async function _cropBoundsWithOpenCV(canvas, receipts, padding, maxWidth, qualit
 }
 
 // ==========================================
-// v4.0: bounds領域内でOpenCV白紙検出→透視変換
+// v5.0: bounds領域内でOpenCV白紙検出→透視変換（v4.0から継続）
 // ==========================================
 
 function _cropBoundsRegion(srcMat, bx, by, bw, bh, padding, maxWidth, quality) {
@@ -134,7 +148,7 @@ function _cropBoundsRegion(srcMat, bx, by, bw, bh, padding, maxWidth, quality) {
 }
 
 // ==========================================
-// v4.0: 透視変換＋回転補正
+// v4.0: 透視変換＋回転補正（変更なし）
 // ==========================================
 
 function _warpAndRotate(srcMat, corners, padding, maxWidth, quality, imgW, imgH) {
@@ -180,7 +194,6 @@ function _warpAndRotate(srcMat, corners, padding, maxWidth, quality, imgW, imgH)
     var oCtx = outC.getContext('2d');
     oCtx.fillStyle = '#FFFFFF';
     oCtx.fillRect(0, 0, outC.width, outC.height);
-    // cv.imshowでwarped→tempCanvasに描画→outCにpadding付きで配置
     var tempC = document.createElement('canvas');
     cv.imshow(tempC, warped);
     oCtx.drawImage(tempC, padding, padding, dstW, dstH);
@@ -208,46 +221,45 @@ function _orderCornersTLTRBRBL(pts) {
 }
 
 // ==========================================
-// v4.0: フォールバック — bounds矩形Canvas切り出し
+// v5.0: フォールバック — box_2d矩形Canvas切り出し
 // ==========================================
 
-function _cropBoundsSimple(canvas, bounds, padding, maxWidth, quality, sw, sh) {
+function _cropBox2dSimple(canvas, box2d, padding, maxWidth, quality, sw, sh) {
   try {
-    var bx = Math.max(0, Math.round(sw * bounds.x / 100));
-    var by = Math.max(0, Math.round(sh * bounds.y / 100));
-    var bw = Math.min(sw - bx, Math.round(sw * bounds.w / 100));
-    var bh = Math.min(sh - by, Math.round(sh * bounds.h / 100));
-    if (bw < 20 || bh < 20) return null;
+    var pix = _box2dToPixel(box2d, sw, sh);
+    if (pix.bw < 20 || pix.bh < 20) return null;
     var c = document.createElement('canvas');
-    c.width = bw + padding * 2; c.height = bh + padding * 2;
+    c.width = pix.bw + padding * 2; c.height = pix.bh + padding * 2;
     var ctx = c.getContext('2d');
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, c.width, c.height);
-    ctx.drawImage(canvas, bx, by, bw, bh, padding, padding, bw, bh);
+    ctx.drawImage(canvas, pix.bx, pix.by, pix.bw, pix.bh, padding, padding, pix.bw, pix.bh);
     return c.toDataURL('image/jpeg', quality);
   } catch (e) { return null; }
 }
 
+// v4.0互換フォールバック
+function _cropBoundsSimple(canvas, bounds, padding, maxWidth, quality, sw, sh) {
+  return _cropBox2dSimple(canvas, bounds, padding, maxWidth, quality, sw, sh);
+}
+
 // ==========================================
-// v4.0: OpenCV未ロード時のCanvas切り出し
+// v5.0: OpenCV未ロード時のCanvas切り出し
 // ==========================================
 
-function _cropBoundsWithCanvas(img, receipts, padding, maxWidth, quality, origW, origH) {
+function _cropBox2dWithCanvas(img, receipts, padding, maxWidth, quality, origW, origH) {
   var results = [];
   for (var i = 0; i < receipts.length; i++) {
     var r = receipts[i], cropped = null;
-    if (r.bounds) {
-      var bx = Math.max(0, Math.round(origW * r.bounds.x / 100));
-      var by = Math.max(0, Math.round(origH * r.bounds.y / 100));
-      var bw = Math.min(origW - bx, Math.round(origW * r.bounds.w / 100));
-      var bh = Math.min(origH - by, Math.round(origH * r.bounds.h / 100));
-      if (bw > 20 && bh > 20) {
+    if (r.box_2d && Array.isArray(r.box_2d) && r.box_2d.length === 4) {
+      var pix = _box2dToPixel(r.box_2d, origW, origH);
+      if (pix.bw > 20 && pix.bh > 20) {
         var c = document.createElement('canvas');
-        c.width = bw + padding * 2; c.height = bh + padding * 2;
+        c.width = pix.bw + padding * 2; c.height = pix.bh + padding * 2;
         var ctx = c.getContext('2d');
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, c.width, c.height);
-        ctx.drawImage(img, bx, by, bw, bh, padding, padding, bw, bh);
+        ctx.drawImage(img, pix.bx, pix.by, pix.bw, pix.bh, padding, padding, pix.bw, pix.bh);
         cropped = c.toDataURL('image/jpeg', quality);
       }
     }
@@ -256,7 +268,13 @@ function _cropBoundsWithCanvas(img, receipts, padding, maxWidth, quality, origW,
   return results;
 }
 
-// v4.0: グローバル公開
+// v4.0互換
+function _cropBoundsWithCanvas(img, receipts, padding, maxWidth, quality, origW, origH) {
+  return _cropBox2dWithCanvas(img, receipts, padding, maxWidth, quality, origW, origH);
+}
+
+// v5.0: グローバル公開
 window._hasCorners = _hasCorners;
 window._hasBounds = _hasBounds;
+window._hasBox2d = _hasBox2d;
 window._cropWithGeminiCorners = _cropWithGeminiCorners;
