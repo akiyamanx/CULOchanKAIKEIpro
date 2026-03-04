@@ -4,7 +4,6 @@
 // v5.0: Gemini公式box_2d座標系（0-1000正規化）+ responseMimeType + thinkingBudget=0
 // 依存: globals.js, receipt-core.js
 
-
 // ==========================================
 // v0.96: 最後の解析結果を保持（PDF生成等で使う）
 // ==========================================
@@ -156,7 +155,9 @@ async function analyzeReceiptWithGemini(imageData, apiKey) {
       + '- レシートが1枚でもbox_2dを必ず返す\n\n';
   }
   
-  prompt += '【出力形式】\n'
+  // v5.1: サンプルをbox_2d形式に修正（boundsが残っていたバグを修正）
+  prompt += '【重要】box_2dは全レシートに必須！省略禁止！\n'
+    + '【出力形式】box_2d=[y_min,x_min,y_max,x_max]（0-1000正規化、Y座標が先）\n'
     + '{\n'
     + '  "receipts": [\n'
     + '    {\n'
@@ -164,7 +165,7 @@ async function analyzeReceiptWithGemini(imageData, apiKey) {
     + '      "store": "カインズ松戸店",\n'
     + '      "total": 3500,\n'
     + '      "type": "shopping",\n'
-    + '      "bounds": {"x": 2, "y": 5, "w": 30, "h": 90},\n'
+    + '      "box_2d": [50, 20, 910, 300],\n'
     + '      "items": [{"name": "VP管20A", "qty": 2, "price": 800}]\n'
     + '    },\n'
     + '    {\n'
@@ -172,7 +173,7 @@ async function analyzeReceiptWithGemini(imageData, apiKey) {
     + '      "store": "タイムズ代々木",\n'
     + '      "total": 800,\n'
     + '      "type": "parking",\n'
-    + '      "bounds": {"x": 70, "y": 10, "w": 28, "h": 55},\n'
+    + '      "box_2d": [100, 700, 550, 980],\n'
     + '      "entry_time": "08:56",\n'
     + '      "exit_time": "10:42",\n'
     + '      "items": []\n'
