@@ -1,309 +1,526 @@
-// receipt-ai.js
-// このファイルはGemini AIを使って複数レシート画像を解析し、
-// 構造化JSONデータを返す機能を提供する（Phase3: AIフル解析方式）
-// v6.0 - box_2d+OpenCV廃止、Gemini直接JSON解析、gemini-2.5-flash-lite対応
+// レシートAI解析機能 — Reform App Pro v0.96
+// Gemini APIでレシート画像をAI解析し品目データを自動抽出
+// v0.96: レシート分離認識・種別自動判定 / v1.8: bounds / v2.0: corners（ハイブリッド）
+// v6.0: Phase3 AIフル解析方式（box_2d廃止・gemini-2.5-flash-lite・responseSchema）
+// 依存: globals.js, receipt-core.js
 
-'use strict';
+// ==========================================
+// v0.96: 最後の解析結果を保持（PDF生成等で使う）
+// ==========================================
+let _lastAiReceiptResults = null;
 
-// v6.0: Phase3 AIフル解析方式
-// 旧方式: Gemini(box_2d座標) → OpenCV(切り抜き) → Gemini(OCR) ← 精度問題あり
-// 新方式: Gemini一発で「何枚あるか」+「各レシートの内容」を直接JSON返却
-// メリット: 横向き・斜め・密集でも読める、OpenCV不要、コードが大幅シンプル化
 
-const ReceiptAI = {
+// ==========================================
+// AI解析メイン関数
+// ==========================================
 
-  // v6.0: モデル変更 gemini-2.0-flash → gemini-2.5-flash-lite
-  MODEL: 'gemini-2.5-flash-lite-preview-06-17',
-  API_BASE: 'https://generativelanguage.googleapis.com/v1beta/models/',
+async function runAiOcr() {
+  const settings = JSON.parse(localStorage.getItem('reform_app_settings') || '{}');
+  const apiKey = settings.geminiApiKey;
 
-  // v6.0: responseSchema定義（構造化出力で確実にJSON取得）
-  RESPONSE_SCHEMA: {
+  if (!apiKey) {
+    alert('Gemini APIキーが設定されていません。\n設定画面からAPIキーを入力してください。');
+    return;
+  }
+
+  // 解析する画像を準備
+  let imageToAnalyze = null;
+  let imageCount = 1;
+
+  if (multiImageDataUrls && multiImageDataUrls.length > 1) {
+    showAiLoading('複数画像を結合中... (' + multiImageDataUrls.length + '枚)');
+    try {
+      imageToAnalyze = await mergeImages(multiImageDataUrls);
+      imageCount = multiImageDataUrls.length;
+    } catch (e) {
+      hideAiLoading();
+      alert('画像の結合に失敗しました: ' + e.message);
+      return;
+    }
+  } else if (receiptImageData) {
+    imageToAnalyze = receiptImageData;
+  } else {
+    alert('画像が選択されていません');
+    return;
+  }
+
+  showAiLoading('AI解析中... (' + imageCount + '枚)');
+
+  try {
+    const result = await analyzeReceiptWithGemini(imageToAnalyze, apiKey);
+
+    if (result.success) {
+      // v0.96: 結果を保持
+      _lastAiReceiptResults = result.data;
+
+      applyAiResult(result.data);
+      hideAiLoading();
+
+      // v0.96: レシート枚数と品目数を表示
+      var rCount = 0;
+      var iCount = 0;
+      if (result.data.receipts && result.data.receipts.length > 0) {
+        rCount = result.data.receipts.length;
+        iCount = result.data.receipts.reduce(function(s, r) {
+          return s + (r.items ? r.items.length : 0);
+        }, 0);
+        // v3.2デバッグ: corners座標表示
+        // v5.0: box_2d座標表示
+        // v6.0: box_2d廃止、店名と枚数のみ表示
+        var ci = result.data.receipts.map(function(r, i) {
+          return (i+1) + '.' + (r.store||'?').substring(0,4) + '✅';
+        }).join(' ');
+        alert('✅ ' + rCount + '枚/' + iCount + '品目\n' + ci);
+      } else {
+        iCount = result.data.items ? result.data.items.length : 0;
+        alert('✅ AI解析完了！\n' + iCount + '件の品目を検出しました。');
+      }
+    } else {
+      hideAiLoading();
+      alert('AI解析に失敗しました:\n' + result.error);
+    }
+  } catch (e) {
+    hideAiLoading();
+    console.error('AI解析エラー:', e);
+    alert('AI解析中にエラーが発生しました:\n' + e.message);
+  }
+}
+
+
+// ==========================================
+// Gemini API呼び出し
+// ==========================================
+
+async function analyzeReceiptWithGemini(imageData, apiKey) {
+  // v6.0: Phase3 AIフル解析方式
+  // box_2d座標・OpenCV廃止→Gemini直接JSON解析に変更
+  var base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
+  var mimeMatch = imageData.match(/^data:(image\/[a-z]+);base64,/);
+  var mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+
+  // v6.0: gemini-2.5-flash-lite（廃止予定の2.0-flashから変更）
+  var modelName = 'gemini-2.5-flash-lite-preview-06-17';
+  var endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/' + modelName + ':generateContent?key=' + apiKey;
+
+  // v6.0: 分割撮影モード対応プロンプト切替（splitMode互換維持）
+  var isSplit = (typeof splitMode !== 'undefined' && splitMode === true);
+
+  var prompt;
+  if (isSplit) {
+    // 分割撮影モード: 全ての写真を1枚のレシートとして統合
+    prompt = 'これらの画像は全て「同一の1枚のレシート」を分割して撮影したものです。\n'
+      + '上下や複数部分に分けて撮影されていますが、1枚のレシートとして統合して解析してください。\n\n'
+      + '【ルール】\n'
+      + '- 全ての画像の内容を統合して、1つのレシートとして出力する（receipts配列には1件だけ）\n'
+      + '- 品目は全ての画像から集めて1つのリストにまとめる\n'
+      + '- 日付・店名・合計金額はどの画像からでも読み取れるものを使う\n'
+      + '- 種別を自動判定: 駐車場/コインパーキングなら "parking"、それ以外は "shopping"\n'
+      + '- 駐車場レシートは入庫時間と出庫時間も読み取る\n'
+      + '- 買い物レシートは品目リスト（品名・数量・単価）を読み取る\n'
+      + '- 小計・合計・消費税の行は品目に含めない\n'
+      + '- 値引き/割引は別の品目（マイナス金額）として記録\n'
+      + '- 読み取れない文字は推測して補完する\n'
+      + '- JSONのみを出力し、説明文は不要\n\n';
+  } else {
+    // v6.0通常モード: box_2d不要、AIが直接全レシートを解析
+    prompt = 'あなたは日本語レシート・領収書の専門解析AIです。\n\n'
+      + 'この画像に写っているレシート/領収書を全て個別に識別して解析してください。\n\n'
+      + '【重要】\n'
+      + '- 斜めになっていても、横向きでも、重なっていても読み取ってください\n'
+      + '- 画像内のレシートを1枚ずつ全て返してください\n\n'
+      + '【レシートの識別方法】\n'
+      + '- レシートは縦長の白い紙。幅5-8cm、長さ10-30cm程度\n'
+      + '- 同じ駐車場の「駐車証明書」と「領収書」は同一取引→1つにまとめる\n\n'
+      + '【ルール】\n'
+      + '- 各レシートの日付・店名・合計金額を個別に読み取る\n'
+      + '- 種別を自動判定: 駐車場/コインパーキングなら "parking"、それ以外は "shopping"\n'
+      + '- 駐車場レシートは入庫時間と出庫時間も読み取る\n'
+      + '- 買い物レシートは品目リスト（品名・数量・単価）を読み取る\n'
+      + '- 小計・合計・消費税の行は品目に含めない\n'
+      + '- 値引き/割引は別の品目（マイナス金額）として記録\n'
+      + '- 日付はYYYY-MM-DD形式で返す\n'
+      + '- 読み取れない文字は推測して補完する\n'
+      + '- JSONのみを出力し、説明文は不要\n\n';
+  }
+
+  // v6.0: サンプル出力形式（box_2d削除）
+  prompt += '【出力形式】\n'
+    + '{\n'
+    + '  "receipts": [\n'
+    + '    {\n'
+    + '      "date": "2025-11-13",\n'
+    + '      "store": "カインズ松戸店",\n'
+    + '      "total": 3500,\n'
+    + '      "type": "shopping",\n'
+    + '      "items": [{"name": "VP管20A", "qty": 2, "price": 800}]\n'
+    + '    },\n'
+    + '    {\n'
+    + '      "date": "2025-11-13",\n'
+    + '      "store": "タイムズ代々木",\n'
+    + '      "total": 800,\n'
+    + '      "type": "parking",\n'
+    + '      "entry_time": "08:56",\n'
+    + '      "exit_time": "10:42",\n'
+    + '      "items": []\n'
+    + '    }\n'
+    + '  ]\n'
+    + '}';
+
+  // v6.0: responseSchema で構造化JSON出力を強制
+  var responseSchema = {
     type: 'object',
     properties: {
       receipts: {
         type: 'array',
-        description: '画像内に存在する各レシートのデータ配列',
         items: {
           type: 'object',
           properties: {
-            store_name: {
-              type: 'string',
-              description: '店名・会社名'
-            },
-            date: {
-              type: 'string',
-              description: '取引日（YYYY-MM-DD形式、不明な場合は空文字）'
-            },
-            total_amount: {
-              type: 'integer',
-              description: '合計金額（税込、数値のみ、円記号なし）'
-            },
-            category: {
-              type: 'string',
-              description: '支出カテゴリ（駐車場/燃料費/消耗品/食費/交通費/その他）',
-              enum: ['駐車場', '燃料費', '消耗品', '食費', '交通費', 'その他']
-            },
-            is_parking: {
-              type: 'boolean',
-              description: 'これが駐車場レシートかどうか'
-            },
-            tax_amount: {
-              type: 'integer',
-              description: '消費税額（不明な場合は0）'
-            },
-            items_summary: {
-              type: 'string',
-              description: '主な購入品目の要約（1〜2行程度）'
-            },
-            confidence: {
-              type: 'string',
-              description: '読み取り信頼度',
-              enum: ['high', 'medium', 'low']
+            date:       { type: 'string' },
+            store:      { type: 'string' },
+            total:      { type: 'integer' },
+            type:       { type: 'string', enum: ['parking', 'shopping'] },
+            entry_time: { type: 'string' },
+            exit_time:  { type: 'string' },
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  name:  { type: 'string' },
+                  qty:   { type: 'integer' },
+                  price: { type: 'integer' }
+                }
+              }
             }
           },
-          required: ['store_name', 'date', 'total_amount', 'category', 'is_parking']
+          required: ['date', 'store', 'total', 'type', 'items']
         }
-      },
-      total_count: {
-        type: 'integer',
-        description: '画像内のレシート総枚数'
-      },
-      notes: {
-        type: 'string',
-        description: '読み取り時の注意事項や補足（任意）'
       }
     },
-    required: ['receipts', 'total_count']
-  },
+    required: ['receipts']
+  };
 
-  // v6.0: メインプロンプト（切り抜き不要、直接内容解析）
-  buildPrompt() {
-    return `あなたは日本語レシート・領収書の専門解析AIです。
-
-【重要な指示】
-この画像には複数枚のレシート・領収書が含まれている可能性があります。
-画像内に見えるレシートを1枚ずつ個別に読み取り、すべてのレシートのデータを返してください。
-
-【読み取りルール】
-- 斜めになっていても、横向きでも、重なっていても読み取ってください
-- 日本語・英語どちらの表記にも対応してください
-- 金額は税込合計金額を優先して取得してください
-- 日付は「2026年3月4日」「26.03.04」「2026/3/4」など様々な形式をYYYY-MM-DDに変換してください
-- レシートが見当たらない・読めない場合でも配列に含め、confidence: "low"にしてください
-
-【カテゴリ判定基準】
-- 駐車場: Times/タイムズ/パーク/駐車/PARKING等
-- 燃料費: ENEOS/出光/コスモ/エネオス/石油/ガソリン等
-- 消耗品: カー用品/オートバックス/ホームセンター等
-- 食費: レストラン/コンビニ/スーパー等
-- 交通費: 電車/バス/新幹線/高速道路等
-- その他: 上記以外`;
-  },
-
-  // v6.0: APIキー取得
-  getApiKey() {
-    if (typeof window !== 'undefined' && window.GEMINI_API_KEY) {
-      return window.GEMINI_API_KEY;
+  var requestBody = {
+    contents: [{
+      parts: [
+        { inline_data: { mime_type: mimeType, data: base64Data } },
+        { text: prompt }
+      ]
+    }],
+    generationConfig: {
+      temperature: 0.1,
+      maxOutputTokens: 4096,
+      responseMimeType: 'application/json',
+      responseSchema: responseSchema
     }
-    // IndexedDBやlocalStorageからの取得（既存の仕組みと連携）
-    return null;
-  },
+  };
 
-  // v6.0: 画像をbase64に変換
-  async imageToBase64(imageFile) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        // data:image/jpeg;base64,XXXXX → XXXXXのみ取得
-        const base64 = e.target.result.split(',')[1];
-        resolve(base64);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(imageFile);
+  try {
+    var response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
     });
-  },
 
-  // v6.0: EXIF回転を考慮して画像をCanvasに描画しbase64取得
-  async imageToBase64WithRotation(imageFile) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const url = URL.createObjectURL(imageFile);
-      img.onload = () => {
-        // EXIFを無視してそのまま送る（Geminiが読めるので問題なし）
-        // 将来的にEXIF対応が必要な場合はここで回転補正
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        URL.revokeObjectURL(url);
-        // quality 0.85でJPEG圧縮（APIの20MB制限対策）
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-        resolve(dataUrl.split(',')[1]);
-      };
-      img.onerror = reject;
-      img.src = url;
-    });
-  },
-
-  // v6.0: メイン解析関数（外部から呼ぶエントリポイント）
-  async analyzeReceipts(imageFile, apiKey) {
-    try {
-      const key = apiKey || this.getApiKey();
-      if (!key) throw new Error('APIキーが設定されていません');
-
-      // 画像をbase64に変換（EXIF考慮）
-      const base64Image = await this.imageToBase64WithRotation(imageFile);
-      const mimeType = imageFile.type || 'image/jpeg';
-
-      // v6.0: responseSchemaを使った構造化出力リクエスト
-      const requestBody = {
-        contents: [{
-          parts: [
-            {
-              inline_data: {
-                mime_type: mimeType,
-                data: base64Image
-              }
-            },
-            {
-              text: this.buildPrompt()
-            }
-          ]
-        }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          responseSchema: this.RESPONSE_SCHEMA,
-          temperature: 0.1,  // v6.0: 低温度で安定したJSON出力
-          maxOutputTokens: 2048
-        }
-      };
-
-      const url = `${this.API_BASE}${this.MODEL}:generateContent?key=${key}`;
-      const response = await fetch(url, {
+    // v6.0: モデルが見つからない場合はgemini-2.0-flashにフォールバック
+    if (response.status === 404) {
+      console.warn('[receipt-ai] gemini-2.5-flash-lite未対応、gemini-2.0-flashにフォールバック');
+      endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
+      response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`API Error ${response.status}: ${errText}`);
-      }
-
-      const data = await response.json();
-
-      // v6.0: レスポンス解析
-      const result = this._parseResponse(data);
-      return result;
-
-    } catch (err) {
-      console.error('ReceiptAI.analyzeReceipts error:', err);
-      return {
-        success: false,
-        error: err.message,
-        receipts: [],
-        total_count: 0
-      };
     }
-  },
 
-  // v6.0: APIレスポンスを解析してデータ抽出
-  _parseResponse(data) {
-    try {
-      if (!data.candidates || data.candidates.length === 0) {
-        throw new Error('APIからのレスポンスが空です');
-      }
-
-      const candidate = data.candidates[0];
-      if (candidate.finishReason === 'SAFETY') {
-        throw new Error('セーフティフィルターによりブロックされました');
-      }
-
-      const text = candidate.content?.parts?.[0]?.text;
-      if (!text) throw new Error('テキスト部分が取得できません');
-
-      // responseMimeType: application/jsonなのでそのままparse
-      let parsed;
-      try {
-        parsed = JSON.parse(text);
-      } catch (e) {
-        // フォールバック: JSONブロックを取り出す
-        const match = text.match(/```json\s*([\s\S]+?)\s*```/) ||
-                      text.match(/(\{[\s\S]+\})/);
-        if (match) {
-          parsed = JSON.parse(match[1]);
-        } else {
-          throw new Error('JSONパースに失敗: ' + text.substring(0, 100));
-        }
-      }
-
-      // v6.0: データ正規化
-      const receipts = (parsed.receipts || []).map((r, i) => ({
-        id: `receipt_${Date.now()}_${i}`,
-        store_name: r.store_name || '不明',
-        date: this._normalizeDate(r.date),
-        total_amount: parseInt(r.total_amount) || 0,
-        category: r.category || 'その他',
-        is_parking: r.is_parking || false,
-        tax_amount: parseInt(r.tax_amount) || 0,
-        items_summary: r.items_summary || '',
-        confidence: r.confidence || 'medium',
-        // v6.0: 切り抜き画像なし（元画像サムネで代用）
-        cropped_image: null
-      }));
-
-      return {
-        success: true,
-        receipts: receipts,
-        total_count: parsed.total_count || receipts.length,
-        notes: parsed.notes || ''
-      };
-
-    } catch (err) {
-      console.error('ReceiptAI._parseResponse error:', err);
-      return {
-        success: false,
-        error: err.message,
-        receipts: [],
-        total_count: 0
-      };
+    if (!response.ok) {
+      var errorText = await response.text();
+      console.error('Gemini API Error:', errorText);
+      return { success: false, error: 'API Error: ' + response.status + ' - ' + response.statusText };
     }
-  },
 
-  // v6.0: 日付正規化（様々な形式→YYYY-MM-DD）
-  _normalizeDate(dateStr) {
-    if (!dateStr) return '';
-    // 既にYYYY-MM-DD形式
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-    // 年省略形 YY-MM-DD or YY/MM/DD
-    const shortMatch = dateStr.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{2})$/);
-    if (shortMatch) {
-      return `20${shortMatch[1]}-${shortMatch[2]}-${shortMatch[3]}`;
-    }
-    // YYYY/MM/DD or YYYY年MM月DD日
-    const longMatch = dateStr.match(/(\d{4})[\/年](\d{1,2})[\/月](\d{1,2})/);
-    if (longMatch) {
-      const m = longMatch[2].padStart(2, '0');
-      const d = longMatch[3].padStart(2, '0');
-      return `${longMatch[1]}-${m}-${d}`;
-    }
-    return dateStr;
-  },
+    var data = await response.json();
+    var text = data.candidates && data.candidates[0] &&
+      data.candidates[0].content && data.candidates[0].content.parts &&
+      data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text;
 
-  // v6.0: 単一レシート再解析（詳細品目取得用）
-  async analyzeReceiptDetail(imageFile, apiKey, receiptIndex) {
-    // 将来拡張: 特定のレシートだけ詳細に再解析する機能
-    // 現バージョンでは通常解析と同じ
-    return await this.analyzeReceipts(imageFile, apiKey);
+    if (!text) {
+      return { success: false, error: 'AIからの応答が空でした' };
+    }
+
+    var parsedData = parseGeminiResponse(text);
+    if (parsedData) {
+      console.log('[receipt-ai v6.0] === Gemini RAW ===\n' + text);
+      console.log('[receipt-ai v6.0] === パース結果 ===\n' + JSON.stringify(parsedData, null, 2));
+      if (parsedData.receipts) {
+        parsedData.receipts.forEach(function(r, i) {
+          console.log('[receipt-ai v6.0] R' + (i+1) + ': ' + (r.store||'?') + ' total=' + (r.total||0));
+        });
+      }
+      parsedData = normalizeAiResponse(parsedData);
+      return { success: true, data: parsedData };
+    } else {
+      return { success: false, error: 'AI応答のJSON解析に失敗しました' };
+    }
+
+  } catch (e) {
+    console.error('Gemini API呼び出しエラー:', e);
+    return { success: false, error: e.message };
+  }
+}
+
+
+// ==========================================
+// レスポンスパース
+// ==========================================
+
+function parseGeminiResponse(text) {
+  try { return JSON.parse(text); } catch (e) {}
+
+  var jsonBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+  if (jsonBlockMatch) {
+    try { return JSON.parse(jsonBlockMatch[1]); } catch (e) {
+      console.error('JSONブロックのパースに失敗:', e);
+    }
   }
 
-};
+  var jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try { return JSON.parse(jsonMatch[0]); } catch (e) {
+      console.error('JSON抽出のパースに失敗:', e);
+    }
+  }
+  return null;
+}
 
-// v6.0: グローバルエクスポート
-if (typeof window !== 'undefined') {
-  window.ReceiptAI = ReceiptAI;
+
+// ==========================================
+// v0.96: レスポンス正規化（後方互換）
+// ==========================================
+
+/**
+ * 旧形式（{storeName, items[]}）→ 新形式（{receipts[]}）に変換
+ * 新形式がすでにあればそのまま返す
+ */
+function normalizeAiResponse(data) {
+  // 新形式チェック
+  if (data.receipts && Array.isArray(data.receipts)) {
+    return data;
+  }
+
+  // 旧形式 → 新形式に変換
+  console.log('[receipt-ai] 旧形式レスポンスを新形式に変換');
+  var receipt = {
+    date: data.date || '',
+    store: data.storeName || data.store || '',
+    total: 0,
+    type: 'shopping',
+    items: []
+  };
+
+  if (data.items && Array.isArray(data.items)) {
+    receipt.items = data.items.map(function(item) {
+      return {
+        name: item.name || '',
+        qty: parseInt(item.qty || item.quantity) || 1,
+        price: parseInt(item.price) || 0
+      };
+    });
+    receipt.total = receipt.items.reduce(function(s, i) {
+      return s + (i.price * i.qty);
+    }, 0);
+  }
+
+  return { receipts: [receipt] };
 }
-if (typeof module !== 'undefined') {
-  module.exports = ReceiptAI;
+
+
+// ==========================================
+// AI解析結果の適用
+// v0.96: 複数レシート対応
+// ==========================================
+
+function applyAiResult(data) {
+  var receipts = data.receipts || [];
+
+  if (receipts.length === 0) return;
+
+  // 最初のレシートの店名・日付をメイン欄に反映
+  var first = receipts[0];
+  if (first.store) {
+    document.getElementById('receiptStoreName').value = first.store;
+  }
+  if (first.date && isValidDate(first.date)) {
+    document.getElementById('receiptDate').value = first.date;
+  }
+
+  // 複数レシートの場合、店名に枚数を付記
+  if (receipts.length > 1) {
+    var stores = receipts.map(function(r) { return r.store || '不明'; });
+    var uniqueStores = stores.filter(function(s, i) { return stores.indexOf(s) === i; });
+    if (uniqueStores.length > 1) {
+      document.getElementById('receiptStoreName').value =
+        uniqueStores.join(' / ');
+    }
+  }
+
+  // 全レシートの品目を統合して反映
+  receiptItems = [];
+
+  receipts.forEach(function(receipt, rIdx) {
+    var items = receipt.items || [];
+
+    // 駐車場レシートで品目がない場合、駐車場代として1品目追加
+    if (receipt.type === 'parking' && items.length === 0 && receipt.total) {
+      items = [{
+        name: (receipt.store || '駐車場') + '（駐車場代）',
+        qty: 1,
+        price: parseInt(receipt.total) || 0
+      }];
+    }
+
+    items.forEach(function(item) {
+      var newItem = {
+        id: Date.now() + Math.random(),
+        name: item.name || '',
+        quantity: parseInt(item.qty || item.quantity) || 1,
+        price: parseInt(item.price) || 0,
+        type: 'material',
+        category: '',
+        checked: false,
+        projectName: '',
+        originalName: item.name || '',
+        // v0.96: レシート情報を品目に紐付け
+        _receiptIndex: rIdx,
+        _receiptDate: receipt.date || '',
+        _receiptStore: receipt.store || '',
+        _receiptType: receipt.type || 'shopping'
+      };
+
+      // 駐車場は経費カテゴリ
+      if (receipt.type === 'parking') {
+        newItem.type = 'expense';
+      }
+
+      // 品名マスターとマッチング
+      var matched = matchWithProductMaster(item.name);
+      if (matched) {
+        newItem.name = matched.productName;
+        newItem.category = matched.category || 'material';
+        newItem.matched = true;
+        if (matched.defaultPrice && newItem.price === 0) {
+          newItem.price = matched.defaultPrice;
+        }
+      } else {
+        if (receipt.type === 'parking') {
+          newItem.category = categories.expense && categories.expense.length > 0
+            ? categories.expense[0].value : '';
+        } else {
+          newItem.category = categories.material && categories.material.length > 0
+            ? categories.material[0].value : '';
+        }
+        newItem.matched = false;
+      }
+
+      receiptItems.push(newItem);
+    });
+  });
+
+  renderReceiptItems();
+  updateReceiptTotal();
 }
+
+
+// ==========================================
+// v0.96: 解析結果のゲッター
+// ==========================================
+
+/**
+ * 最後のAI解析結果を日付別にグループ化して返す
+ * PDF生成時に使う
+ */
+function getReceiptsByDate() {
+  if (!_lastAiReceiptResults || !_lastAiReceiptResults.receipts) return {};
+
+  var grouped = {};
+  _lastAiReceiptResults.receipts.forEach(function(r) {
+    var dateKey = r.date || 'unknown';
+    if (!grouped[dateKey]) grouped[dateKey] = [];
+    grouped[dateKey].push(r);
+  });
+  return grouped;
+}
+
+/**
+ * 最後のAI解析結果をそのまま返す
+ */
+function getLastAiResults() {
+  return _lastAiReceiptResults;
+}
+
+
+// ==========================================
+// 品名マスターマッチング（変更なし）
+// ==========================================
+
+function matchWithProductMaster(name) {
+  if (!name || !productMaster || productMaster.length === 0) return null;
+  var normalizedName = name.toLowerCase().replace(/\s+/g, '');
+
+  for (var i = 0; i < productMaster.length; i++) {
+    var entry = productMaster[i];
+    if (entry.keywords && Array.isArray(entry.keywords)) {
+      for (var j = 0; j < entry.keywords.length; j++) {
+        if (normalizedName.includes(entry.keywords[j].toLowerCase())) {
+          return entry;
+        }
+      }
+    }
+    if (entry.productName) {
+      var np = entry.productName.toLowerCase().replace(/\s+/g, '');
+      if (normalizedName.includes(np) || np.includes(normalizedName)) {
+        return entry;
+      }
+    }
+  }
+  return null;
+}
+
+
+// ==========================================
+// ユーティリティ
+// ==========================================
+
+function isValidDate(dateStr) {
+  if (!dateStr) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  return !isNaN(new Date(dateStr).getTime());
+}
+
+
+// ==========================================
+// ローディング表示
+// ==========================================
+
+function showAiLoading(message) {
+  var loading = document.getElementById('ocrLoading');
+  var progress = document.getElementById('ocrProgress');
+  if (loading) { loading.classList.remove('hidden'); loading.style.display = 'flex'; }
+  if (progress) { progress.textContent = message || 'AI解析中...'; }
+}
+
+function hideAiLoading() {
+  var loading = document.getElementById('ocrLoading');
+  if (loading) { loading.classList.add('hidden'); loading.style.display = 'none'; }
+}
+
+
+// ==========================================
+// グローバル公開
+// ==========================================
+window.runAiOcr = runAiOcr;
+window.showAiLoading = showAiLoading;
+window.hideAiLoading = hideAiLoading;
+window.getReceiptsByDate = getReceiptsByDate;
+window.getLastAiResults = getLastAiResults;
+window._lastAiReceiptResults = null;
