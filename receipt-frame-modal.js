@@ -1,5 +1,5 @@
 // ==========================================
-// receipt-frame-modal.js v1.0
+// receipt-frame-modal.js v1.1
 // 手動枠指定モーダル — 複数レシート一括撮影→個別切り出し
 // v1.0: デモv3.4のUI実績ベースで実装
 //
@@ -26,7 +26,7 @@ var _callback = null;
 
 var COLORS = ['#7eb8ff','#ff7e7e','#7effb8','#ffcc44','#cc7eff',
               '#ff9e44','#7effe0','#ff7eba','#aeff7e','#ffbb7e'];
-var HANDLE = 22;
+var HANDLE = 11; // v1.1: 反応範囲を縮小（隣枠への誤反応防止）
 var LBLS = ['左上','右上','右下','左下'];
 
 // ==========================================
@@ -59,8 +59,8 @@ function _createModal() {
     '#fmHint.blue{color:#7eb8ff;background:#0e1020;border-color:#7eb8ff33;}',
     '#fmCanvasWrap{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;background:#000;position:relative;min-height:0;}',
     '#fmCanvas{display:block;touch-action:none;user-select:none;-webkit-user-select:none;}',
-    '#fmActions{display:flex;gap:6px;padding:8px 12px;background:#1a1a22;border-top:1px solid #2a2a38;flex-shrink:0;}',
-    '#fmActions button{flex:1;padding:10px 4px;border:none;border-radius:9px;font-size:11px;font-weight:700;cursor:pointer;}',
+    '#fmActions{display:flex;gap:6px;padding:8px 12px;background:#1a1a22;border-top:1px solid #2a2a38;flex-shrink:0;flex-wrap:nowrap;}',
+    '#fmActions button{flex:1;padding:10px 4px;border:none;border-radius:9px;font-size:11px;font-weight:700;cursor:pointer;min-width:0;white-space:nowrap;}',
     '#fmBtnUndo{background:#2a2010;color:#ffcc44;border:1px solid #ffcc4444;}',
     '#fmBtnDel{background:#2a1515;color:#e84545;border:1px solid #e8454544;}',
     '#fmBtnCancel{background:#2a2a38;color:#f0ede8;}',
@@ -200,7 +200,7 @@ function _getPos(e) {
 }
 
 function _findHandle(pos) {
-  var r = HANDLE * _dispScale * 1.6;
+  var r = HANDLE * _dispScale * 2.5; // v1.1: 当たり判定を縮小
   for (var i = 0; i < _receipts.length; i++) {
     for (var j = 0; j < 4; j++) {
       var c = _receipts[i].corners[j];
@@ -285,7 +285,7 @@ function _draw() {
     ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(i+1, cx, cy); ctx.textAlign = 'left';
     r.corners.forEach(function(c) {
-      ctx.beginPath(); ctx.arc(c.x, c.y, HANDLE, 0, Math.PI*2);
+      ctx.beginPath(); ctx.arc(c.x, c.y, HANDLE * 1.5, 0, Math.PI*2); // v1.1: 描画は少し大きめ
       ctx.fillStyle = sel ? '#ffffff33' : col+'44'; ctx.fill();
       ctx.strokeStyle = sel ? '#fff' : col; ctx.lineWidth = 3; ctx.stroke();
     });
