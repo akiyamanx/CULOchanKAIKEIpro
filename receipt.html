@@ -45,6 +45,7 @@
             </button>
             <button class="image-btn gallery" onclick="clearAllImages()" 
               style="flex: 1; padding: 10px; background: linear-gradient(135deg, #ef4444, #dc2626); border-radius: 8px; border: none; color: white; font-size: 14px; font-weight: 600; cursor: pointer;">
+            <button class="image-btn gallery" onclick="openFrameModal(receiptImageData, function(imgs){ multiImageDataUrls=imgs; renderMultiImageThumbnails(); document.getElementById('imagePreviewArea').style.display='none'; document.getElementById('multiImageArea').style.display='block'; var s=JSON.parse(localStorage.getItem('reform_app_settings')||'{}'); document.getElementById('aiBtn').disabled=!s.geminiApiKey; })" style="background: linear-gradient(135deg, #0ea5e9, #0284c7);">✂️ 枠指定</button>
               🗑️
             </button>
           </div>
