@@ -1,5 +1,5 @@
 // ==========================================
-// receipt-frame-modal.js v1.1
+// receipt-frame-modal.js v1.2
 // 手動枠指定モーダル — 複数レシート一括撮影→個別切り出し
 // v1.0: デモv3.4のUI実績ベースで実装
 //
@@ -59,8 +59,8 @@ function _createModal() {
     '#fmHint.blue{color:#7eb8ff;background:#0e1020;border-color:#7eb8ff33;}',
     '#fmCanvasWrap{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;background:#000;position:relative;min-height:0;}',
     '#fmCanvas{display:block;touch-action:none;user-select:none;-webkit-user-select:none;}',
-    '#fmActions{display:flex;gap:6px;padding:8px 12px;background:#1a1a22;border-top:1px solid #2a2a38;flex-shrink:0;flex-wrap:nowrap;}',
-    '#fmActions button{flex:1;padding:10px 4px;border:none;border-radius:9px;font-size:11px;font-weight:700;cursor:pointer;min-width:0;white-space:nowrap;}',
+    '#fmActions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px 12px;background:#1a1a22;border-top:1px solid #2a2a38;flex-shrink:0;}',
+    '#fmActions button{padding:10px 4px;border:none;border-radius:9px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;overflow:hidden;}',
     '#fmBtnUndo{background:#2a2010;color:#ffcc44;border:1px solid #ffcc4444;}',
     '#fmBtnDel{background:#2a1515;color:#e84545;border:1px solid #e8454544;}',
     '#fmBtnCancel{background:#2a2a38;color:#f0ede8;}',
@@ -215,6 +215,8 @@ function _onStart(e) {
   e.preventDefault();
   if (_tapMode === 'scroll') return;
   var pos = _getPos(e);
+  // v1.2: 点打ち中（_pts.length>0）はハンドル・枠選択を完全無効化
+  // → 新しい点だけ打てるようにする
   if (_pts.length === 0) {
     var h = _findHandle(pos);
     if (h) { _dragging = h; _selectedId = h.id; _draw(); return; }
