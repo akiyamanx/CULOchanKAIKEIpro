@@ -1,22 +1,19 @@
 // ==========================================
 // Service Worker - リフォーム見積・会計 Pro
-// Version: 2.35.0
-// ★ v2.14.0: Phase1.8 Canvas自動検出方式
-// ★ v2.15.0: Phase2 OpenCV.js導入（receipt-multi-crop.js v2.0）
-// ★ v2.16.0: Phase2 白紙検出+透視変換+縦補正（receipt-multi-crop.js v2.1）
-// ★ v2.17.0: Phase2 回転方向修正（正面化→左90度回転 v2.2）
-// ★ v2.18.0: OpenCV.jsデバッグ表示追加
-// ★ v2.19.0: OpenCV.js CDN変更（jsdelivr優先+フォールバック）
-// ★ v2.21.0: デバッグ表示をreceipt-multi-crop.jsに移動（確実に動作）
-// ★ v2.21.0: デバッグ表示をJSに移動（insertAdjacentHTMLではscript未実行の対策）
-// ★ v2.21.0: Phase2 v2.3 閾値170+5%マージン（レシート端切れ対策）
-// ★ v2.22.0: Phase2 v2.4 アスペクト比修正（4点距離計算）+マージン境界クランプ
-// ★ v2.23.0: Phase2 v2.5 クランプ順序修正+warped実サイズ回転判定
+// Version: 2.36.0
+// ★ v2.36.0: SAM2.1モデルCache First戦略追加 + receipt-sam.js追加
 // ★ v2.24.0: Phase2 v3.0 ハイブリッド方式（Gemini座標検出＋OpenCV透視変換）
 // ==========================================
 
-const CACHE_NAME = 'reform-app-v2.31.0';
+const CACHE_NAME = 'reform-app-v2.36.0';
 const OFFLINE_URL = 'index.html';
+
+// v1.0追加: SAMモデルファイルURL（Cache First戦略で管理）
+const SAM_MODEL_CACHE = 'culo-sam-models-v1';
+const SAM_MODEL_URLS = [
+  'https://huggingface.co/akiyamanx/sam2.1-hiera-tiny-onnx/resolve/main/sam2.1_hiera_tiny.encoder.ort',
+  'https://huggingface.co/akiyamanx/sam2.1-hiera-tiny-onnx/resolve/main/sam2.1_hiera_tiny.decoder.onnx'
+];
 
 // キャッシュするファイル（相対パス）
 const FILES_TO_CACHE = [
@@ -36,6 +33,7 @@ const FILES_TO_CACHE = [
   'products.js',
   'receipt-core.js',
   'receipt-ai.js',
+  'receipt-ai-patch.js',
   'noto-sans-jp-base64.js',
   'receipt-pdf.js',
   'receipt-pdf-viewer.js',
@@ -47,6 +45,8 @@ const FILES_TO_CACHE = [
   'receipt-crop.js',
   'receipt-multi-crop.js',
   'receipt-hybrid-crop.js',
+  'receipt-frame-modal.js',
+  'receipt-sam.js',
   'receipt-history.js',
   'receipt-list.js',
   'estimate.js',
@@ -85,7 +85,7 @@ const FILES_TO_CACHE = [
 
 // インストール時
 self.addEventListener('install', event => {
-  console.log('[SW] インストール開始 v2.21.0');
+  console.log('[SW] インストール開始 v2.36.0');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -107,7 +107,8 @@ self.addEventListener('activate', event => {
       .then(cacheNames => {
         return Promise.all(
           cacheNames.map(cacheName => {
-            if (cacheName !== CACHE_NAME) {
+            // v1.0: SAMモデルキャッシュは保持する（巨大ファイルの再DL防止）
+            if (cacheName !== CACHE_NAME && cacheName !== SAM_MODEL_CACHE) {
               console.log('[SW] 古いキャッシュ削除:', cacheName);
               return caches.delete(cacheName);
             }
@@ -121,11 +122,36 @@ self.addEventListener('activate', event => {
   );
 });
 
-// フェッチ時（ネットワーク優先、失敗したらキャッシュ）
+// フェッチ時
 self.addEventListener('fetch', event => {
+  var url = event.request.url;
+
+  // v1.0追加: SAMモデルファイルはCache First（初回DLのみ、以降はキャッシュ即返却）
+  var isSamModel = SAM_MODEL_URLS.some(function(u) { return url.indexOf(u) !== -1; });
+  if (isSamModel) {
+    event.respondWith(
+      caches.open(SAM_MODEL_CACHE).then(function(cache) {
+        return cache.match(event.request).then(function(cached) {
+          if (cached) {
+            console.log('[SW] SAMモデル: キャッシュから返却');
+            return cached;
+          }
+          console.log('[SW] SAMモデル: ネットワークからDL＋キャッシュ保存');
+          return fetch(event.request).then(function(response) {
+            if (response.status === 200) {
+              cache.put(event.request, response.clone());
+            }
+            return response;
+          });
+        });
+      })
+    );
+    return;
+  }
+
   // API呼び出しはキャッシュしない（Gemini API等）
-  if (event.request.url.includes('googleapis.com') || 
-      event.request.url.includes('api.')) {
+  if (url.includes('googleapis.com') || 
+      url.includes('api.')) {
     event.respondWith(fetch(event.request));
     return;
   }
@@ -171,4 +197,4 @@ self.addEventListener('sync', event => {
   }
 });
 
-console.log('[SW] Service Worker ロード完了 v2.21.0');
+console.log('[SW] Service Worker ロード完了 v2.36.0');

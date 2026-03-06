@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>レシート枠指定 v3.4</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0f0f13; color:#f0ede8; font-family:'Hiragino Kaku Gothic Pro','Noto Sans JP',sans-serif; min-height:100vh; display:flex; flex-direction:column; }
+.header { background:#1a1a22; border-bottom:1px solid #2a2a38; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:200; }
+.header-title { font-size:15px; font-weight:700; }
+.badge { background:#e84545; color:#fff; font-size:11px; font-weight:700; padding:3px 8px; border-radius:20px; }
+
+/* ガイドバー */
+.guide-bar { background:#1a1a22; border-bottom:1px solid #2a2a38; padding:10px 16px; display:flex; align-items:center; gap:8px; }
+.gs { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; opacity:.3; transition:opacity .2s; }
+.gs.active { opacity:1; } .gs.done { opacity:.65; }
+.gs-dot { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; background:#2a2a38; color:#888899; }
+.gs.active .gs-dot { background:#ffcc44; color:#0f0f13; } .gs.done .gs-dot { background:#4ecb71; color:#0f0f13; }
+.gs-lbl { font-size:9px; color:#888899; font-weight:700; text-align:center; }
+.gs.active .gs-lbl { color:#ffcc44; } .gs.done .gs-lbl { color:#4ecb71; }
+.g-arr { color:#2a2a38; font-size:14px; flex-shrink:0; }
+
+.main { flex:1; padding:12px; display:flex; flex-direction:column; gap:10px; padding-bottom:88px; }
+
+.upload-area { border:2px dashed #2a2a38; border-radius:12px; padding:44px 20px; text-align:center; cursor:pointer; background:#1a1a22; display:flex; flex-direction:column; align-items:center; gap:10px; }
+.upload-area:active { border-color:#7eb8ff; } .upload-area.hidden { display:none; }
+#fileInput { display:none; }
+
+.api-key-area { background:#1a1a22; border:1px solid #2a2a38; border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:6px; }
+.api-key-label { font-size:11px; color:#888899; font-weight:700; }
+.api-key-input { background:#0f0f13; border:1px solid #2a2a38; border-radius:8px; color:#f0ede8; font-size:12px; padding:8px 10px; width:100%; font-family:monospace; }
+.api-key-input:focus { outline:none; border-color:#7eb8ff; }
+
+.canvas-area { display:none; flex-direction:column; gap:10px; }
+.canvas-area.visible { display:flex; }
+
+/* ★ Canvas固定エリア：スクロール可能な内側 */
+.canvas-scroll-wrap {
+  border-radius:10px;
+  overflow:auto;           /* スクロール有効 */
+  -webkit-overflow-scrolling:touch;
+  background:#000;
+  max-height:60vh;         /* 画面の60%に固定 */
+  position:relative;
+  border:1px solid #2a2a38;
+}
+/* スクロールバーをスタイリング */
+.canvas-scroll-wrap::-webkit-scrollbar { width:4px; height:4px; }
+.canvas-scroll-wrap::-webkit-scrollbar-track { background:#1a1a22; }
+.canvas-scroll-wrap::-webkit-scrollbar-thumb { background:#3a3a50; border-radius:4px; }
+
+/* Canvas本体はtouchを受け付けるが、スクロールWrapはそのまま */
+#mainCanvas { display:block; touch-action:none; user-select:none; -webkit-user-select:none; }
+
+/* モード切替 */
+.mode-toggle {
+  display:flex; background:#1a1a22; border:1px solid #2a2a38; border-radius:10px; overflow:hidden;
+}
+.mode-btn {
+  flex:1; padding:10px 8px; border:none; font-size:12px; font-weight:700; cursor:pointer;
+  background:transparent; color:#555566; transition:all .15s; text-align:center;
+}
+.mode-btn.active { background:#ffcc4422; color:#ffcc44; }
+.mode-btn.scroll-active { background:#7eb8ff22; color:#7eb8ff; }
+
+.hint-bar { background:#1e1e10; border:1px solid #ffcc4444; border-radius:10px; padding:10px 14px; display:flex; align-items:center; gap:10px; }
+.hint-icon { font-size:20px; flex-shrink:0; }
+.hint-text { font-size:12px; color:#ffcc44; font-weight:600; line-height:1.5; flex:1; }
+.hint-bar.ok { background:#0e1e12; border-color:#4ecb7144; } .hint-bar.ok .hint-text { color:#4ecb71; }
+.hint-bar.blue { background:#0e1020; border-color:#7eb8ff44; } .hint-bar.blue .hint-text { color:#7eb8ff; }
+
+.action-bar { display:flex; gap:8px; }
+.btn { flex:1; padding:11px 6px; border:none; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer; transition:all .15s; display:flex; align-items:center; justify-content:center; gap:4px; }
+.btn:active { transform:scale(.97); }
+.btn-danger { background:#2a1515; color:#e84545; border:1px solid #e8454544; }
+.btn-warn { background:#2a2010; color:#ffcc44; border:1px solid #ffcc4444; }
+.btn-secondary { background:#2a2a38; color:#f0ede8; }
+
+.list-title { font-size:11px; color:#888899; font-weight:700; letter-spacing:.1em; margin-bottom:6px; }
+.receipt-list { display:flex; flex-direction:column; gap:7px; }
+.receipt-item { background:#1a1a22; border:1px solid #2a2a38; border-radius:10px; display:flex; align-items:center; gap:10px; padding:9px 12px; cursor:pointer; }
+.receipt-item.selected { border-color:#7eb8ff; background:#101828; }
+.receipt-thumb { width:44px; height:60px; border-radius:6px; flex-shrink:0; object-fit:cover; background:#333; display:block; }
+.receipt-info { flex:1; min-width:0; }
+.receipt-num { font-size:11px; font-weight:700; margin-bottom:3px; }
+.receipt-sub { font-size:10px; color:#666677; }
+.receipt-del { width:28px; height:28px; border-radius:50%; border:none; background:#2a1515; color:#e84545; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+
+.bottom-action { padding:12px 16px 16px; background:#1a1a22; border-top:1px solid #2a2a38; position:fixed; bottom:0; left:0; right:0; z-index:100; }
+.btn-analyze { width:100%; padding:15px; border:none; border-radius:12px; font-size:15px; font-weight:800; cursor:pointer; background:linear-gradient(135deg,#7eb8ff,#5090e0); color:#0f0f13; display:flex; align-items:center; justify-content:center; gap:8px; transition:all .15s; }
+.btn-analyze:active { transform:scale(.98); } .btn-analyze:disabled { background:#2a2a38; color:#555566; cursor:not-allowed; transform:none; }
+
+.result-card { background:#1a1a22; border:1px solid #2a2a38; border-radius:10px; overflow:hidden; margin-bottom:10px; }
+.result-head { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid #2a2a38; }
+.result-num { font-size:11px; font-weight:700; color:#7eb8ff; }
+.result-stat { font-size:11px; padding:2px 8px; border-radius:20px; }
+.st-wait { background:#2a2a10; color:#ffcc44; } .st-ok { background:#0a2a1a; color:#4ecb71; } .st-err { background:#2a0a0a; color:#e84545; }
+.result-body { padding:12px 14px; }
+.result-img { width:100%; max-height:160px; object-fit:contain; border-radius:6px; background:#111; margin-bottom:10px; display:block; }
+.result-data { display:flex; flex-direction:column; gap:6px; }
+.result-row { display:flex; justify-content:space-between; align-items:baseline; }
+.result-key { font-size:11px; color:#555566; } .result-val { font-size:13px; font-weight:700; } .result-val.price { color:#4ecb71; font-size:16px; }
+.result-items { margin-top:8px; padding-top:8px; border-top:1px solid #2a2a38; }
+.result-item { font-size:11px; color:#888899; padding:2px 0; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+.spinner { text-align:center; padding:16px; color:#ffcc44; font-size:12px; animation:pulse 1s infinite; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">📄 レシート枠指定 v3.4</div>
+  <div class="badge">DEMO</div>
+</div>
+
+<div class="guide-bar" id="guideBar" style="display:none">
+  <div class="gs" id="gs0"><div class="gs-dot">左上</div><div class="gs-lbl">1点目</div></div>
+  <div class="g-arr">›</div>
+  <div class="gs" id="gs1"><div class="gs-dot">右上</div><div class="gs-lbl">2点目</div></div>
+  <div class="g-arr">›</div>
+  <div class="gs" id="gs2"><div class="gs-dot">右下</div><div class="gs-lbl">3点目</div></div>
+  <div class="g-arr">›</div>
+  <div class="gs" id="gs3"><div class="gs-dot">左下</div><div class="gs-lbl">4点目</div></div>
+</div>
+
+<div class="main">
+  <div class="api-key-area" id="apiKeyArea">
+    <div class="api-key-label">🔑 Gemini API KEY</div>
+    <input type="password" class="api-key-input" id="apiKeyInput" placeholder="AIza...">
+  </div>
+
+  <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+    <div style="font-size:44px">📷</div>
+    <div style="font-size:15px;font-weight:700">レシートの写真を選択</div>
+    <div style="font-size:11px;color:#555566">複数枚写ってる写真でOK！</div>
+  </div>
+  <input type="file" id="fileInput" accept="image/*">
+
+  <div class="canvas-area" id="canvasArea">
+
+    <!-- ★ モード切替 -->
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="btnEdit" onclick="setTapMode('edit')">✏️ 枠を描く</button>
+      <button class="mode-btn" id="btnScroll" onclick="setTapMode('scroll')">👆 スクロール</button>
+    </div>
+
+    <!-- ヒントバー -->
+    <div class="hint-bar" id="hintBar">
+      <div class="hint-icon" id="hintIcon">👆</div>
+      <div class="hint-text" id="hintText">レシートの左上角をタップ！</div>
+    </div>
+
+    <!-- ★ Canvas固定スクロールエリア -->
+    <div class="canvas-scroll-wrap" id="canvasScrollWrap">
+      <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <!-- アクションバー -->
+    <div class="action-bar">
+      <button class="btn btn-warn"      onclick="undoPoint()">↩ 1点戻す</button>
+      <button class="btn btn-danger"    onclick="deleteSelected()">🗑 枠削除</button>
+      <button class="btn btn-secondary" onclick="changePhoto()">📷 変更</button>
+    </div>
+
+    <!-- レシートリスト -->
+    <div id="listWrap" style="display:none">
+      <div class="list-title">指定済みレシート（タップで選択）</div>
+      <div class="receipt-list" id="receiptList"></div>
+    </div>
+
+  </div>
+
+  <div id="resultsArea" style="display:none">
+    <div class="list-title" style="margin-bottom:10px">解析結果</div>
+    <div id="resultCards"></div>
+  </div>
+</div>
+
+<div class="bottom-action" id="bottomAction" style="display:none">
+  <button class="btn-analyze" id="analyzeBtn" onclick="startAnalyze()" disabled>
+    <span>🤖</span><span id="analyzeBtnText">レシートを囲んでから解析</span>
+  </button>
+</div>
+
+<script>
+let imgEl=null, dispScale=1;
+let receipts=[], selectedId=null, nextId=1;
+let pts=[], dragging=null;
+let tapMode='edit'; // 'edit' | 'scroll'
+
+const COLORS=['#7eb8ff','#ff7e7e','#7effb8','#ffcc44','#cc7eff','#ff9e44','#7effe0','#ff7eba','#aeff7e','#ffbb7e'];
+const HANDLE=22;
+const LBLS=['左上','右上','右下','左下'];
+
+const canvas=document.getElementById('mainCanvas');
+const ctx=canvas.getContext('2d');
+const scrollWrap=document.getElementById('canvasScrollWrap');
+
+// ============================================================
+// モード切替
+// ============================================================
+function setTapMode(m){
+  tapMode=m;
+  document.getElementById('btnEdit').className='mode-btn'+(m==='edit'?' active':'');
+  document.getElementById('btnScroll').className='mode-btn'+(m==='scroll'?' scroll-active':'');
+
+  if(m==='scroll'){
+    // Canvasのtouchイベントを無効化→スクロールWrapがスクロールを受け取る
+    canvas.style.pointerEvents='none';
+    document.getElementById('hintBar').className='hint-bar blue';
+    document.getElementById('hintIcon').textContent='👆';
+    document.getElementById('hintText').textContent='スクロールモード：画像をスクロールできるよ。枠を描くときは「枠を描く」に戻してね！';
+  } else {
+    canvas.style.pointerEvents='auto';
+    updateHint();
+  }
+  // 点が途中の場合はリセット
+  if(m==='scroll' && pts.length>0){
+    pts=[];
+    updateGuide();
+    draw();
+  }
+}
+
+// ============================================================
+// ファイル読み込み
+// ============================================================
+document.getElementById('fileInput').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=ev=>loadImg(ev.target.result);
+  r.readAsDataURL(f);
+});
+
+function loadImg(src){
+  imgEl=new Image();
+  imgEl.onload=()=>{
+    receipts=[];selectedId=null;nextId=1;pts=[];tapMode='edit';
+    setupCanvas();
+    document.getElementById('uploadArea').classList.add('hidden');
+    document.getElementById('canvasArea').classList.add('visible');
+    document.getElementById('bottomAction').style.display='block';
+    document.getElementById('guideBar').style.display='flex';
+    document.getElementById('apiKeyArea').style.display='none';
+    canvas.style.pointerEvents='auto';
+    setTapMode('edit');
+    updateGuide();updateHint();updateList();draw();
+  };
+  imgEl.onerror=()=>alert('画像の読み込みに失敗しました');
+  imgEl.src=src;
+}
+
+function setupCanvas(){
+  const wrap=scrollWrap;
+  const maxW=wrap.clientWidth||(window.innerWidth-24);
+  // Canvasは元画像サイズ、CSS表示は横幅=Wrap幅（縦はスクロール）
+  canvas.width=imgEl.naturalWidth;
+  canvas.height=imgEl.naturalHeight;
+  canvas.style.width=maxW+'px';
+  canvas.style.height=Math.round(maxW*imgEl.naturalHeight/imgEl.naturalWidth)+'px';
+  dispScale=imgEl.naturalWidth/maxW;
+}
+
+// ============================================================
+// タッチ操作
+// ============================================================
+function getPos(e){
+  const rect=canvas.getBoundingClientRect();
+  const s=e.touches?e.touches[0]:e;
+  return{x:(s.clientX-rect.left)*dispScale,y:(s.clientY-rect.top)*dispScale};
+}
+
+canvas.addEventListener('touchstart',onStart,{passive:false});
+canvas.addEventListener('mousedown',onStart);
+canvas.addEventListener('touchmove',onMove,{passive:false});
+canvas.addEventListener('mousemove',onMove);
+canvas.addEventListener('touchend',onEnd,{passive:false});
+canvas.addEventListener('mouseup',onEnd);
+
+function findHandle(pos){
+  const r=HANDLE*dispScale*1.6;
+  for(const rec of receipts)
+    for(let i=0;i<4;i++){
+      const c=rec.corners[i];
+      if(Math.hypot(pos.x-c.x,pos.y-c.y)<r) return{id:rec.id,idx:i};
+    }
+  return null;
+}
+
+function onStart(e){
+  e.preventDefault();
+  if(tapMode==='scroll') return;
+  const pos=getPos(e);
+  if(pts.length===0){
+    const h=findHandle(pos);
+    if(h){dragging=h;selectedId=h.id;draw();return;}
+    for(const rec of receipts){
+      const xs=rec.corners.map(c=>c.x),ys=rec.corners.map(c=>c.y);
+      if(pos.x>=Math.min(...xs)&&pos.x<=Math.max(...xs)&&pos.y>=Math.min(...ys)&&pos.y<=Math.max(...ys)){
+        selectedId=selectedId===rec.id?null:rec.id;draw();updateList();return;
+      }
+    }
+    selectedId=null;
+  }
+  pts.push(pos);
+  if(pts.length===4){
+    receipts.push({id:nextId++,corners:[...pts]});
+    pts=[];updateList();
+  }
+  updateGuide();updateHint();draw();
+}
+
+function onMove(e){
+  e.preventDefault();
+  if(!dragging||tapMode==='scroll')return;
+  const pos=getPos(e);
+  const rec=receipts.find(r=>r.id===dragging.id);
+  if(rec){rec.corners[dragging.idx]=pos;updateThumb(rec);}
+  draw();
+}
+
+function onEnd(e){
+  e.preventDefault();
+  if(dragging){dragging=null;updateList();}
+}
+
+// ============================================================
+// 描画
+// ============================================================
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(imgEl)ctx.drawImage(imgEl,0,0);
+  if(receipts.length>0||pts.length>0){
+    ctx.fillStyle='rgba(0,0,0,0.32)';ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+  receipts.forEach((r,i)=>{
+    const col=COLORS[i%COLORS.length],sel=r.id===selectedId;
+    ctx.save();
+    ctx.beginPath();ctx.moveTo(r.corners[0].x,r.corners[0].y);
+    r.corners.forEach(c=>ctx.lineTo(c.x,c.y));
+    ctx.closePath();ctx.clip();ctx.drawImage(imgEl,0,0);ctx.restore();
+    ctx.beginPath();ctx.moveTo(r.corners[0].x,r.corners[0].y);
+    r.corners.forEach(c=>ctx.lineTo(c.x,c.y));
+    ctx.closePath();ctx.strokeStyle=sel?'#fff':col;ctx.lineWidth=sel?5:3;ctx.stroke();
+    const cx=r.corners.reduce((s,c)=>s+c.x,0)/4;
+    const cy=r.corners.reduce((s,c)=>s+c.y,0)/4;
+    ctx.font='bold 32px sans-serif';ctx.fillStyle=col;ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(i+1,cx,cy);ctx.textAlign='left';
+    r.corners.forEach(c=>{
+      ctx.beginPath();ctx.arc(c.x,c.y,HANDLE,0,Math.PI*2);
+      ctx.fillStyle=sel?'#ffffff33':col+'44';ctx.fill();
+      ctx.strokeStyle=sel?'#fff':col;ctx.lineWidth=3;ctx.stroke();
+    });
+  });
+  if(pts.length>0){
+    ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
+    pts.forEach(p=>ctx.lineTo(p.x,p.y));
+    ctx.strokeStyle='#ffcc4488';ctx.lineWidth=2;ctx.setLineDash([8,4]);ctx.stroke();ctx.setLineDash([]);
+    pts.forEach((p,i)=>{
+      ctx.beginPath();ctx.arc(p.x,p.y,18,0,Math.PI*2);
+      ctx.fillStyle='#ffcc4466';ctx.fill();ctx.strokeStyle='#ffcc44';ctx.lineWidth=3;ctx.stroke();
+      ctx.font='bold 14px sans-serif';ctx.fillStyle='#ffcc44';ctx.textAlign='center';ctx.textBaseline='bottom';
+      ctx.fillText(LBLS[i],p.x,p.y-22);ctx.textAlign='left';
+    });
+    if(pts.length<4){
+      ctx.font='bold 16px sans-serif';ctx.fillStyle='#ffcc44cc';
+      ctx.textAlign='center';ctx.fillText('次→'+LBLS[pts.length],canvas.width/2,50);ctx.textAlign='left';
+    }
+  }
+}
+
+function updateGuide(){
+  for(let i=0;i<4;i++){
+    const el=document.getElementById('gs'+i);
+    el.className='gs'+(i<pts.length?' done':i===pts.length?' active':'');
+  }
+}
+
+function updateHint(){
+  const bar=document.getElementById('hintBar'),text=document.getElementById('hintText');
+  if(tapMode==='scroll'){return;}
+  if(pts.length===0&&receipts.length===0){
+    bar.className='hint-bar';document.getElementById('hintIcon').textContent='👆';
+    text.textContent='レシートの左上角をタップ！';
+  }else if(pts.length===0){
+    bar.className='hint-bar ok';document.getElementById('hintIcon').textContent='✅';
+    text.textContent=receipts.length+'枚指定済み！続けて囲むか「解析」を押してね';
+  }else{
+    bar.className='hint-bar';document.getElementById('hintIcon').textContent='👆';
+    text.textContent=LBLS[pts.length]+'をタップ（'+pts.length+'/4）';
+  }
+}
+
+// ============================================================
+// サムネイル（単純クロップ）
+// ============================================================
+function cropToDataUrl(corners,outW,outH){
+  const xs=corners.map(c=>c.x),ys=corners.map(c=>c.y);
+  const x=Math.max(0,Math.min(...xs));
+  const y=Math.max(0,Math.min(...ys));
+  const w=Math.min(imgEl.naturalWidth-x,Math.max(...xs)-x);
+  const h=Math.min(imgEl.naturalHeight-y,Math.max(...ys)-y);
+  if(w<=0||h<=0)return null;
+  const off=document.createElement('canvas');
+  off.width=outW;off.height=outH;
+  off.getContext('2d').drawImage(imgEl,x,y,w,h,0,0,outW,outH);
+  try{return off.toDataURL('image/jpeg',0.85);}catch(e){return null;}
+}
+
+function updateThumb(rec){
+  const el=document.getElementById('thumb-img-'+rec.id);
+  if(!el)return;
+  const url=cropToDataUrl(rec.corners,88,120);
+  if(url)el.src=url;
+}
+
+function updateList(){
+  const wrap=document.getElementById('listWrap');
+  const btn=document.getElementById('analyzeBtn');
+  const btnT=document.getElementById('analyzeBtnText');
+  if(receipts.length===0){
+    wrap.style.display='none';btn.disabled=true;btnT.textContent='レシートを囲んでから解析';return;
+  }
+  wrap.style.display='block';
+  btn.disabled=false;btnT.textContent='🤖 '+receipts.length+'枚を解析する！';
+  document.getElementById('receiptList').innerHTML=receipts.map((r,i)=>{
+    const url=cropToDataUrl(r.corners,88,120)||'';
+    return `<div class="receipt-item${r.id===selectedId?' selected':''}" onclick="selItem(${r.id})">
+      <img class="receipt-thumb" id="thumb-img-${r.id}" src="${url}" alt="No.${i+1}">
+      <div class="receipt-info">
+        <div class="receipt-num" style="color:${COLORS[i%COLORS.length]}">No.${i+1}</div>
+        <div class="receipt-sub">ハンドルで微調整できるよ</div>
+      </div>
+      <button class="receipt-del" onclick="delItem(${r.id},event)">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function selItem(id){selectedId=selectedId===id?null:id;draw();updateList();}
+function delItem(id,e){
+  if(e)e.stopPropagation();
+  receipts=receipts.filter(r=>r.id!==id);
+  if(selectedId===id)selectedId=null;
+  draw();updateHint();updateList();
+}
+function deleteSelected(){
+  if(selectedId){delItem(selectedId,null);return;}
+  if(receipts.length>0)delItem(receipts[receipts.length-1].id,null);
+}
+function undoPoint(){
+  if(pts.length>0){pts.pop();updateGuide();updateHint();draw();}
+  else if(receipts.length>0)delItem(receipts[receipts.length-1].id,null);
+}
+function changePhoto(){
+  receipts=[];selectedId=null;pts=[];imgEl=null;
+  document.getElementById('uploadArea').classList.remove('hidden');
+  document.getElementById('canvasArea').classList.remove('visible');
+  document.getElementById('bottomAction').style.display='none';
+  document.getElementById('guideBar').style.display='none';
+  document.getElementById('resultsArea').style.display='none';
+  document.getElementById('apiKeyArea').style.display='block';
+  document.getElementById('fileInput').value='';
+}
+
+// ============================================================
+// Gemini解析
+// ============================================================
+async function startAnalyze(){
+  const key=document.getElementById('apiKeyInput').value.trim();
+  if(!key){alert('APIキーを入力してください！');return;}
+  if(!receipts.length){alert('レシートを囲んでください！');return;}
+  document.getElementById('resultsArea').style.display='block';
+  const cards=document.getElementById('resultCards');
+  cards.innerHTML='';
+  document.getElementById('analyzeBtn').disabled=true;
+  document.getElementById('analyzeBtnText').textContent='解析中...';
+  receipts.forEach((_,i)=>{
+    const d=document.createElement('div');d.className='result-card';d.id='rc'+i;
+    d.innerHTML=`<div class="result-head"><div class="result-num">RECEIPT No.${i+1}</div><div class="result-stat st-wait" id="rs${i}">解析中...</div></div><div class="result-body" id="rb${i}"><div class="spinner">🤖 Gemini解析中...</div></div>`;
+    cards.appendChild(d);
+  });
+  for(let i=0;i<receipts.length;i++){
+    await analyzeOne(i,receipts[i],key);
+    await new Promise(r=>setTimeout(r,400));
+  }
+  document.getElementById('analyzeBtn').disabled=false;
+  document.getElementById('analyzeBtnText').textContent='✅ '+receipts.length+'枚 解析完了！';
+}
+
+async function analyzeOne(idx,rec,key){
+  const xs=rec.corners.map(c=>c.x),ys=rec.corners.map(c=>c.y);
+  const x=Math.max(0,Math.min(...xs)),y=Math.max(0,Math.min(...ys));
+  const w=Math.min(imgEl.naturalWidth-x,Math.max(...xs)-x);
+  const h=Math.min(imgEl.naturalHeight-y,Math.max(...ys)-y);
+  const off=document.createElement('canvas');
+  off.width=Math.round(w);off.height=Math.round(h);
+  off.getContext('2d').drawImage(imgEl,x,y,w,h,0,0,off.width,off.height);
+  const dataUrl=off.toDataURL('image/jpeg',0.92);
+  const b64=dataUrl.split(',')[1];
+  const body=document.getElementById('rb'+idx);
+  const img=document.createElement('img');
+  img.src=dataUrl;img.className='result-img';
+  body.innerHTML='';body.appendChild(img);
+  const sp=document.createElement('div');sp.className='spinner';sp.textContent='🤖 Gemini解析中...';body.appendChild(sp);
+  try{
+    const res=await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      {method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{parts:[
+          {inline_data:{mime_type:'image/jpeg',data:b64}},
+          {text:`レシートから情報を抽出。JSON形式のみ：\n{"store":"店名","date":"YYYY-MM-DD","total":数値,"type":"parking or shopping","items":["品目:金額"]}`}
+        ]}],generationConfig:{temperature:0.1}})}
+    );
+    const data=await res.json();
+    const txt=(data.candidates?.[0]?.content?.parts?.[0]?.text||'').replace(/```json|```/g,'').trim();
+    let r;try{r=JSON.parse(txt);}catch(e){const m=txt.match(/\{[\s\S]*\}/);r=m?JSON.parse(m[0]):null;}
+    document.getElementById('rs'+idx).className='result-stat st-ok';
+    document.getElementById('rs'+idx).textContent='✅ 完了';
+    body.removeChild(sp);
+    if(r){
+      const d=document.createElement('div');d.className='result-data';
+      d.innerHTML=`
+        <div class="result-row"><div class="result-key">店名</div><div class="result-val">${r.store||'不明'}</div></div>
+        <div class="result-row"><div class="result-key">日付</div><div class="result-val">${r.date||'不明'}</div></div>
+        <div class="result-row"><div class="result-key">合計</div><div class="result-val price">¥${r.total?r.total.toLocaleString():'?'}</div></div>
+        <div class="result-row"><div class="result-key">種別</div><div class="result-val">${r.type==='parking'?'🅿️ 駐車場':'🛒 買い物'}</div></div>
+        ${r.items?.length?`<div class="result-items">${r.items.map(it=>`<div class="result-item">・${typeof it==='string'?it:JSON.stringify(it)}</div>`).join('')}</div>`:''}`;
+      body.appendChild(d);
+    }
+  }catch(err){
+    document.getElementById('rs'+idx).className='result-stat st-err';
+    document.getElementById('rs'+idx).textContent='❌ エラー';
+    body.removeChild(sp);
+    const e=document.createElement('div');e.style.cssText='color:#e84545;font-size:12px;padding:8px 0;';
+    e.textContent='エラー: '+err.message;body.appendChild(e);
+  }
+}
+
+document.getElementById('apiKeyInput').addEventListener('change',function(){try{localStorage.setItem('gk',this.value);}catch(e){}});
+try{const k=localStorage.getItem('gk');if(k)document.getElementById('apiKeyInput').value=k;}catch(e){}
+</script>
+</body>
+</html>

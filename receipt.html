@@ -37,15 +37,26 @@
             </div>
           </div>
           
-          <!-- 追加(2/3) + クリア(1/3) -->
+          <!-- 追加ボタン -->
           <div style="display: flex; gap: 8px; margin-bottom: 8px;">
             <button class="image-btn gallery" onclick="document.getElementById('receiptAddImage').click()" 
               style="flex: 2; padding: 10px; background: linear-gradient(135deg, #8b5cf6, #a78bfa); border-radius: 8px; border: none; color: white; font-size: 14px; font-weight: 600; cursor: pointer;">
               ＋ 追加
             </button>
-            <button class="image-btn gallery" onclick="clearAllImages()" 
-              style="flex: 1; padding: 10px; background: linear-gradient(135deg, #ef4444, #dc2626); border-radius: 8px; border: none; color: white; font-size: 14px; font-weight: 600; cursor: pointer;">
-            <button class="image-btn gallery" onclick="openFrameModal(receiptImageData, function(imgs){ multiImageDataUrls=imgs; renderMultiImageThumbnails(); document.getElementById('imagePreviewArea').style.display='none'; document.getElementById('multiImageArea').style.display='block'; var s=JSON.parse(localStorage.getItem('reform_app_settings')||'{}'); document.getElementById('aiBtn').disabled=!s.geminiApiKey; })" style="background: linear-gradient(135deg, #0ea5e9, #0284c7);">✂️ 枠指定</button>
+          </div>
+
+          <!-- v1.0修正: ボタンネスト修正＋SAMボタン追加（3ボタン横並び） -->
+          <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+            <button onclick="openSamModal(receiptImageData)"
+              style="flex:1;padding:10px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:8px;border:none;color:white;font-size:13px;font-weight:600;cursor:pointer;">
+              🤖 SAM
+            </button>
+            <button onclick="openFrameModal(receiptImageData, function(imgs){ multiImageDataUrls=imgs; renderMultiImageThumbnails(); document.getElementById('imagePreviewArea').style.display='none'; document.getElementById('multiImageArea').style.display='block'; var s=JSON.parse(localStorage.getItem('reform_app_settings')||'{}'); document.getElementById('aiBtn').disabled=!s.geminiApiKey; })"
+              style="flex:1;padding:10px;background:linear-gradient(135deg,#0ea5e9,#0284c7);border-radius:8px;border:none;color:white;font-size:13px;font-weight:600;cursor:pointer;">
+              ✂️ 枠指定
+            </button>
+            <button onclick="clearAllImages()"
+              style="flex:1;padding:10px;background:linear-gradient(135deg,#ef4444,#dc2626);border-radius:8px;border:none;color:white;font-size:13px;font-weight:600;cursor:pointer;">
               🗑️
             </button>
           </div>
@@ -177,7 +188,6 @@
       </div>
     </div>
   </div>
-</div>
 
   <!-- ★ v0.93: レシート→見積もり/請求書 連携モーダル -->
   <div id="receiptDocFlowModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">

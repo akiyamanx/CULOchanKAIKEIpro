@@ -43,6 +43,9 @@
   })();
   </script>
   
+  <!-- v1.0追加: ONNX Runtime Web（SAM2.1レシート自動切り抜き用） -->
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
+  
   <!-- jsPDF for PDF出力 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   
@@ -225,6 +228,7 @@
   <script src="receipt-crop.js"></script> <!-- v1.8追加: レシート画像切り出し -->
   <script src="receipt-multi-crop.js"></script> <!-- v1.8追加: 複数レシート自動検出 -->
     <script src="receipt-frame-modal.js"></script> <!-- v1.0追加: 手動枠指定モーダル -->
+  <script src="receipt-sam.js"></script> <!-- v1.0追加: SAM2.1自動切り抜き -->
   <script src="receipt-hybrid-crop.js"></script> <!-- v3.0追加: ハイブリッド方式（Gemini座標＋OpenCV透視変換） -->
   <!-- v0.95: receipt-ocr.js削除（AI解析に一本化） -->
   <script src="estimate.js"></script>

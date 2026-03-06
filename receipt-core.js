@@ -18,11 +18,14 @@
 // + v0.95.2追加:
 //   - レシート画像の自動圧縮（compressImage）
 //   - 最大幅1200px、JPEG品質0.7でLocalStorage容量を大幅節約
+// + v1.0追加:
+//   - SAM2.1エンコーダー事前実行（handleImageSelect内）
 // 
 // 依存ファイル:
 //   - globals.js (receiptItems, receiptImageData, multiImageDataUrls, categories, productMaster, projects)
 //   - receipt-ai.js (runAiOcr)
 //   - receipt-history.js (saveReceiptHistory, v0.94.1追加)
+//   - receipt-sam.js (samPreEncode, v1.0追加)
 // ==========================================
 
 
@@ -199,6 +202,8 @@ function handleImageSelect(event) {
     // v0.95.2: 画像を圧縮してから保存
     compressImage(e.target.result).then(function(compressed) {
       receiptImageData = compressed;
+      // v1.0追加: SAMエンコーダー事前実行（バックグラウンド、await不要）
+      if (typeof samPreEncode === 'function' && window._samReady) samPreEncode(compressed);
       document.getElementById('imagePreview').src = receiptImageData;
       document.getElementById('imagePreview').style.display = 'block';
       document.getElementById('imagePlaceholder').style.display = 'none';
