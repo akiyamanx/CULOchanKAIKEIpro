@@ -440,10 +440,12 @@ function applyAiResult(data) {
  * PDF生成時に使う
  */
 function getReceiptsByDate() {
-  if (!_lastAiReceiptResults || !_lastAiReceiptResults.receipts) return {};
+  // v1.0修正: patch版がwindowにセットするため両方を参照
+  var results = _lastAiReceiptResults || window._lastAiReceiptResults;
+  if (!results || !results.receipts) return {};
 
   var grouped = {};
-  _lastAiReceiptResults.receipts.forEach(function(r) {
+  results.receipts.forEach(function(r) {
     var dateKey = r.date || 'unknown';
     if (!grouped[dateKey]) grouped[dateKey] = [];
     grouped[dateKey].push(r);
@@ -455,7 +457,8 @@ function getReceiptsByDate() {
  * 最後のAI解析結果をそのまま返す
  */
 function getLastAiResults() {
-  return _lastAiReceiptResults;
+  // v1.0修正: receipt-ai-patch.jsがwindow._lastAiReceiptResultsにセットするため、両方を参照
+  return _lastAiReceiptResults || window._lastAiReceiptResults;
 }
 
 
